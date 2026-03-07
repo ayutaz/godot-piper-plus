@@ -63,14 +63,52 @@ target_link_libraries(piper_plus PUBLIC godot::cpp onnxruntime)
 
 ---
 
-## 2. Godotバージョン: 4.3 (compatibility_minimum)
+## 2. Godotバージョン: 4.4 (compatibility_minimum)
 
-### 選定理由
+### Godot 4.x リリース・サポート状況（2026年3月調査）
 
-- GDExtensionは下位互換: 4.3でビルドすれば4.4/4.5/4.6全てで動作
+| バージョン | リリース日 | EOL日 | 状態 |
+|-----------|----------|-------|------|
+| 4.0 | 2023-03-01 | 2023-11-29 | EOL |
+| 4.1 | 2023-07-05 | 2025-03-03 | EOL |
+| 4.2 | 2023-11-29 | 2025-03-03 | EOL |
+| 4.3 | 2024-08-15 | 2025-10-09 | EOL |
+| 4.4 | 2025-03-03 | 2025-10-23 | EOL |
+| **4.5** | 2025-09-15 | - | **Active** |
+| **4.6** | 2026-01-26 | - | **Active（最新安定: 4.6.1）** |
+
+出典: [endoflife.date/godot](https://endoflife.date/godot)
+
+### GDExtension API互換性の調査
+
+| バージョン境界 | GDExtension影響 |
+|-------------|---------------|
+| 4.2 → 4.3 | **重大**: `GDExtension`クラスの3メソッド削除、`GDExtensionManager`に移行 |
+| 4.3 → 4.4 | 軽微: `FileAccess`戻り値型変更等（GDExtensionロード機構は変更なし） |
+| 4.4 → 4.5 | 軽微 |
+| 4.5 → 4.6 | 軽微 |
+
+出典: [Godot 4.x Breaking Changes](https://gist.github.com/raulsntos/06ac5dd10ebccc3a4f1e7e3ad30dc876)
+
+### 主要GDExtensionプラグインの対応状況
+
+| プラグイン | compatibility_minimum | 備考 |
+|-----------|---------------------|------|
+| GodotSteam | **4.4** | 4.1-4.3版はDeprecated |
+| godot-rust | 4.2 | 「保守的に低いバージョンで始める」方針 |
+| spine-godot | 4.3/4.4 | バージョン別ビルド |
+
+出典: [GodotSteam GDExtension 4.4+](https://godotassetlibrary.com/asset/j4zWKK/godotsteam-gdextension-4.4+), [godot-rust: Selecting a Godot version](https://godot-rust.github.io/book/toolchain/godot-version.html)
+
+### 選定: 4.4
+
+**決定理由:**
+- GDExtensionは下位互換: 4.4でビルドすれば4.5/4.6以降全てで動作
+- GodotSteam（最も利用されているGDExtensionプラグイン）が4.4+を現行ターゲットにしている実績
+- 4.4→4.5→4.6間のGDExtension API変更は軽微（4.2→4.3の重大変更以降は安定）
+- 4.3以前はGDExtension API破壊的変更があり、対応コストが高い
 - godot-cpp v10.xの`api_version`パラメータで柔軟にターゲット可能
-- XMLドキュメントシステム（`GodotCPPDocData`）が4.3から利用可能
-- 4.2は古すぎ、4.4以降限定ではユーザーベースが狭くなる
+- XMLドキュメントシステム（`GodotCPPDocData`）が4.3+で利用可能
 
 ### godot-cpp管理
 
