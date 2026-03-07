@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+cmake_policy(SET CMP0135 NEW)
 
 # MSVC runtime library settings
 if(MSVC)
@@ -34,13 +35,22 @@ else()
 endif()
 
 # ---- godot-cpp ----
+# Map CMAKE_BUILD_TYPE to godot-cpp target
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+  set(GODOTCPP_TARGET "template_debug" CACHE STRING "" FORCE)
+else()
+  set(GODOTCPP_TARGET "template_release" CACHE STRING "" FORCE)
+endif()
 add_subdirectory(thirdparty/godot-cpp)
 
 # ---- External dependencies ----
+# Japanese G2P: OpenJTalk (Modified BSD) + HTSEngine (Modified BSD)
+# English G2P: Flite (BSD-like) - TODO M2
+# Inference: ONNX Runtime (MIT, dynamic link)
+# NOTE: espeak-ng/piper-phonemize removed due to GPL-3.0 license contamination
 include(ExternalProject)
 include(cmake/HTSEngine.cmake)
 include(cmake/OpenJTalk.cmake)
-include(cmake/PiperPhonemize.cmake)
 include(cmake/FindOnnxRuntime.cmake)
 
 # ---- GDExtension library ----
@@ -54,26 +64,18 @@ target_include_directories(piper_plus PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${OPENJTALK_DIR}/include
   ${HTS_ENGINE_DIR}/include
-  ${PIPER_PHONEMIZE_DIR}/include
   ${ONNXRUNTIME_INCLUDE_DIR}
 )
 
 target_link_libraries(piper_plus PRIVATE godot-cpp)
 
-# Link external static libraries
-target_link_directories(piper_plus PRIVATE
-  ${OPENJTALK_DIR}/lib
-  ${HTS_ENGINE_DIR}/lib
-  ${PIPER_PHONEMIZE_DIR}/lib
-)
-
+# Static libraries: OpenJTalk, HTSEngine
+# Dynamic libraries: ONNX Runtime
 if(WIN32)
   target_link_libraries(piper_plus PRIVATE
     ${OPENJTALK_DIR}/lib/openjtalk.lib
     ${OPENJTALK_DIR}/lib/mecab.lib
     ${HTS_ENGINE_DIR}/lib/HTSEngine.lib
-    ${PIPER_PHONEMIZE_DIR}/lib/piper_phonemize.lib
-    ${PIPER_PHONEMIZE_DIR}/lib/espeak-ng.lib
     ${ONNXRUNTIME_LIB}
   )
 else()
@@ -81,8 +83,6 @@ else()
     ${OPENJTALK_DIR}/lib/libopenjtalk.a
     ${OPENJTALK_DIR}/lib/libmecab.a
     ${HTS_ENGINE_DIR}/lib/libHTSEngine.a
-    ${PIPER_PHONEMIZE_DIR}/lib/libpiper_phonemize.a
-    ${PIPER_PHONEMIZE_DIR}/lib/libespeak-ng.a
     ${ONNXRUNTIME_LIB}
   )
 endif()
@@ -91,7 +91,6 @@ endif()
 add_dependencies(piper_plus
   hts_engine_external
   openjtalk_external
-  piper_phonemize_external
 )
 
 # Platform-specific link flags

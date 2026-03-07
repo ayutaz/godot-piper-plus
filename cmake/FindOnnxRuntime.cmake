@@ -9,7 +9,7 @@
 #   ONNXRUNTIME_LIB
 #   ONNXRUNTIME_DLL (Windows only)
 
-set(ONNXRUNTIME_VERSION "1.24.0" CACHE STRING "ONNX Runtime version")
+set(ONNXRUNTIME_VERSION "1.24.3" CACHE STRING "ONNX Runtime version")
 
 # Determine platform suffix for download
 if(WIN32)
