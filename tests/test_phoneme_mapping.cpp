@@ -70,6 +70,14 @@ TEST_F(PhonemeMapping, SpecialConsonantCl) {
     EXPECT_EQ(result[0], (piper::Phoneme)0xE005);
 }
 
+// 8b. SmallTsuHandling - both cl and q should map to the same sokuon PUA
+TEST_F(PhonemeMapping, SmallTsuHandling) {
+    auto result = piper::parsePhonemeString("cl q", piper::PHONEME_TYPE_OPENJTALK);
+    ASSERT_EQ(result.size(), 2);
+    EXPECT_EQ(result[0], (piper::Phoneme)0xE005);
+    EXPECT_EQ(result[1], (piper::Phoneme)0xE005);
+}
+
 // 9. AllPalatalizedConsonants - test all palatalized consonants
 TEST_F(PhonemeMapping, AllPalatalizedConsonants) {
     auto result = piper::parsePhonemeString("ky kw gy gw ty dy py by zy hy ny my ry", piper::PHONEME_TYPE_OPENJTALK);
@@ -142,4 +150,28 @@ TEST_F(PhonemeMapping, TextPhonemeTypePauseMarker) {
     EXPECT_EQ(result[0], U'_'); // pau -> _
     EXPECT_EQ(result[1], U'_');
     EXPECT_EQ(result[2], U'a');
+}
+
+// 15. InvalidUTF8 - malformed UTF-8 should be skipped safely in text mode
+TEST_F(PhonemeMapping, InvalidUTF8) {
+    std::string invalid = std::string("\xE3\x81", 2) + " a";
+    std::vector<piper::Phoneme> result;
+
+    EXPECT_NO_THROW(result = piper::parsePhonemeString(invalid, piper::PHONEME_TYPE_TEXT));
+    ASSERT_FALSE(result.empty());
+    EXPECT_EQ(result.back(), U'a');
+}
+
+// 16. BufferOverflowProtection - large inputs should be processed without truncation
+TEST_F(PhonemeMapping, BufferOverflowProtection) {
+    std::string input;
+    input.reserve(20000);
+    for (int i = 0; i < 10000; ++i) {
+        input += "a ";
+    }
+
+    auto result = piper::parsePhonemeString(input, piper::PHONEME_TYPE_OPENJTALK);
+    ASSERT_EQ(result.size(), 10000);
+    EXPECT_EQ(result.front(), U'a');
+    EXPECT_EQ(result.back(), U'a');
 }

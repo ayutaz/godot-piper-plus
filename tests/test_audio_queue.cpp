@@ -169,3 +169,50 @@ TEST_F(AudioQueueTest, WrapAround) {
 		}
 	}
 }
+
+// 11. MemoryOrder - consumers should observe fully published chunk contents
+TEST_F(AudioQueueTest, MemoryOrder) {
+	const int numItems = 256;
+	std::atomic<int> consumed{0};
+	std::atomic<bool> producerDone{false};
+	std::atomic<bool> corrupted{false};
+
+	std::thread producer([&]() {
+		for (int i = 0; i < numItems; ++i) {
+			std::vector<int16_t> chunk = {
+				static_cast<int16_t>(i),
+				static_cast<int16_t>(i + 1),
+				static_cast<int16_t>(i + 2),
+			};
+			while (!queue.push(std::move(chunk))) {
+				std::this_thread::yield();
+				chunk = {
+					static_cast<int16_t>(i),
+					static_cast<int16_t>(i + 1),
+					static_cast<int16_t>(i + 2),
+				};
+			}
+		}
+		producerDone.store(true);
+	});
+
+	std::thread consumer([&]() {
+		while (!producerDone.load() || !queue.empty()) {
+			std::vector<int16_t> out;
+			if (queue.pop(out)) {
+				if (out.size() != 3 || out[1] != out[0] + 1 || out[2] != out[1] + 1) {
+					corrupted.store(true);
+				}
+				consumed.fetch_add(1);
+			} else {
+				std::this_thread::yield();
+			}
+		}
+	});
+
+	producer.join();
+	consumer.join();
+
+	EXPECT_FALSE(corrupted.load());
+	EXPECT_EQ(consumed.load(), numItems);
+}

@@ -3,9 +3,70 @@
 #include <ctype.h>
 #include "openjtalk_security.h"
 
+#define OPENJTALK_MAX_INPUT (1024 * 1024)
+
+static int openjtalk_is_valid_utf8(const unsigned char* str) {
+    while (*str) {
+        if (*str <= 0x7F) {
+            str++;
+            continue;
+        }
+
+        if ((*str & 0xE0) == 0xC0) {
+            if (str[1] == '\0') {
+                return 0;
+            }
+            if ((str[1] & 0xC0) != 0x80 || *str < 0xC2) {
+                return 0;
+            }
+            str += 2;
+            continue;
+        }
+
+        if ((*str & 0xF0) == 0xE0) {
+            if (str[1] == '\0' || str[2] == '\0') {
+                return 0;
+            }
+            unsigned char b1 = str[1];
+            unsigned char b2 = str[2];
+            if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80) {
+                return 0;
+            }
+            if ((*str == 0xE0 && b1 < 0xA0) || (*str == 0xED && b1 >= 0xA0)) {
+                return 0;
+            }
+            str += 3;
+            continue;
+        }
+
+        if ((*str & 0xF8) == 0xF0) {
+            if (str[1] == '\0' || str[2] == '\0' || str[3] == '\0') {
+                return 0;
+            }
+            unsigned char b1 = str[1];
+            unsigned char b2 = str[2];
+            unsigned char b3 = str[3];
+            if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80 || (b3 & 0xC0) != 0x80) {
+                return 0;
+            }
+            if ((*str == 0xF0 && b1 < 0x90) || (*str > 0xF4) || (*str == 0xF4 && b1 >= 0x90)) {
+                return 0;
+            }
+            str += 4;
+            continue;
+        }
+
+        return 0;
+    }
+
+    return 1;
+}
+
 // Check if a path contains potentially dangerous characters
 int openjtalk_is_safe_path(const char* path) {
     if (!path) return 0;
+    if (strlen(path) > OPENJTALK_MAX_INPUT) return 0;
+    if (!openjtalk_is_valid_utf8((const unsigned char*)path)) return 0;
     
     // Check for common command injection characters
     // Note: Parentheses are allowed as they appear in valid paths like "Program Files (x86)"
@@ -90,6 +151,8 @@ void openjtalk_escape_windows_arg(const char* src, char* dst, size_t dst_size) {
 // Validate that a command is safe to execute
 int openjtalk_validate_command(const char* command) {
     if (!command) return 0;
+    if (strlen(command) > OPENJTALK_MAX_INPUT) return 0;
+    if (!openjtalk_is_valid_utf8((const unsigned char*)command)) return 0;
     
     // Check for command chaining attempts
     const char* dangerous_patterns[] = {

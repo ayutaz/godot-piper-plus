@@ -15,6 +15,65 @@ namespace piper {
 // シンプルなJSON解析（実装の簡略化のため）
 // 実際のプロダクションでは適切なJSONライブラリを使用してください
 namespace {
+
+bool isReservedV2Key(const std::string& word) {
+    return word == "version" || word == "description" || word == "metadata" || word == "entries";
+}
+
+std::string extractEntriesObject(const std::string& content) {
+    const std::string marker = "\"entries\"";
+    size_t markerPos = content.find(marker);
+    if (markerPos == std::string::npos) {
+        return content;
+    }
+
+    size_t braceStart = content.find('{', markerPos + marker.size());
+    if (braceStart == std::string::npos) {
+        return content;
+    }
+
+    size_t depth = 0;
+    bool inString = false;
+    bool escape = false;
+
+    for (size_t i = braceStart; i < content.size(); ++i) {
+        char ch = content[i];
+
+        if (escape) {
+            escape = false;
+            continue;
+        }
+
+        if (ch == '\\') {
+            escape = true;
+            continue;
+        }
+
+        if (ch == '"') {
+            inString = !inString;
+            continue;
+        }
+
+        if (inString) {
+            continue;
+        }
+
+        if (ch == '{') {
+            ++depth;
+        } else if (ch == '}') {
+            if (depth == 0) {
+                break;
+            }
+
+            --depth;
+            if (depth == 0) {
+                return content.substr(braceStart + 1, i - braceStart - 1);
+            }
+        }
+    }
+
+    return content;
+}
     
 std::unordered_map<std::string, std::string> parseSimpleJsonDict(const std::string& content) {
     std::unordered_map<std::string, std::string> result;
@@ -33,21 +92,22 @@ std::unordered_map<std::string, std::string> parseSimpleJsonDict(const std::stri
 
 std::unordered_map<std::string, DictionaryEntry> parseJsonDictV2(const std::string& content) {
     std::unordered_map<std::string, DictionaryEntry> result;
+    std::string entriesContent = extractEntriesObject(content);
     
     // "word": {"pronunciation": "...", "priority": N} のパターンを探す
     std::regex wordPattern("\"([^\"]+)\"\\s*:\\s*\\{([^}]+)\\}");
     std::regex pronPattern("\"pronunciation\"\\s*:\\s*\"([^\"]+)\"");
     std::regex prioPattern("\"priority\"\\s*:\\s*(\\d+)");
     
-    std::sregex_iterator it(content.begin(), content.end(), wordPattern);
+    std::sregex_iterator it(entriesContent.begin(), entriesContent.end(), wordPattern);
     std::sregex_iterator end;
     
     for (; it != end; ++it) {
         std::string word = (*it)[1];
         std::string entryContent = (*it)[2];
         
-        // コメント行をスキップ
-        if (word.substr(0, 2) == "//") {
+        // コメント行とメタデータをスキップ
+        if ((word.size() >= 2 && word.substr(0, 2) == "//") || isReservedV2Key(word)) {
             continue;
         }
         
@@ -74,14 +134,16 @@ std::unordered_map<std::string, DictionaryEntry> parseJsonDictV2(const std::stri
     
     // 簡易的な文字列値も処理（後方互換性のため）
     std::regex simplePattern("\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\"");
-    std::sregex_iterator simpleIt(content.begin(), content.end(), simplePattern);
+    std::sregex_iterator simpleIt(entriesContent.begin(), entriesContent.end(), simplePattern);
     
     for (; simpleIt != end; ++simpleIt) {
         std::string word = (*simpleIt)[1];
         std::string pronunciation = (*simpleIt)[2];
         
         // まだ登録されていない場合のみ追加
-        if (result.find(word) == result.end() && word.substr(0, 2) != "//") {
+        if (result.find(word) == result.end() &&
+            !(word.size() >= 2 && word.substr(0, 2) == "//") &&
+            !isReservedV2Key(word)) {
             result[word] = DictionaryEntry(pronunciation, 5);
         }
     }
@@ -336,8 +398,18 @@ std::regex CustomDictionary::getWordPattern(const std::string& word, bool caseSe
         escapedWord += c;
     }
     
-    // 単語境界を考慮したパターン
-    std::string patternStr = "\\b" + escapedWord + "\\b";
+    auto isWordChar = [](unsigned char c) {
+        return std::isalnum(c) || c == '_';
+    };
+
+    // 単語境界は英数字語にだけ適用する。
+    // C++ や @user のような記号を含むエントリは、そのままの文字列一致で扱う。
+    std::string patternStr = escapedWord;
+    if (!word.empty() &&
+        isWordChar(static_cast<unsigned char>(word.front())) &&
+        isWordChar(static_cast<unsigned char>(word.back()))) {
+        patternStr = "\\b" + escapedWord + "\\b";
+    }
     
     auto flags = std::regex::ECMAScript;
     if (!caseSensitive) {

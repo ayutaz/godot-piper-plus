@@ -106,3 +106,59 @@ TEST_F(PhonemeParser, ConsecutiveNotations) {
     EXPECT_TRUE(result[1].isPhonemes);
     EXPECT_EQ(result[1].text, "b");
 }
+
+// 11. ParseJapaneseMultiChar - phoneme notation should feed OpenJTalk PUA mapping
+TEST_F(PhonemeParser, ParseJapaneseMultiChar) {
+    auto result = piper::parsePhonemeNotation("[[ ky o: t o ]]");
+    ASSERT_EQ(result.size(), 1);
+    ASSERT_TRUE(result[0].isPhonemes);
+
+    auto phonemes = piper::parsePhonemeString(result[0].text, piper::PHONEME_TYPE_OPENJTALK);
+    ASSERT_EQ(phonemes.size(), 4);
+    EXPECT_EQ(phonemes[0], (piper::Phoneme)0xE006);
+    EXPECT_EQ(phonemes[1], (piper::Phoneme)0xE004);
+    EXPECT_EQ(phonemes[2], U't');
+    EXPECT_EQ(phonemes[3], U'o');
+}
+
+// 12. QuestionMarkerEmphatic
+TEST_F(PhonemeParser, QuestionMarkerEmphatic) {
+    auto result = piper::parsePhonemeNotation("[[ ?! ]]");
+    ASSERT_EQ(result.size(), 1);
+
+    auto phonemes = piper::parsePhonemeString(result[0].text, piper::PHONEME_TYPE_OPENJTALK);
+    ASSERT_EQ(phonemes.size(), 1);
+    EXPECT_EQ(phonemes[0], (piper::Phoneme)0xE016);
+}
+
+// 13. QuestionMarkerNeutral
+TEST_F(PhonemeParser, QuestionMarkerNeutral) {
+    auto result = piper::parsePhonemeNotation("[[ ?. ]]");
+    ASSERT_EQ(result.size(), 1);
+
+    auto phonemes = piper::parsePhonemeString(result[0].text, piper::PHONEME_TYPE_OPENJTALK);
+    ASSERT_EQ(phonemes.size(), 1);
+    EXPECT_EQ(phonemes[0], (piper::Phoneme)0xE017);
+}
+
+// 14. QuestionMarkerTag
+TEST_F(PhonemeParser, QuestionMarkerTag) {
+    auto result = piper::parsePhonemeNotation("[[ ?~ ]]");
+    ASSERT_EQ(result.size(), 1);
+
+    auto phonemes = piper::parsePhonemeString(result[0].text, piper::PHONEME_TYPE_OPENJTALK);
+    ASSERT_EQ(phonemes.size(), 1);
+    EXPECT_EQ(phonemes[0], (piper::Phoneme)0xE018);
+}
+
+// 15. NestedBrackets - nested markers are not valid but should degrade safely
+TEST_F(PhonemeParser, NestedBrackets) {
+    auto result = piper::parsePhonemeNotation("outer [[ a [[ b ]] c ]] tail");
+    ASSERT_EQ(result.size(), 3);
+    EXPECT_FALSE(result[0].isPhonemes);
+    EXPECT_EQ(result[0].text, "outer ");
+    EXPECT_TRUE(result[1].isPhonemes);
+    EXPECT_EQ(result[1].text, "a [[ b");
+    EXPECT_FALSE(result[2].isPhonemes);
+    EXPECT_EQ(result[2].text, " c ]] tail");
+}

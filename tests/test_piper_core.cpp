@@ -170,3 +170,48 @@ TEST_F(PiperCore, NullPhonemeIdMap) {
 	// (the code checks if phonemeIdMap is not null before looking up)
 	ASSERT_GE(ids.size(), 2u); // At least BOS and EOS
 }
+
+// 9. MultipleIdsPerPhoneme
+TEST_F(PiperCore, MultipleIdsPerPhoneme) {
+	auto config = createConfig();
+	(*config.phonemeIdMap)[U'a'] = {3, 30};
+
+	std::vector<piper::Phoneme> phonemes = {U'a'};
+	std::vector<piper::PhonemeId> ids;
+	std::map<piper::Phoneme, std::size_t> missing;
+
+	piper::phonemes_to_ids(phonemes, config, ids, missing);
+
+	ASSERT_EQ(ids.size(), 7);
+	EXPECT_EQ(ids[2], 3);
+	EXPECT_EQ(ids[4], 30);
+	EXPECT_EQ(ids[6], 2);
+}
+
+// 10. MissingPhonemeCountAccumulates
+TEST_F(PiperCore, MissingPhonemeCountAccumulates) {
+	auto config = createConfig();
+	std::vector<piper::Phoneme> phonemes = {U'z', U'z', U'y'};
+	std::vector<piper::PhonemeId> ids;
+	std::map<piper::Phoneme, std::size_t> missing;
+
+	piper::phonemes_to_ids(phonemes, config, ids, missing);
+
+	EXPECT_EQ(missing.size(), 2u);
+	EXPECT_EQ(missing[U'z'], 2u);
+	EXPECT_EQ(missing[U'y'], 1u);
+}
+
+// 11. PausePhonemeMapping
+TEST_F(PiperCore, PausePhonemeMapping) {
+	auto config = createConfig();
+	std::vector<piper::Phoneme> phonemes = {U'_'};
+	std::vector<piper::PhonemeId> ids;
+	std::map<piper::Phoneme, std::size_t> missing;
+
+	piper::phonemes_to_ids(phonemes, config, ids, missing);
+
+	EXPECT_TRUE(missing.empty());
+	ASSERT_EQ(ids.size(), 5);
+	EXPECT_EQ(ids[2], 10);
+}

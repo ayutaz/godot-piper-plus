@@ -1,4 +1,8 @@
 #include <gtest/gtest.h>
+#include <atomic>
+#include <string>
+#include <thread>
+#include <vector>
 
 extern "C" {
 #include "openjtalk_security.h"
@@ -81,4 +85,51 @@ TEST_F(OpenJTalkSecurity, RejectRedirection) {
     EXPECT_EQ(openjtalk_validate_command("cmd > /etc/passwd"), 0);
     EXPECT_EQ(openjtalk_validate_command("cmd < /dev/null"), 0);
     EXPECT_EQ(openjtalk_validate_command("cmd >> /tmp/log"), 0);
+}
+
+// 13. RejectExtremelyLargeInput
+TEST_F(OpenJTalkSecurity, RejectExtremelyLargeInput) {
+    std::string large(1024 * 1024 + 1, 'a');
+    EXPECT_EQ(openjtalk_is_safe_path(large.c_str()), 0);
+    EXPECT_EQ(openjtalk_validate_command(large.c_str()), 0);
+}
+
+// 14. MalformedUTF8
+TEST_F(OpenJTalkSecurity, MalformedUTF8) {
+    const char invalid_path[] = {'/', 't', 'm', 'p', '/', static_cast<char>(0xE3), static_cast<char>(0x81), '\0'};
+    EXPECT_EQ(openjtalk_is_safe_path(invalid_path), 0);
+
+    const char invalid_cmd[] = {'c', 'm', 'd', ' ', static_cast<char>(0xF0), static_cast<char>(0x9F), '\0'};
+    EXPECT_EQ(openjtalk_validate_command(invalid_cmd), 0);
+}
+
+// 15. ConcurrentAccess
+TEST_F(OpenJTalkSecurity, ConcurrentAccess) {
+    std::atomic<bool> ok{true};
+    std::vector<std::thread> workers;
+
+    for (int i = 0; i < 8; ++i) {
+        workers.emplace_back([&ok]() {
+            for (int j = 0; j < 1000; ++j) {
+                if (openjtalk_is_safe_path("/tmp/openjtalk_dict") != 1) {
+                    ok.store(false);
+                }
+                if (openjtalk_is_safe_path("../etc/passwd") != 0) {
+                    ok.store(false);
+                }
+                if (openjtalk_validate_command("openjtalk -x dict_dir") != 1) {
+                    ok.store(false);
+                }
+                if (openjtalk_validate_command("openjtalk && rm -rf /") != 0) {
+                    ok.store(false);
+                }
+            }
+        });
+    }
+
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    EXPECT_TRUE(ok.load());
 }

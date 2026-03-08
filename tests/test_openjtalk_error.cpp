@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
+#include <atomic>
 #include <cstring>
+#include <thread>
+#include <vector>
 
 extern "C" {
 #include "openjtalk_error.h"
@@ -96,4 +99,41 @@ TEST_F(OpenJTalkError_, SetResultIntegerFormat) {
 
     EXPECT_EQ(result.code, OPENJTALK_ERROR_INPUT_TOO_LARGE);
     EXPECT_STREQ(result.message, "Input size 2000000 exceeds limit 1048576");
+}
+
+// 9. SetResultEmptyFormat - an explicit empty format should produce an empty message
+TEST_F(OpenJTalkError_, SetResultEmptyFormat) {
+    OpenJTalkResult result;
+    openjtalk_set_result(&result, OPENJTALK_ERROR_EMPTY_INPUT, "");
+
+    EXPECT_EQ(result.code, OPENJTALK_ERROR_EMPTY_INPUT);
+    EXPECT_STREQ(result.message, "");
+}
+
+// 10. ThreadSafety - parallel formatting into separate result buffers should be stable
+TEST_F(OpenJTalkError_, ThreadSafety) {
+    std::atomic<bool> ok{true};
+    std::vector<std::thread> workers;
+
+    for (int i = 0; i < 4; ++i) {
+        workers.emplace_back([i, &ok]() {
+            for (int j = 0; j < 500; ++j) {
+                OpenJTalkResult result;
+                openjtalk_set_result(&result, OPENJTALK_ERROR_COMMAND_FAILED,
+                                     "worker=%d iteration=%d", i, j);
+                if (result.code != OPENJTALK_ERROR_COMMAND_FAILED) {
+                    ok.store(false);
+                }
+                if (std::strstr(result.message, "worker=") == nullptr) {
+                    ok.store(false);
+                }
+            }
+        });
+    }
+
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    EXPECT_TRUE(ok.load());
 }
