@@ -55,6 +55,7 @@ private:
 	// Async synthesis state
 	std::atomic<bool> processing{false};
 	std::atomic<bool> stop_requested{false};
+	std::atomic<uint32_t> synthesis_generation_{0};
 	std::unique_ptr<std::thread> worker_thread;
 
 	// Streaming state (M6)
@@ -69,13 +70,13 @@ private:
 	Ref<AudioStreamWAV> create_audio_stream(const std::vector<int16_t> &audio_buffer, int sample_rate) const;
 
 	// Async internal methods (called via call_deferred from worker thread)
-	void _synthesis_thread_func(std::string text_str);
-	void _on_synthesis_done(const Ref<AudioStreamWAV> &audio);
-	void _on_synthesis_failed(const String &error_msg);
+	void _synthesis_thread_func(std::string text_str, uint32_t generation);
+	void _on_synthesis_raw_done(const PackedByteArray &pcm_data, int sample_rate, uint32_t generation);
+	void _on_synthesis_failed(const String &error_msg, uint32_t generation);
 	void _join_worker_thread();
 
 	// Streaming internal methods (M6)
-	void _streaming_thread_func(std::string text_str);
+	void _streaming_thread_func(std::string text_str, uint32_t generation);
 	void _push_pending_samples();
 
 protected:

@@ -112,8 +112,8 @@ void PiperTTS::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_processing"), &PiperTTS::is_processing);
 
 	// Internal methods for call_deferred (worker thread → main thread)
-	ClassDB::bind_method(D_METHOD("_on_synthesis_done", "audio"), &PiperTTS::_on_synthesis_done);
-	ClassDB::bind_method(D_METHOD("_on_synthesis_failed", "error"), &PiperTTS::_on_synthesis_failed);
+	ClassDB::bind_method(D_METHOD("_on_synthesis_raw_done", "pcm_data", "sample_rate", "generation"), &PiperTTS::_on_synthesis_raw_done);
+	ClassDB::bind_method(D_METHOD("_on_synthesis_failed", "error", "generation"), &PiperTTS::_on_synthesis_failed);
 
 	// --- Methods (M6: streaming) ---
 	ClassDB::bind_method(D_METHOD("synthesize_streaming", "text", "playback"), &PiperTTS::synthesize_streaming);
@@ -387,10 +387,11 @@ Error PiperTTS::synthesize_async(const String &text) {
 
 	processing.store(true);
 	stop_requested.store(false);
+	uint32_t gen = ++synthesis_generation_;
 
 	std::string text_str = text.utf8().get_data();
 	worker_thread = std::make_unique<std::thread>(
-			&PiperTTS::_synthesis_thread_func, this, std::move(text_str));
+			&PiperTTS::_synthesis_thread_func, this, std::move(text_str), gen);
 
 	return OK;
 }
@@ -403,10 +404,12 @@ void PiperTTS::stop() {
 		return;
 	}
 
+	++synthesis_generation_; // Invalidate pending call_deferred
 	stop_requested.store(true);
 
 	if (was_processing) {
 		_join_worker_thread();
+		processing.store(false);
 	}
 
 	if (was_streaming) {
@@ -434,7 +437,7 @@ void PiperTTS::_join_worker_thread() {
 	worker_thread.reset();
 }
 
-void PiperTTS::_synthesis_thread_func(std::string text_str) {
+void PiperTTS::_synthesis_thread_func(std::string text_str, uint32_t generation) {
 	std::vector<int16_t> audio_buffer;
 	piper::SynthesisResult result;
 
@@ -443,9 +446,10 @@ void PiperTTS::_synthesis_thread_func(std::string text_str) {
 				audio_buffer, result, nullptr);
 	} catch (const std::exception &e) {
 		if (!stop_requested.load()) {
-			call_deferred("_on_synthesis_failed", String(e.what()));
+			call_deferred("_on_synthesis_failed", String(e.what()), generation);
+		} else {
+			processing.store(false);
 		}
-		processing.store(false);
 		return;
 	}
 
@@ -456,23 +460,45 @@ void PiperTTS::_synthesis_thread_func(std::string text_str) {
 	}
 
 	if (audio_buffer.empty()) {
-		call_deferred("_on_synthesis_failed", String("Synthesis produced no audio."));
-		processing.store(false);
+		call_deferred("_on_synthesis_failed", String("Synthesis produced no audio."), generation);
 		return;
 	}
 
 	int sample_rate = voice->synthesisConfig.sampleRate;
-	Ref<AudioStreamWAV> audio = create_audio_stream(audio_buffer, sample_rate);
 
-	call_deferred("_on_synthesis_done", audio);
+	// Pack raw PCM data for main-thread delivery (no Godot objects on worker thread)
+	PackedByteArray pcm_data;
+	pcm_data.resize(audio_buffer.size() * sizeof(int16_t));
+	memcpy(pcm_data.ptrw(), audio_buffer.data(), pcm_data.size());
+
+	call_deferred("_on_synthesis_raw_done", pcm_data, sample_rate, generation);
+	// processing is cleared in the deferred handler, not here
+}
+
+void PiperTTS::_on_synthesis_raw_done(const PackedByteArray &pcm_data, int sample_rate, uint32_t generation) {
+	if (generation != synthesis_generation_.load()) {
+		// Stale request — discard silently
+		processing.store(false);
+		return;
+	}
+
+	Ref<AudioStreamWAV> stream;
+	stream.instantiate();
+	stream->set_format(AudioStreamWAV::FORMAT_16_BITS);
+	stream->set_mix_rate(sample_rate);
+	stream->set_stereo(false);
+	stream->set_data(pcm_data);
+
 	processing.store(false);
+	emit_signal("synthesis_completed", stream);
 }
 
-void PiperTTS::_on_synthesis_done(const Ref<AudioStreamWAV> &audio) {
-	emit_signal("synthesis_completed", audio);
-}
-
-void PiperTTS::_on_synthesis_failed(const String &error_msg) {
+void PiperTTS::_on_synthesis_failed(const String &error_msg, uint32_t generation) {
+	if (generation != synthesis_generation_.load()) {
+		processing.store(false);
+		return;
+	}
+	processing.store(false);
 	UtilityFunctions::push_error(String("PiperTTS: ") + error_msg);
 	emit_signal("synthesis_failed", error_msg);
 }
@@ -522,11 +548,12 @@ Error PiperTTS::synthesize_streaming(
 	processing.store(true);
 	stop_requested.store(false);
 	streaming_active_.store(true);
+	uint32_t gen = ++synthesis_generation_;
 	set_process(true);
 
 	std::string text_str = text.utf8().get_data();
 	worker_thread = std::make_unique<std::thread>(
-			&PiperTTS::_streaming_thread_func, this, std::move(text_str));
+			&PiperTTS::_streaming_thread_func, this, std::move(text_str), gen);
 
 	return OK;
 }
@@ -567,7 +594,7 @@ void PiperTTS::_process(double p_delta) {
 // Streaming internal methods (M6)
 // ---------------------------------------------------------------------------
 
-void PiperTTS::_streaming_thread_func(std::string text_str) {
+void PiperTTS::_streaming_thread_func(std::string text_str, uint32_t generation) {
 	std::vector<int16_t> audioBuffer;
 	piper::SynthesisResult result;
 
@@ -585,7 +612,7 @@ void PiperTTS::_streaming_thread_func(std::string text_str) {
 				audioBuffer, result, callback);
 	} catch (const std::exception &e) {
 		if (!stop_requested.load()) {
-			call_deferred("_on_synthesis_failed", String(e.what()));
+			call_deferred("_on_synthesis_failed", String(e.what()), generation);
 		}
 		streaming_active_.store(false);
 		processing.store(false);
