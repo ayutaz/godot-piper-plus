@@ -32,9 +32,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON" }
-          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON" }
-          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DCMAKE_OSX_ARCHITECTURES=arm64" }
+          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON", parallel_level: 2 }
+          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON", parallel_level: 2 }
+          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DCMAKE_OSX_ARCHITECTURES=arm64", parallel_level: 2 }
 
     steps:
       - name: Checkout repository
@@ -64,11 +64,11 @@ jobs:
 
       - name: Build desktop addon
         shell: bash
-        run: cmake --build build --config Release --parallel --target piper_plus
+        run: cmake --build build --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus
 
       - name: Build desktop test target
         shell: bash
-        run: cmake --build build --config Release --parallel --target piper_plus_tests
+        run: cmake --build build --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus_tests
 
       - name: Copy ONNX Runtime (Windows)
         if: matrix.platform == 'windows'
@@ -183,8 +183,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "Android arm64", os: ubuntu-22.04, platform: android, arch: arm64 }
-          - { name: "iOS arm64", os: macos-latest, platform: ios, arch: arm64 }
+          - { name: "Android arm64", os: ubuntu-22.04, platform: android, arch: arm64, parallel_level: 2 }
+          - { name: "iOS arm64", os: macos-latest, platform: ios, arch: arm64, parallel_level: 2 }
 
     steps:
       - name: Checkout repository
@@ -254,7 +254,7 @@ jobs:
       - name: Build Android
         if: matrix.platform == 'android'
         shell: bash
-        run: cmake --build build --parallel --target piper_plus
+        run: cmake --build build --parallel ${{ matrix.parallel_level }} --target piper_plus
 
       - name: Configure iOS build
         if: matrix.platform == 'ios'
@@ -269,7 +269,7 @@ jobs:
       - name: Build iOS
         if: matrix.platform == 'ios'
         shell: bash
-        run: cmake --build build --config Release --parallel --target piper_plus
+        run: cmake --build build --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus
 
       - name: Copy ONNX Runtime (Android)
         if: matrix.platform == 'android'
