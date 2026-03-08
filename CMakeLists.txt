@@ -10,10 +10,11 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
-# MSVC runtime library settings
+# MSVC compile options
+# NOTE: CMAKE_MSVC_RUNTIME_LIBRARY is set by godot-cpp's windows.cmake
+# (defaults to static /MT via GODOTCPP_USE_STATIC_CPP=ON).
+# Do NOT override it here with FORCE — see thirdparty/godot-cpp/cmake/windows.cmake.
 if(MSVC)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
-  cmake_policy(SET CMP0091 NEW)
   add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
   add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
   add_compile_options(/EHsc)
@@ -35,8 +36,10 @@ elseif(APPLE)
     set(EXTERNAL_CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=arm64)
   endif()
 elseif(MSVC)
+  # Match godot-cpp default: static CRT (/MT for Release, /MTd for Debug).
+  # Generator expression is evaluated at build time for multi-config generators.
   set(EXTERNAL_CMAKE_ARGS
-    -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}
+    "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>"
     -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
   )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
