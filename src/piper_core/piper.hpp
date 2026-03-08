@@ -74,10 +74,10 @@ struct ModelConfig {
 };
 
 struct ModelSession {
-  Ort::Session onnx;
-  Ort::AllocatorWithDefaultOptions allocator;
-  Ort::SessionOptions options;
   Ort::Env env;
+  Ort::SessionOptions options;
+  Ort::AllocatorWithDefaultOptions allocator;
+  Ort::Session onnx;
   bool hasDurationOutput = false;  // Whether model outputs duration information
   bool hasProsodyInput = false;    // Whether model accepts prosody_features input
   bool hasMultiSpeaker = false;    // Whether model has sid (speaker ID) input

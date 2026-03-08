@@ -1,7 +1,5 @@
 # godot-piper-plus
 
-[English](README_EN.md) | 日本語
-
 [piper-plus](https://github.com/ayutaz/piper-plus)のGodotプラグイン - 高品質なニューラル音声合成エンジン
 
 ## 概要
@@ -22,18 +20,18 @@ godot-piper-plusは、[piper-plus](https://github.com/ayutaz/piper-plus)（VITS 
 
 | プラットフォーム | アーキテクチャ | 状態 |
 |----------------|-------------|------|
-| Windows | x86_64 | 開発中 |
-| Android | arm64-v8a | 開発中 |
-| iOS | arm64 | 開発中 |
-| Linux | x86_64 | 開発中 |
-| macOS | arm64 (Apple Silicon) | 開発中 |
+| Windows | x86_64 | ビルド済 |
+| Android | arm64-v8a | ビルド済 |
+| iOS | arm64 | ビルド済 |
+| Linux | x86_64 | ビルド済 |
+| macOS | arm64 (Apple Silicon) | ビルド済 |
 
 ## 対応モデル
 
 | モデル名 | 言語 | Prosody対応 | 説明 |
 |---------|------|------------|------|
 | ja_JP-test-medium | 日本語 | No | 標準日本語モデル |
-| en_US-ljspeech-medium | 英語 | No | 標準英語モデル |
+| en_US-ljspeech-medium | 英語 | No | 標準英語モデル（英語G2P未実装） |
 | tsukuyomi-chan | 日本語 | Yes | Prosody対応日本語モデル（より自然なイントネーション） |
 
 ## アーキテクチャ
@@ -45,7 +43,7 @@ godot-piper-plusは、[piper-plus](https://github.com/ayutaz/piper-plus)（VITS 
     ↓
 Phonemizer（音素変換）
     • 日本語: OpenJTalk（静的リンク）
-    • 英語: piper-phonemize / espeak-ng（静的リンク）
+    • 英語: 未実装（Flite LTS + CMU辞書で実装予定）
     ↓
 音素エンコーディング（PUA マッピング）
     ↓
@@ -61,7 +59,6 @@ AudioStreamWAV出力（22050Hz, 16bit PCM）
 | [godot-cpp](https://github.com/godotengine/godot-cpp) | GDExtension C++バインディング | サブモジュール |
 | [ONNX Runtime](https://onnxruntime.ai/) | VITS推論エンジン | 動的リンク |
 | [OpenJTalk](https://open-jtalk.sourceforge.net/) | 日本語音素化 | 静的リンク |
-| [piper-phonemize](https://github.com/rhasspy/piper-phonemize) | 英語音素化 | 静的リンク |
 
 ## 関連プロジェクト
 

@@ -32,7 +32,7 @@ func _show_download_dialog() -> void:
 		_download_dialog.queue_free()
 		_download_dialog = null
 	_download_dialog = ModelDownloaderScript.create_dialog()
-	get_editor_interface().get_base_control().add_child(_download_dialog)
+	EditorInterface.get_base_control().add_child(_download_dialog)
 	_download_dialog.popup_centered(Vector2i(640, 520))
 
 
@@ -41,5 +41,5 @@ func _show_dictionary_editor() -> void:
 		_dictionary_editor_dialog.queue_free()
 		_dictionary_editor_dialog = null
 	_dictionary_editor_dialog = DictionaryEditorScript.create_dialog()
-	get_editor_interface().get_base_control().add_child(_dictionary_editor_dialog)
+	EditorInterface.get_base_control().add_child(_dictionary_editor_dialog)
 	_dictionary_editor_dialog.popup_centered(Vector2i(700, 500))

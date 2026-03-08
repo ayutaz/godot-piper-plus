@@ -306,9 +306,9 @@ strategy:
 ```
 ワーカースレッド                    メインスレッド
     │                                │
-    ├─ textToAudioStreaming() ─→     │
-    │   chunkCallback(chunk1) ─→  ロックフリーキュー
-    │   chunkCallback(chunk2) ─→  ロックフリーキュー
+    ├─ textToAudio(audioCallback) ─→     │
+    │   audioCallback(chunk1) ─→  ロックフリーキュー
+    │   audioCallback(chunk2) ─→  ロックフリーキュー
     │   ...                          │
     │                           _process():
     │                             queue.pop() → push_buffer()

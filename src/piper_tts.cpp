@@ -154,7 +154,7 @@ String PiperTTS::get_dictionary_path() const {
 }
 
 void PiperTTS::set_speaker_id(int p_id) {
-	speaker_id = p_id;
+	speaker_id = p_id < 0 ? 0 : p_id;
 }
 
 int PiperTTS::get_speaker_id() const {
@@ -162,7 +162,7 @@ int PiperTTS::get_speaker_id() const {
 }
 
 void PiperTTS::set_speech_rate(float p_rate) {
-	speech_rate = p_rate;
+	speech_rate = CLAMP(p_rate, 0.1f, 5.0f);
 }
 
 float PiperTTS::get_speech_rate() const {
@@ -170,7 +170,7 @@ float PiperTTS::get_speech_rate() const {
 }
 
 void PiperTTS::set_noise_scale(float p_scale) {
-	noise_scale = p_scale;
+	noise_scale = CLAMP(p_scale, 0.0f, 2.0f);
 }
 
 float PiperTTS::get_noise_scale() const {
@@ -178,7 +178,7 @@ float PiperTTS::get_noise_scale() const {
 }
 
 void PiperTTS::set_noise_w(float p_w) {
-	noise_w = p_w;
+	noise_w = CLAMP(p_w, 0.0f, 2.0f);
 }
 
 float PiperTTS::get_noise_w() const {
@@ -186,7 +186,7 @@ float PiperTTS::get_noise_w() const {
 }
 
 void PiperTTS::set_execution_provider(int p_ep) {
-	execution_provider = p_ep;
+	execution_provider = CLAMP(p_ep, 0, 4);
 }
 
 int PiperTTS::get_execution_provider() const {
@@ -225,6 +225,11 @@ Ref<AudioStreamWAV> PiperTTS::create_audio_stream(
 // ---------------------------------------------------------------------------
 
 Error PiperTTS::initialize() {
+	if (ready) {
+		piper::terminate(*piper_config);
+		ready = false;
+	}
+
 	if (model_path.is_empty()) {
 		UtilityFunctions::push_error("PiperTTS: model_path is not set.");
 		emit_signal("initialized", false);
@@ -295,8 +300,8 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 		return Ref<AudioStreamWAV>();
 	}
 
-	if (processing.load()) {
-		UtilityFunctions::push_error("PiperTTS: Async synthesis in progress. Call stop() first.");
+	if (processing.load() || streaming_active_.load()) {
+		UtilityFunctions::push_error("PiperTTS: Synthesis in progress. Call stop() first.");
 		return Ref<AudioStreamWAV>();
 	}
 
@@ -570,6 +575,7 @@ void PiperTTS::_streaming_thread_func(std::string text_str) {
 		if (!stop_requested.load()) {
 			call_deferred("_on_synthesis_failed", String(e.what()));
 		}
+		streaming_active_.store(false);
 		processing.store(false);
 		return;
 	}

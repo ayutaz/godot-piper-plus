@@ -12,6 +12,8 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      ORT_VERSION: "1.24.3"
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +39,7 @@ jobs:
           path: |
             build/he
             build/oj
-          key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-htsengine1.10-openjtalk1.11
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt') }}
 
       # ---------------------------------------------------------------
       # Cache: ONNX Runtime (desktop platforms only)
@@ -47,7 +49,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/onnxruntime
-          key: ${{ matrix.platform }}-${{ matrix.arch }}-onnxruntime-1.24.3
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-onnxruntime-${{ env.ORT_VERSION }}
 
       # ---------------------------------------------------------------
       # Android: Download ONNX Runtime AAR + headers
@@ -56,17 +58,17 @@ jobs:
         if: matrix.platform == 'android'
         run: |
           # Download AAR for native .so
-          curl -L -o ort.aar https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-android-1.24.3.aar
+          curl -L -o ort.aar https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-android-${ORT_VERSION}.aar
           unzip -o ort.aar jni/arm64-v8a/libonnxruntime.so -d ort-extract
 
           # Download headers from linux package
-          curl -L -o ort-headers.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-linux-x64-1.24.3.tgz
+          curl -L -o ort-headers.tgz https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-x64-${ORT_VERSION}.tgz
           tar xf ort-headers.tgz --wildcards '*/include/*'
 
           # Create ONNXRUNTIME_DIR structure
           mkdir -p ort-android/lib ort-android/include
           cp ort-extract/jni/arm64-v8a/libonnxruntime.so ort-android/lib/
-          cp onnxruntime-linux-x64-1.24.3/include/* ort-android/include/
+          cp onnxruntime-linux-x64-${ORT_VERSION}/include/* ort-android/include/
 
       # ---------------------------------------------------------------
       # iOS: Download ONNX Runtime xcframework
@@ -74,7 +76,7 @@ jobs:
       - name: Download ONNX Runtime for iOS
         if: matrix.platform == 'ios'
         run: |
-          curl -L -o ort-ios.zip https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-c-1.24.3-ios-xcframework.zip
+          curl -L -o ort-ios.zip https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-c-${ORT_VERSION}-ios-xcframework.zip
           unzip ort-ios.zip -d ort-ios-extract
 
           # Create ONNXRUNTIME_DIR for iOS
@@ -153,16 +155,16 @@ jobs:
       # ---------------------------------------------------------------
       - name: Copy ONNX Runtime (Windows)
         if: matrix.platform == 'windows'
-        run: cp build/onnxruntime/onnxruntime-win-x64-1.24.3/lib/onnxruntime.dll addons/piper_plus/bin/
+        run: cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/
         shell: bash
 
       - name: Copy ONNX Runtime (Linux)
         if: matrix.platform == 'linux'
-        run: cp build/onnxruntime/onnxruntime-linux-x64-1.24.3/lib/libonnxruntime.so* addons/piper_plus/bin/
+        run: cp build/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so* addons/piper_plus/bin/
 
       - name: Copy ONNX Runtime (macOS)
         if: matrix.platform == 'macos'
-        run: cp build/onnxruntime/onnxruntime-osx-arm64-1.24.3/lib/libonnxruntime*.dylib addons/piper_plus/bin/
+        run: cp build/onnxruntime/onnxruntime-osx-arm64-${ORT_VERSION}/lib/libonnxruntime*.dylib addons/piper_plus/bin/
 
       - name: Copy ONNX Runtime (Android)
         if: matrix.platform == 'android'

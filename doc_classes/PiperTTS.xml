@@ -7,6 +7,21 @@
 		Integrates the piper-plus VITS neural text-to-speech engine into Godot as a node. Synthesizes speech audio from Japanese text using ONNX Runtime for inference and OpenJTalk for grapheme-to-phoneme conversion.
 		Set [member model_path], [member config_path], and [member dictionary_path], then call [method initialize] before synthesizing speech. Use [method synthesize] for synchronous synthesis or [method synthesize_async] for non-blocking synthesis on a worker thread.
 		Set [member execution_provider] to use GPU acceleration on supported platforms (CoreML on macOS/iOS, DirectML on Windows, NNAPI on Android).
+		[codeblocks]
+		[gdscript]
+		# Basic usage example
+		var tts = PiperTTS.new()
+		tts.model_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx"
+		tts.config_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx.json"
+		tts.execution_provider = PiperTTS.EP_AUTO
+		add_child(tts)
+		tts.initialize()
+
+		# Async synthesis
+		tts.synthesis_completed.connect(func(audio): $AudioStreamPlayer.stream = audio; $AudioStreamPlayer.play())
+		tts.synthesize_async("こんにちは、世界！")
+		[/gdscript]
+		[/codeblocks]
 	</description>
 	<tutorials>
 	</tutorials>
@@ -38,7 +53,7 @@
 		<method name="stop">
 			<return type="void" />
 			<description>
-				Cancels the currently running asynchronous synthesis started by [method synthesize_async]. Does nothing if no synthesis is in progress.
+				Cancels the currently running asynchronous synthesis started by [method synthesize_async] or streaming synthesis started by [method synthesize_streaming]. Does nothing if no synthesis is in progress.
 			</description>
 		</method>
 		<method name="is_ready" qualifiers="const">
@@ -73,7 +88,7 @@
 			Path to the model configuration file ([code].onnx.json[/code]). This file contains phoneme mappings, sample rate, and other model-specific settings.
 		</member>
 		<member name="dictionary_path" type="String" setter="set_dictionary_path" getter="get_dictionary_path" default="&quot;&quot;">
-			Path to the OpenJTalk dictionary directory. The directory must contain compiled naist-jdic dictionary files.
+			Path to the OpenJTalk dictionary directory (e.g., naist-jdic). Currently, the dictionary is located via system paths or the [code]OPENJTALK_DICTIONARY_PATH[/code] environment variable. This property is reserved for future use when direct OpenJTalk API integration is completed.
 		</member>
 		<member name="speaker_id" type="int" setter="set_speaker_id" getter="get_speaker_id" default="0">
 			Speaker ID for multi-speaker models. Valid range is 0 to 999. Ignored for single-speaker models.
@@ -93,7 +108,7 @@
 			[b]CoreML[/b] (1): Apple Neural Engine / GPU acceleration. Available on macOS and iOS.
 			[b]DirectML[/b] (2): DirectX GPU acceleration. Available on Windows when built with DirectML-enabled ONNX Runtime.
 			[b]NNAPI[/b] (3): Android Neural Networks API acceleration. Available on Android.
-			[b]Auto[/b] (4): Automatically selects the best available execution provider for the current platform.
+			[b]Auto[/b] (4): Automatically selects the best available execution provider for the current platform (macOS/iOS → CoreML, Windows → DirectML if available, Android → NNAPI, Linux → CPU).
 			If the selected GPU execution provider is unavailable or fails, the engine automatically falls back to CPU.
 		</member>
 	</members>
@@ -113,7 +128,7 @@
 		<signal name="synthesis_failed">
 			<param index="0" name="error" type="String" />
 			<description>
-				Emitted when [method synthesize_async] fails. [param error] contains a human-readable error message describing the cause of the failure.
+				Emitted when [method synthesize_async] or [method synthesize_streaming] fails. [param error] contains a human-readable error message describing the cause of the failure.
 			</description>
 		</signal>
 		<signal name="streaming_ended">

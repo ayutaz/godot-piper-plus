@@ -1,0 +1,39 @@
+Third-Party Software Licenses
+==============================
+
+This project includes or links to the following third-party software:
+
+1. piper-plus
+   License: MIT
+   URL: https://github.com/ayutaz/piper-plus
+   Files: src/piper_core/ (modified)
+
+2. ONNX Runtime
+   License: MIT
+   URL: https://github.com/microsoft/onnxruntime
+   Linked dynamically (iOS: statically)
+
+3. OpenJTalk
+   License: Modified BSD (3-clause)
+   URL: https://open-jtalk.sourceforge.net/
+   Linked statically
+
+4. HTSEngine API
+   License: Modified BSD (3-clause)
+   URL: https://hts-engine.sourceforge.net/
+   Linked statically
+
+5. godot-cpp
+   License: MIT
+   URL: https://github.com/godotengine/godot-cpp
+   Linked as submodule
+
+6. nlohmann/json
+   License: MIT
+   URL: https://github.com/nlohmann/json
+   Files: src/piper_core/json.hpp
+
+7. UTF8-CPP
+   License: Boost Software License 1.0
+   URL: https://github.com/nemtrif/utfcpp
+   Files: src/piper_core/utf8.h, src/piper_core/utf8/

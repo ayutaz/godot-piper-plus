@@ -46,7 +46,7 @@ const DOWNLOAD_ITEMS: Dictionary = {
 	},
 	"en_US-ljspeech-medium": {
 		"type": "model",
-		"description": "English LJSpeech model (medium quality, ~60 MB)",
+		"description": "English LJSpeech model (medium quality, ~60 MB) [NOT YET FUNCTIONAL - English G2P unimplemented]",
 		"dest": "res://addons/piper_plus/models/en_US-ljspeech-medium/",
 		"files": [
 			{
@@ -334,16 +334,29 @@ static func _extract_zip(zip_path: String, dest_dir: String) -> Error:
 	if err != OK:
 		return err
 
+	# Normalize dest_dir for path comparison
+	var safe_dest := ProjectSettings.globalize_path(dest_dir).simplify_path()
+
 	var files := reader.get_files()
 	for file_path: String in files:
 		# Skip directory entries
 		if file_path.ends_with("/"):
 			var dir_path := dest_dir.path_join(file_path)
+			# ZipSlip check
+			var global_dir := ProjectSettings.globalize_path(dir_path).simplify_path()
+			if not global_dir.begins_with(safe_dest):
+				continue
 			DirAccess.make_dir_recursive_absolute(dir_path)
 			continue
 
 		# Ensure parent directory exists
 		var full_path := dest_dir.path_join(file_path)
+		# ZipSlip check: ensure extracted path stays within destination
+		var global_path := ProjectSettings.globalize_path(full_path).simplify_path()
+		if not global_path.begins_with(safe_dest):
+			push_warning("Skipping suspicious ZIP entry: " + file_path)
+			continue
+
 		var parent_dir := full_path.get_base_dir()
 		DirAccess.make_dir_recursive_absolute(parent_dir)
 

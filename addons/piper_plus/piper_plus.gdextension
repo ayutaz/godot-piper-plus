@@ -1,7 +1,7 @@
 [configuration]
 entry_symbol = "piper_plus_library_init"
 compatibility_minimum = "4.4"
-reloadable = true
+reloadable = false
 
 [libraries]
 macos.debug = "res://addons/piper_plus/bin/libpiper_plus.macos.template_debug.arm64.dylib"
@@ -12,11 +12,15 @@ linux.debug.x86_64 = "res://addons/piper_plus/bin/libpiper_plus.linux.template_d
 linux.release.x86_64 = "res://addons/piper_plus/bin/libpiper_plus.linux.template_release.x86_64.so"
 android.debug.arm64 = "res://addons/piper_plus/bin/libpiper_plus.android.template_debug.arm64.so"
 android.release.arm64 = "res://addons/piper_plus/bin/libpiper_plus.android.template_release.arm64.so"
-ios.debug = "res://addons/piper_plus/bin/libpiper_plus.ios.template_debug.arm64.dylib"
-ios.release = "res://addons/piper_plus/bin/libpiper_plus.ios.template_release.arm64.dylib"
+ios.debug = "res://addons/piper_plus/bin/libpiper_plus.ios.template_debug.arm64.a"
+ios.release = "res://addons/piper_plus/bin/libpiper_plus.ios.template_release.arm64.a"
 
 [dependencies]
 windows.debug.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": ""}
 windows.release.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": ""}
 linux.debug.x86_64 = {"res://addons/piper_plus/bin/libonnxruntime.so": ""}
 linux.release.x86_64 = {"res://addons/piper_plus/bin/libonnxruntime.so": ""}
+macos.debug = {"res://addons/piper_plus/bin/libonnxruntime.dylib": ""}
+macos.release = {"res://addons/piper_plus/bin/libonnxruntime.dylib": ""}
+android.debug.arm64 = {"res://addons/piper_plus/bin/libonnxruntime.so": ""}
+android.release.arm64 = {"res://addons/piper_plus/bin/libonnxruntime.so": ""}

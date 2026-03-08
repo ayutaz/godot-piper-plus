@@ -414,7 +414,7 @@ void loadModel(std::string modelPath, ModelSession &session, int executionProvid
   auto startTime = std::chrono::steady_clock::now();
 
 #ifdef _WIN32
-  auto modelPathW = std::wstring(modelPath.begin(), modelPath.end());
+  auto modelPathW = std::filesystem::path(modelPath).wstring();
   auto modelPathStr = modelPathW.c_str();
 #else
   auto modelPathStr = modelPath.c_str();

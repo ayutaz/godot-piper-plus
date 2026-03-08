@@ -10,11 +10,10 @@ namespace piper {
 
 // Use int for PhonemeType to avoid including piper.hpp
 // Values must match piper.hpp PhonemeType enum:
-// eSpeakPhonemes = 0, TextPhonemes = 1, OpenJTalkPhonemes = 2
+// TextPhonemes = 0, OpenJTalkPhonemes = 1
 typedef int PhonemeTypeInt;
-const PhonemeTypeInt PHONEME_TYPE_ESPEAK = 0;
-const PhonemeTypeInt PHONEME_TYPE_TEXT = 1;
-const PhonemeTypeInt PHONEME_TYPE_OPENJTALK = 2;
+const PhonemeTypeInt PHONEME_TYPE_TEXT = 0;
+const PhonemeTypeInt PHONEME_TYPE_OPENJTALK = 1;
 
 typedef char32_t Phoneme;
 
