@@ -139,15 +139,15 @@ jobs:
       - name: Configure (iOS)
         if: matrix.platform == 'ios'
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_SYSTEM_NAME=iOS \
-            -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+          cmake -B build -G Xcode \
+            -DCMAKE_TOOLCHAIN_FILE=$PWD/thirdparty/godot-cpp/cmake/ios.toolchain.cmake \
+            -DPLATFORM=OS64 \
+            -DDEPLOYMENT_TARGET=15.0 \
             -DONNXRUNTIME_DIR=$PWD/ort-ios
 
       - name: Build (iOS)
         if: matrix.platform == 'ios'
-        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+        run: cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
       # ---------------------------------------------------------------
       # Copy ONNX Runtime dynamic libraries to addons/piper_plus/bin/
