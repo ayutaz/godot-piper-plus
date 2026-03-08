@@ -4,14 +4,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_DIR="$SCRIPT_DIR/project"
-ADDON_BIN_SRC="$REPO_ROOT/addons/piper_plus/bin"
-ADDON_BIN_DST="$PROJECT_DIR/addons/piper_plus/bin"
+ADDON_SRC="${PIPER_ADDON_SRC:-$REPO_ROOT/addons/piper_plus}"
+ADDON_DST="$PROJECT_DIR/addons/piper_plus"
+ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
+ADDON_BIN_DST="$ADDON_DST/bin"
 MODEL_DST_DIR="$PROJECT_DIR/models"
 MODEL_DST_PATH="$MODEL_DST_DIR/ja_JP-test-medium.onnx"
 CONFIG_DST_PATH="$MODEL_DST_DIR/ja_JP-test-medium.onnx.json"
 DICT_DST_PATH="$MODEL_DST_DIR/openjtalk_dic"
 
-mkdir -p "$ADDON_BIN_DST" "$MODEL_DST_DIR"
+mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$MODEL_DST_DIR"
+
+if [[ -d "$ADDON_SRC" ]]; then
+  cp -R "$ADDON_SRC"/. "$ADDON_DST"/
+fi
 
 if [[ -d "$ADDON_BIN_SRC" ]]; then
   find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +

@@ -2,18 +2,120 @@ name: Build GDExtension
 
 on:
   push:
-    branches: [main]
+    branches:
+      - "**"
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
   workflow_call:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-gdextension-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  ORT_VERSION: "1.24.3"
+  ORT_ANDROID_SHA256: "67397e4a970e75617f765d2015ceaf911917e1d822276cfb5792744e8085cbce"
+  ORT_IOS_SHA256: "b7eedc45932bac758ffd057cac0feb3f682269e47750b159e4c865145cbf0a8e"
+  GODOT_VERSION: "4.4-stable"
+  GODOT_LINUX_ZIP: "Godot_v4.4-stable_linux.x86_64.zip"
+
 jobs:
-  build:
-    name: ${{ matrix.name }}
+  build-desktop:
+    name: Build Desktop (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    env:
-      ORT_VERSION: "1.24.3"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON" }
+          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON" }
+          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DCMAKE_OSX_ARCHITECTURES=arm64" }
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          submodules: recursive
+
+      - name: Cache ExternalProject dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            build/h
+            build/he
+            build/o
+            build/oj
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
+
+      - name: Cache ONNX Runtime
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: build/onnxruntime
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-onnxruntime-${{ env.ORT_VERSION }}
+
+      - name: Configure desktop build
+        shell: bash
+        run: cmake -B build ${{ matrix.configure_args }}
+
+      - name: Build desktop addon
+        shell: bash
+        run: cmake --build build --config Release --parallel --target piper_plus
+
+      - name: Build desktop test target
+        shell: bash
+        run: cmake --build build --config Release --parallel --target piper_plus_tests
+
+      - name: Copy ONNX Runtime (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.windows.x86_64.dll
+
+      - name: Copy ONNX Runtime (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: cp build/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.linux.x86_64.so
+
+      - name: Copy ONNX Runtime (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: cp build/onnxruntime/onnxruntime-osx-arm64-${ORT_VERSION}/lib/libonnxruntime.dylib addons/piper_plus/bin/libonnxruntime.macos.arm64.dylib
+
+      - name: Collect C++ test binary
+        shell: bash
+        run: |
+          mkdir -p ci/test-bin
+          mapfile -t test_bins < <(find build -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \))
+          if [[ ${#test_bins[@]} -eq 0 ]]; then
+            echo "piper_plus_tests binary not found" >&2
+            exit 1
+          fi
+          cp "${test_bins[0]}" ci/test-bin/
+
+      - name: Upload addon bin artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-bin-${{ matrix.platform }}-${{ matrix.arch }}
+          path: addons/piper_plus/bin/
+          if-no-files-found: ignore
+
+      - name: Upload C++ test binary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-tests-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ci/test-bin/
+          if-no-files-found: ignore
+
+  test-desktop:
+    name: Test Desktop (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    needs: build-desktop
     strategy:
       fail-fast: false
       matrix:
@@ -21,177 +123,196 @@ jobs:
           - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64 }
           - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64 }
           - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64 }
+
+    steps:
+      - name: Download C++ test binary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-tests-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ci/test-bin
+
+      - name: Run C++ tests
+        shell: bash
+        run: |
+          mapfile -t test_bins < <(find ci/test-bin -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \))
+          if [[ ${#test_bins[@]} -eq 0 ]]; then
+            echo "downloaded test binary not found" >&2
+            exit 1
+          fi
+          "${test_bins[0]}" --gtest_color=yes
+
+  integration-linux:
+    name: Linux Godot Headless Integration
+    runs-on: ubuntu-22.04
+    needs:
+      - build-desktop
+      - test-desktop
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          submodules: recursive
+
+      - name: Download Linux addon bin artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-bin-linux-x86_64
+          path: addons/piper_plus/bin
+
+      - name: Download Godot Linux binary
+        shell: bash
+        run: |
+          curl -L -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          sha512sum -c godot.sha512
+          unzip -q godot.zip -d /tmp/godot
+          chmod +x "/tmp/godot/Godot_v4.4-stable_linux.x86_64"
+
+      - name: Run Linux Godot headless tests
+        shell: bash
+        env:
+          GODOT: /tmp/godot/Godot_v4.4-stable_linux.x86_64
+        run: bash test/run-tests.sh
+
+  build-mobile:
+    name: Build Mobile (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - { name: "Android arm64", os: ubuntu-22.04, platform: android, arch: arm64 }
           - { name: "iOS arm64", os: macos-latest, platform: ios, arch: arm64 }
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           submodules: recursive
 
-      # ---------------------------------------------------------------
-      # Cache: ExternalProject dependencies (HTSEngine / OpenJTalk)
-      # ---------------------------------------------------------------
       - name: Cache ExternalProject dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
+            build/h
             build/he
+            build/o
             build/oj
-          key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt') }}
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
 
-      # ---------------------------------------------------------------
-      # Cache: ONNX Runtime (desktop platforms only)
-      # ---------------------------------------------------------------
-      - name: Cache ONNX Runtime
-        if: matrix.platform != 'android' && matrix.platform != 'ios'
-        uses: actions/cache@v4
-        with:
-          path: build/onnxruntime
-          key: ${{ matrix.platform }}-${{ matrix.arch }}-onnxruntime-${{ env.ORT_VERSION }}
-
-      # ---------------------------------------------------------------
-      # Android: Download ONNX Runtime AAR + headers
-      # ---------------------------------------------------------------
-      - name: Download ONNX Runtime for Android
+      - name: Cache Android ONNX Runtime
+        id: cache-android-ort
         if: matrix.platform == 'android'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ort-android
+          key: android-arm64-onnxruntime-${{ env.ORT_VERSION }}-${{ env.ORT_ANDROID_SHA256 }}
+
+      - name: Cache iOS ONNX Runtime
+        id: cache-ios-ort
+        if: matrix.platform == 'ios'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ort-ios
+          key: ios-arm64-onnxruntime-${{ env.ORT_VERSION }}-${{ env.ORT_IOS_SHA256 }}
+
+      - name: Download ONNX Runtime for Android
+        if: matrix.platform == 'android' && steps.cache-android-ort.outputs.cache-hit != 'true'
+        shell: bash
         run: |
-          # Download AAR from Maven Central (not available on GitHub Releases)
-          curl -L -o ort.aar https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/${ORT_VERSION}/onnxruntime-android-${ORT_VERSION}.aar
+          curl -L -o ort.aar "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/${ORT_VERSION}/onnxruntime-android-${ORT_VERSION}.aar"
+          echo "${ORT_ANDROID_SHA256}  ort.aar" | sha256sum -c -
           unzip -o ort.aar jni/arm64-v8a/libonnxruntime.so -d ort-extract
           unzip -o ort.aar 'headers/*' -d ort-extract
-
-          # Create ONNXRUNTIME_DIR structure
           mkdir -p ort-android/lib ort-android/include
           cp ort-extract/jni/arm64-v8a/libonnxruntime.so ort-android/lib/
           cp ort-extract/headers/* ort-android/include/
 
-      # ---------------------------------------------------------------
-      # iOS: Download ONNX Runtime xcframework
-      # ---------------------------------------------------------------
       - name: Download ONNX Runtime for iOS
-        if: matrix.platform == 'ios'
+        if: matrix.platform == 'ios' && steps.cache-ios-ort.outputs.cache-hit != 'true'
+        shell: bash
         run: |
-          # Download from Azure blob storage (CocoaPods source, not available on GitHub Releases)
-          curl -L -o ort-ios.zip https://onnxruntimepackages.z14.web.core.windows.net/pod-archive-onnxruntime-c-${ORT_VERSION}.zip
-          unzip ort-ios.zip -d ort-ios-extract
-
-          # Create ONNXRUNTIME_DIR for iOS
+          curl -L -o ort-ios.zip "https://onnxruntimepackages.z14.web.core.windows.net/pod-archive-onnxruntime-c-${ORT_VERSION}.zip"
+          echo "${ORT_IOS_SHA256}  ort-ios.zip" | shasum -a 256 -c -
+          unzip -q ort-ios.zip "onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime" "Headers/*" -d ort-ios-extract
           mkdir -p ort-ios/lib ort-ios/include
-          # xcframework内のios-arm64フォルダからライブラリとヘッダを取得
           cp ort-ios-extract/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime ort-ios/lib/libonnxruntime.a
-          # ヘッダはルートのHeadersフォルダから取得
           cp -r ort-ios-extract/Headers/* ort-ios/include/
 
-      # ---------------------------------------------------------------
-      # Configure & Build: Windows
-      # ---------------------------------------------------------------
-      - name: Configure (Windows)
-        if: matrix.platform == 'windows'
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build (Windows)
-        if: matrix.platform == 'windows'
-        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
-
-      # ---------------------------------------------------------------
-      # Configure & Build: Linux
-      # ---------------------------------------------------------------
-      - name: Configure (Linux)
-        if: matrix.platform == 'linux'
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build (Linux)
-        if: matrix.platform == 'linux'
-        run: cmake --build build -j$(nproc)
-
-      # ---------------------------------------------------------------
-      # Configure & Build: macOS
-      # ---------------------------------------------------------------
-      - name: Configure (macOS)
-        if: matrix.platform == 'macos'
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
-
-      - name: Build (macOS)
-        if: matrix.platform == 'macos'
-        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
-
-      # ---------------------------------------------------------------
-      # Configure & Build: Android
-      # ---------------------------------------------------------------
-      - name: Configure (Android)
+      - name: Configure Android build
         if: matrix.platform == 'android'
+        shell: bash
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-24 \
-            -DONNXRUNTIME_DIR=$PWD/ort-android
+            -DONNXRUNTIME_DIR="$PWD/ort-android"
 
-      - name: Build (Android)
+      - name: Build Android
         if: matrix.platform == 'android'
-        run: cmake --build build -j$(nproc)
+        shell: bash
+        run: cmake --build build --parallel --target piper_plus
 
-      # ---------------------------------------------------------------
-      # Configure & Build: iOS
-      # ---------------------------------------------------------------
-      - name: Configure (iOS)
+      - name: Configure iOS build
         if: matrix.platform == 'ios'
+        shell: bash
         run: |
           cmake -B build -G Xcode \
-            -DCMAKE_TOOLCHAIN_FILE=$PWD/thirdparty/godot-cpp/cmake/ios.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/thirdparty/godot-cpp/cmake/ios.toolchain.cmake" \
             -DPLATFORM=OS64 \
             -DDEPLOYMENT_TARGET=15.0 \
-            -DONNXRUNTIME_DIR=$PWD/ort-ios
+            -DONNXRUNTIME_DIR="$PWD/ort-ios"
 
-      - name: Build (iOS)
+      - name: Build iOS
         if: matrix.platform == 'ios'
-        run: cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
-
-      # ---------------------------------------------------------------
-      # C++ Unit Tests (desktop platforms only)
-      # ---------------------------------------------------------------
-      - name: Configure with tests
-        if: matrix.platform != 'android' && matrix.platform != 'ios'
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
-
-      - name: Build tests
-        if: matrix.platform != 'android' && matrix.platform != 'ios'
         shell: bash
-        run: cmake --build build --target piper_plus_tests -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-
-      - name: Run C++ unit tests
-        if: matrix.platform != 'android' && matrix.platform != 'ios'
-        run: ctest --test-dir build --output-on-failure -V
-
-      # ---------------------------------------------------------------
-      # Copy ONNX Runtime dynamic libraries to addons/piper_plus/bin/
-      # ---------------------------------------------------------------
-      - name: Copy ONNX Runtime (Windows)
-        if: matrix.platform == 'windows'
-        run: cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/
-        shell: bash
-
-      - name: Copy ONNX Runtime (Linux)
-        if: matrix.platform == 'linux'
-        run: cp build/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so* addons/piper_plus/bin/
-
-      - name: Copy ONNX Runtime (macOS)
-        if: matrix.platform == 'macos'
-        run: cp build/onnxruntime/onnxruntime-osx-arm64-${ORT_VERSION}/lib/libonnxruntime*.dylib addons/piper_plus/bin/
+        run: cmake --build build --config Release --parallel --target piper_plus
 
       - name: Copy ONNX Runtime (Android)
         if: matrix.platform == 'android'
-        run: cp ort-android/lib/libonnxruntime.so addons/piper_plus/bin/
+        shell: bash
+        run: cp ort-android/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.android.arm64.so
 
-      # iOS: No dynamic library copy needed (statically linked)
-
-      # ---------------------------------------------------------------
-      # Upload artifacts
-      # ---------------------------------------------------------------
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload addon bin artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: piper-plus-${{ matrix.platform }}-${{ matrix.arch }}
+          name: piper-plus-bin-${{ matrix.platform }}-${{ matrix.arch }}
           path: addons/piper_plus/bin/
+          if-no-files-found: ignore
+
+  package-addon:
+    name: Package Complete Addon
+    runs-on: ubuntu-22.04
+    needs:
+      - build-mobile
+      - test-desktop
+      - integration-linux
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download bin artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: piper-plus-bin-*
+          path: artifacts
+
+      - name: Prepare package
+        shell: bash
+        run: |
+          chmod +x scripts/ci/package-addon.sh scripts/ci/validate-addon-package.sh
+          scripts/ci/package-addon.sh artifacts package "$PWD/addons/piper_plus"
+          scripts/ci/validate-addon-package.sh package/addons/piper_plus
+          cd package
+          zip -r ../piper-plus-addon-package.zip addons/
+
+      - name: Upload packaged addon
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-addon-package
+          path: piper-plus-addon-package.zip
