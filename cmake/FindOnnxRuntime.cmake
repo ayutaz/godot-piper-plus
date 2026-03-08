@@ -56,7 +56,13 @@ endif()
 if(NOT ONNXRUNTIME_LIB OR NOT ONNXRUNTIME_INCLUDE_DIR)
   set(_ORT_DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onnxruntime")
   set(_ORT_ARCHIVE "${_ORT_DOWNLOAD_DIR}/onnxruntime.${_ORT_EXT}")
-  set(_ORT_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-${_ORT_PLATFORM}-${ONNXRUNTIME_VERSION}.${_ORT_EXT}")
+
+  # Android AAR is hosted on Maven Central, not GitHub Releases
+  if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(_ORT_URL "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/${ONNXRUNTIME_VERSION}/onnxruntime-android-${ONNXRUNTIME_VERSION}.aar")
+  else()
+    set(_ORT_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-${_ORT_PLATFORM}-${ONNXRUNTIME_VERSION}.${_ORT_EXT}")
+  endif()
   set(_ORT_ROOT "${_ORT_DOWNLOAD_DIR}/onnxruntime-${_ORT_PLATFORM}-${ONNXRUNTIME_VERSION}")
 
   if(NOT EXISTS "${_ORT_ROOT}")
@@ -77,13 +83,29 @@ if(NOT ONNXRUNTIME_LIB OR NOT ONNXRUNTIME_INCLUDE_DIR)
       endif()
     endif()
 
-    execute_process(
-      COMMAND ${CMAKE_COMMAND} -E tar xf "${_ORT_ARCHIVE}"
-      WORKING_DIRECTORY "${_ORT_DOWNLOAD_DIR}"
-      RESULT_VARIABLE _extract_result
-    )
-    if(NOT _extract_result EQUAL 0)
-      message(FATAL_ERROR "Failed to extract ONNX Runtime")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+      # AAR is a zip; extract native .so and headers, then create standard layout
+      file(MAKE_DIRECTORY "${_ORT_ROOT}/lib" "${_ORT_ROOT}/include")
+      execute_process(
+        COMMAND ${CMAKE_COMMAND} -E tar xf "${_ORT_ARCHIVE}"
+        WORKING_DIRECTORY "${_ORT_DOWNLOAD_DIR}"
+        RESULT_VARIABLE _extract_result
+      )
+      if(NOT _extract_result EQUAL 0)
+        message(FATAL_ERROR "Failed to extract ONNX Runtime AAR")
+      endif()
+      file(GLOB _AAR_HEADERS "${_ORT_DOWNLOAD_DIR}/headers/*.h")
+      file(COPY ${_AAR_HEADERS} DESTINATION "${_ORT_ROOT}/include")
+      file(COPY "${_ORT_DOWNLOAD_DIR}/jni/arm64-v8a/libonnxruntime.so" DESTINATION "${_ORT_ROOT}/lib")
+    else()
+      execute_process(
+        COMMAND ${CMAKE_COMMAND} -E tar xf "${_ORT_ARCHIVE}"
+        WORKING_DIRECTORY "${_ORT_DOWNLOAD_DIR}"
+        RESULT_VARIABLE _extract_result
+      )
+      if(NOT _extract_result EQUAL 0)
+        message(FATAL_ERROR "Failed to extract ONNX Runtime")
+      endif()
     endif()
   endif()
 

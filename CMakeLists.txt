@@ -177,6 +177,11 @@ set_target_properties(piper_plus PROPERTIES
 )
 
 # ---- Documentation ----
+# Python3 is required by godot-cpp's target_doc_sources() to generate doc_source.cpp.
+# godot-cpp calls find_package(Python3) in its subdirectory scope, but the result
+# is not visible here. We must find Python3 in this scope so that the
+# add_custom_command inside generate_doc_source() receives a valid Python3_EXECUTABLE.
+find_package(Python3 3.4 REQUIRED)
 file(GLOB DOC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/doc_classes/*.xml")
 if(DOC_FILES)
   target_doc_sources(piper_plus "${DOC_FILES}")

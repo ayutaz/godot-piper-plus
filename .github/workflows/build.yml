@@ -57,18 +57,15 @@ jobs:
       - name: Download ONNX Runtime for Android
         if: matrix.platform == 'android'
         run: |
-          # Download AAR for native .so
-          curl -L -o ort.aar https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-android-${ORT_VERSION}.aar
+          # Download AAR from Maven Central (not available on GitHub Releases)
+          curl -L -o ort.aar https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/${ORT_VERSION}/onnxruntime-android-${ORT_VERSION}.aar
           unzip -o ort.aar jni/arm64-v8a/libonnxruntime.so -d ort-extract
-
-          # Download headers from linux package
-          curl -L -o ort-headers.tgz https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-x64-${ORT_VERSION}.tgz
-          tar xf ort-headers.tgz --wildcards '*/include/*'
+          unzip -o ort.aar 'headers/*' -d ort-extract
 
           # Create ONNXRUNTIME_DIR structure
           mkdir -p ort-android/lib ort-android/include
           cp ort-extract/jni/arm64-v8a/libonnxruntime.so ort-android/lib/
-          cp onnxruntime-linux-x64-${ORT_VERSION}/include/* ort-android/include/
+          cp ort-extract/headers/* ort-android/include/
 
       # ---------------------------------------------------------------
       # iOS: Download ONNX Runtime xcframework
@@ -76,14 +73,16 @@ jobs:
       - name: Download ONNX Runtime for iOS
         if: matrix.platform == 'ios'
         run: |
-          curl -L -o ort-ios.zip https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-c-${ORT_VERSION}-ios-xcframework.zip
+          # Download from Azure blob storage (CocoaPods source, not available on GitHub Releases)
+          curl -L -o ort-ios.zip https://onnxruntimepackages.z14.web.core.windows.net/pod-archive-onnxruntime-c-${ORT_VERSION}.zip
           unzip ort-ios.zip -d ort-ios-extract
 
           # Create ONNXRUNTIME_DIR for iOS
           mkdir -p ort-ios/lib ort-ios/include
           # xcframework内のios-arm64フォルダからライブラリとヘッダを取得
           cp ort-ios-extract/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime ort-ios/lib/libonnxruntime.a
-          cp -r ort-ios-extract/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/Headers/* ort-ios/include/
+          # ヘッダはルートのHeadersフォルダから取得
+          cp -r ort-ios-extract/Headers/* ort-ios/include/
 
       # ---------------------------------------------------------------
       # Configure & Build: Windows
