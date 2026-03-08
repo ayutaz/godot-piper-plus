@@ -151,3 +151,9 @@ set_target_properties(piper_plus PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin"
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin"
 )
+
+# ---- Documentation ----
+file(GLOB DOC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/doc_classes/*.xml")
+if(DOC_FILES)
+  target_doc_sources(piper_plus "${DOC_FILES}")
+endif()
