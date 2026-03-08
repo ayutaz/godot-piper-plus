@@ -167,11 +167,11 @@ jobs:
       - name: Download Godot Linux binary
         shell: bash
         run: |
-          curl -L -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
+          curl -L -o "${GODOT_LINUX_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
           curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
           grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
           sha512sum -c godot.sha512
-          unzip -q godot.zip -d /tmp/godot
+          unzip -q "${GODOT_LINUX_ZIP}" -d /tmp/godot
           chmod +x "/tmp/godot/Godot_v4.4-stable_linux.x86_64"
 
       - name: Run Linux Godot headless tests
