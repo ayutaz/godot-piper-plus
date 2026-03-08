@@ -18,18 +18,23 @@ namespace godot {
 PiperTTS::PiperTTS() {
 	piper_config = std::make_unique<piper::PiperConfig>();
 	voice = std::make_unique<piper::Voice>();
+	set_process(false);
 }
 
 PiperTTS::~PiperTTS() {
-	// Stop any running async synthesis and wait for completion
 	stop_requested.store(true);
 	_join_worker_thread();
+
+	// Clean up streaming state
+	streaming_active_.store(false);
+	audio_chunk_queue_.clear();
+	pending_samples_.clear();
+	pending_sample_offset_ = 0;
 
 	if (ready) {
 		piper::terminate(*piper_config);
 		ready = false;
 	}
-	// unique_ptr handles deallocation
 }
 
 // ---------------------------------------------------------------------------
@@ -93,12 +98,18 @@ void PiperTTS::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_synthesis_done", "audio"), &PiperTTS::_on_synthesis_done);
 	ClassDB::bind_method(D_METHOD("_on_synthesis_failed", "error"), &PiperTTS::_on_synthesis_failed);
 
+	// --- Methods (M6: streaming) ---
+	ClassDB::bind_method(D_METHOD("synthesize_streaming", "text", "playback"), &PiperTTS::synthesize_streaming);
+
 	// --- Signals ---
 	ADD_SIGNAL(MethodInfo("initialized", PropertyInfo(Variant::BOOL, "success")));
 	ADD_SIGNAL(MethodInfo("synthesis_completed",
 			PropertyInfo(Variant::OBJECT, "audio", PROPERTY_HINT_RESOURCE_TYPE, "AudioStreamWAV")));
 	ADD_SIGNAL(MethodInfo("synthesis_failed",
 			PropertyInfo(Variant::STRING, "error")));
+
+	// --- Signal: streaming_ended ---
+	ADD_SIGNAL(MethodInfo("streaming_ended"));
 }
 
 // ---------------------------------------------------------------------------
@@ -333,13 +344,27 @@ Error PiperTTS::synthesize_async(const String &text) {
 }
 
 void PiperTTS::stop() {
-	if (!processing.load()) {
+	bool was_processing = processing.load();
+	bool was_streaming = streaming_active_.load();
+
+	if (!was_processing && !was_streaming) {
 		return;
 	}
 
 	stop_requested.store(true);
-	_join_worker_thread();
-	// processing is set to false by the thread function
+
+	if (was_processing) {
+		_join_worker_thread();
+	}
+
+	if (was_streaming) {
+		streaming_active_.store(false);
+		audio_chunk_queue_.clear();
+		pending_samples_.clear();
+		pending_sample_offset_ = 0;
+		streaming_playback_ = Ref<AudioStreamGeneratorPlayback>();
+		set_process(false);
+	}
 }
 
 bool PiperTTS::is_processing() const {
@@ -398,6 +423,167 @@ void PiperTTS::_on_synthesis_done(const Ref<AudioStreamWAV> &audio) {
 void PiperTTS::_on_synthesis_failed(const String &error_msg) {
 	UtilityFunctions::push_error(String("PiperTTS: ") + error_msg);
 	emit_signal("synthesis_failed", error_msg);
+}
+
+// ---------------------------------------------------------------------------
+// Public methods (M6: streaming)
+// ---------------------------------------------------------------------------
+
+Error PiperTTS::synthesize_streaming(
+		const String &text, const Ref<AudioStreamGeneratorPlayback> &playback) {
+	if (!ready) {
+		UtilityFunctions::push_error("PiperTTS: Not initialized. Call initialize() first.");
+		return ERR_UNCONFIGURED;
+	}
+
+	if (text.is_empty()) {
+		UtilityFunctions::push_error("PiperTTS: Empty text provided.");
+		return ERR_INVALID_PARAMETER;
+	}
+
+	if (!playback.is_valid()) {
+		UtilityFunctions::push_error("PiperTTS: Invalid AudioStreamGeneratorPlayback.");
+		return ERR_INVALID_PARAMETER;
+	}
+
+	if (processing.load() || streaming_active_.load()) {
+		UtilityFunctions::push_error("PiperTTS: Already processing. Call stop() first.");
+		return ERR_BUSY;
+	}
+
+	// Apply synthesis parameters
+	voice->synthesisConfig.lengthScale = speech_rate;
+	voice->synthesisConfig.noiseScale = noise_scale;
+	voice->synthesisConfig.noiseW = noise_w;
+
+	if (speaker_id >= 0) {
+		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
+	}
+
+	_join_worker_thread();
+
+	streaming_playback_ = playback;
+	audio_chunk_queue_.clear();
+	pending_samples_.clear();
+	pending_sample_offset_ = 0;
+
+	processing.store(true);
+	stop_requested.store(false);
+	streaming_active_.store(true);
+	set_process(true);
+
+	std::string text_str = text.utf8().get_data();
+	worker_thread = std::make_unique<std::thread>(
+			&PiperTTS::_streaming_thread_func, this, std::move(text_str));
+
+	return OK;
+}
+
+void PiperTTS::_process(double p_delta) {
+	if (!streaming_active_.load()) {
+		return;
+	}
+
+	if (!streaming_playback_.is_valid()) {
+		streaming_active_.store(false);
+		set_process(false);
+		return;
+	}
+
+	// Pop chunks from queue into pending buffer
+	std::vector<int16_t> chunk;
+	while (audio_chunk_queue_.pop(chunk)) {
+		pending_samples_.insert(pending_samples_.end(), chunk.begin(), chunk.end());
+	}
+
+	// Push samples to playback
+	_push_pending_samples();
+
+	// Check if streaming is complete (worker done + queue empty + all samples pushed)
+	if (!processing.load() && audio_chunk_queue_.empty() &&
+			pending_sample_offset_ >= pending_samples_.size()) {
+		pending_samples_.clear();
+		pending_sample_offset_ = 0;
+		streaming_active_.store(false);
+		streaming_playback_ = Ref<AudioStreamGeneratorPlayback>();
+		set_process(false);
+		emit_signal("streaming_ended");
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Streaming internal methods (M6)
+// ---------------------------------------------------------------------------
+
+void PiperTTS::_streaming_thread_func(std::string text_str) {
+	std::vector<int16_t> audioBuffer;
+	piper::SynthesisResult result;
+
+	try {
+		auto callback = [&audioBuffer, this]() {
+			if (stop_requested.load()) {
+				return;
+			}
+			if (!audioBuffer.empty()) {
+				audio_chunk_queue_.push(std::vector<int16_t>(audioBuffer));
+			}
+		};
+
+		piper::textToAudio(*piper_config, *voice, text_str,
+				audioBuffer, result, callback);
+	} catch (const std::exception &e) {
+		if (!stop_requested.load()) {
+			call_deferred("_on_synthesis_failed", String(e.what()));
+		}
+		processing.store(false);
+		return;
+	}
+
+	// Push any remaining audio not captured by callback
+	// (happens when audioCallback is provided but text has only one sentence,
+	//  or if the last sentence's callback was called but audioBuffer wasn't cleared)
+	if (!audioBuffer.empty() && !stop_requested.load()) {
+		audio_chunk_queue_.push(std::move(audioBuffer));
+	}
+
+	processing.store(false);
+}
+
+void PiperTTS::_push_pending_samples() {
+	if (pending_sample_offset_ >= pending_samples_.size()) {
+		return;
+	}
+	if (!streaming_playback_.is_valid()) {
+		return;
+	}
+
+	int frames_available = streaming_playback_->get_frames_available();
+	if (frames_available <= 0) {
+		return;
+	}
+
+	int remaining = static_cast<int>(pending_samples_.size()) -
+					static_cast<int>(pending_sample_offset_);
+	int to_push = std::min(remaining, frames_available);
+
+	PackedVector2Array frames;
+	frames.resize(to_push);
+	Vector2 *frames_ptr = frames.ptrw();
+	const int16_t *samples_ptr = pending_samples_.data() + pending_sample_offset_;
+
+	for (int i = 0; i < to_push; i++) {
+		float s = static_cast<float>(samples_ptr[i]) / 32768.0f;
+		frames_ptr[i] = Vector2(s, s);
+	}
+
+	streaming_playback_->push_buffer(frames);
+	pending_sample_offset_ += to_push;
+
+	// Compact when fully consumed
+	if (pending_sample_offset_ >= pending_samples_.size()) {
+		pending_samples_.clear();
+		pending_sample_offset_ = 0;
+	}
 }
 
 } // namespace godot

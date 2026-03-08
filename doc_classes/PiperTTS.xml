@@ -52,6 +52,17 @@
 				Returns [code]true[/code] if an asynchronous synthesis started by [method synthesize_async] is currently in progress.
 			</description>
 		</method>
+		<method name="synthesize_streaming">
+			<return type="int" enum="Error" />
+			<param index="0" name="text" type="String" />
+			<param index="1" name="playback" type="AudioStreamGeneratorPlayback" />
+			<description>
+				Synthesizes speech from the given text using streaming mode. Audio chunks are pushed to the provided [param playback] as each sentence is synthesized, significantly reducing time-to-first-audio for long texts.
+				The [param playback] must be obtained from an [AudioStreamPlayer] whose stream is set to an [AudioStreamGenerator] with [code]mix_rate = 22050[/code] and [code]buffer_length = 0.5[/code] (or larger). Call [method AudioStreamPlayer.play] before calling this method.
+				When all audio has been pushed to the playback, the [signal streaming_ended] signal is emitted. On failure, the [signal synthesis_failed] signal is emitted.
+				Returns [constant OK] if streaming synthesis was started, or [constant ERR_BUSY] if a synthesis is already in progress.
+			</description>
+		</method>
 	</methods>
 	<members>
 		<member name="model_path" type="String" setter="set_model_path" getter="get_model_path" default="&quot;&quot;">
@@ -93,6 +104,11 @@
 			<param index="0" name="error" type="String" />
 			<description>
 				Emitted when [method synthesize_async] fails. [param error] contains a human-readable error message describing the cause of the failure.
+			</description>
+		</signal>
+		<signal name="streaming_ended">
+			<description>
+				Emitted when [method synthesize_streaming] has finished pushing all audio chunks to the playback buffer. This signal is emitted on the main thread.
 			</description>
 		</signal>
 	</signals>

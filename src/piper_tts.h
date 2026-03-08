@@ -12,6 +12,10 @@
 #include <thread>
 #include <vector>
 
+#include <godot_cpp/classes/audio_stream_generator_playback.hpp>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
+#include "audio_queue.h"
+
 // Forward declarations
 namespace piper {
 struct PiperConfig;
@@ -43,6 +47,13 @@ private:
 	std::atomic<bool> stop_requested{false};
 	std::unique_ptr<std::thread> worker_thread;
 
+	// Streaming state (M6)
+	Ref<AudioStreamGeneratorPlayback> streaming_playback_;
+	AudioChunkQueue<16> audio_chunk_queue_;
+	std::atomic<bool> streaming_active_{false};
+	std::vector<int16_t> pending_samples_;
+	size_t pending_sample_offset_ = 0;
+
 	// Helpers
 	String resolve_path(const String &path) const;
 	Ref<AudioStreamWAV> create_audio_stream(const std::vector<int16_t> &audio_buffer, int sample_rate) const;
@@ -52,6 +63,10 @@ private:
 	void _on_synthesis_done(const Ref<AudioStreamWAV> &audio);
 	void _on_synthesis_failed(const String &error_msg);
 	void _join_worker_thread();
+
+	// Streaming internal methods (M6)
+	void _streaming_thread_func(std::string text_str);
+	void _push_pending_samples();
 
 protected:
 	static void _bind_methods();
@@ -92,10 +107,15 @@ public:
 	void stop();
 	bool is_processing() const;
 
+	// Methods (M6: streaming)
+	void _process(double p_delta) override;
+	Error synthesize_streaming(const String &text, const Ref<AudioStreamGeneratorPlayback> &playback);
+
 	// Signals:
 	//   initialized(success: bool)
 	//   synthesis_completed(audio: AudioStreamWAV)
 	//   synthesis_failed(error: String)
+	//   streaming_ended()
 };
 
 } // namespace godot
