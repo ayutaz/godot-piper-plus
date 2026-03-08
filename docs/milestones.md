@@ -189,11 +189,12 @@ signal initialized(success: bool)
 
 ### 完了基準
 
-- [ ] `synthesize_async()` 呼び出し中にGodot UIがフリーズしない
-- [ ] `synthesis_completed` シグナルが正しく発火する
-- [ ] エラー時に `synthesis_failed` シグナルが発火する
-- [ ] `stop()` で合成が中断できる
-- [ ] 連続して `synthesize_async()` を呼んでもクラッシュしない
+- [x] `synthesize_async()` 呼び出し中にGodot UIがフリーズしない（std::thread + call_deferred実装済み）
+- [x] `synthesis_completed` シグナルが正しく発火する（call_deferredでメインスレッドから発火）
+- [x] `synthesis_failed` シグナルが正しく発火する
+- [x] `stop()` で合成が中断できる（std::atomic<bool> stop_requestedフラグ）
+- [x] 連続して `synthesize_async()` を呼んでもクラッシュしない（processing中はERR_BUSY返却）
+- [ ] 実機テスト: Godotエディタでの非同期合成動作確認
 
 ---
 

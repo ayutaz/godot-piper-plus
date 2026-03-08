@@ -6,8 +6,10 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 // Forward declarations
@@ -36,9 +38,20 @@ private:
 	std::unique_ptr<piper::PiperConfig> piper_config;
 	std::unique_ptr<piper::Voice> voice;
 
-	// Helper
+	// Async synthesis state
+	std::atomic<bool> processing{false};
+	std::atomic<bool> stop_requested{false};
+	std::unique_ptr<std::thread> worker_thread;
+
+	// Helpers
 	String resolve_path(const String &path) const;
 	Ref<AudioStreamWAV> create_audio_stream(const std::vector<int16_t> &audio_buffer, int sample_rate) const;
+
+	// Async internal methods (called via call_deferred from worker thread)
+	void _synthesis_thread_func(std::string text_str);
+	void _on_synthesis_done(const Ref<AudioStreamWAV> &audio);
+	void _on_synthesis_failed(const String &error_msg);
+	void _join_worker_thread();
 
 protected:
 	static void _bind_methods();
@@ -69,12 +82,20 @@ public:
 	void set_noise_w(float p_w);
 	float get_noise_w() const;
 
-	// Methods
+	// Methods (M2: sync)
 	Error initialize();
 	Ref<AudioStreamWAV> synthesize(const String &text);
 	bool is_ready() const;
 
-	// Signals: initialized(success: bool)
+	// Methods (M3: async)
+	Error synthesize_async(const String &text);
+	void stop();
+	bool is_processing() const;
+
+	// Signals:
+	//   initialized(success: bool)
+	//   synthesis_completed(audio: AudioStreamWAV)
+	//   synthesis_failed(error: String)
 };
 
 } // namespace godot

@@ -37,10 +37,23 @@ layout_mode = 2
 
 [node name="SynthesizeButton" type="Button" parent="VBoxContainer/HBoxContainer"]
 layout_mode = 2
-text = "Synthesize"
+text = "Synthesize (Sync)"
 disabled = true
 
-[node name="InitButton" type="Button" parent="VBoxContainer/HBoxContainer"]
+[node name="AsyncButton" type="Button" parent="VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Synthesize (Async)"
+disabled = true
+
+[node name="StopButton" type="Button" parent="VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Stop"
+disabled = true
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="InitButton" type="Button" parent="VBoxContainer/HBoxContainer2"]
 layout_mode = 2
 text = "Initialize"
 

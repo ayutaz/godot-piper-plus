@@ -21,6 +21,10 @@ PiperTTS::PiperTTS() {
 }
 
 PiperTTS::~PiperTTS() {
+	// Stop any running async synthesis and wait for completion
+	stop_requested.store(true);
+	_join_worker_thread();
+
 	if (ready) {
 		piper::terminate(*piper_config);
 		ready = false;
@@ -75,13 +79,26 @@ void PiperTTS::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_w", PROPERTY_HINT_RANGE, "0.0,2.0,0.01"),
 			"set_noise_w", "get_noise_w");
 
-	// --- Methods ---
+	// --- Methods (M2: sync) ---
 	ClassDB::bind_method(D_METHOD("initialize"), &PiperTTS::initialize);
 	ClassDB::bind_method(D_METHOD("synthesize", "text"), &PiperTTS::synthesize);
 	ClassDB::bind_method(D_METHOD("is_ready"), &PiperTTS::is_ready);
 
+	// --- Methods (M3: async) ---
+	ClassDB::bind_method(D_METHOD("synthesize_async", "text"), &PiperTTS::synthesize_async);
+	ClassDB::bind_method(D_METHOD("stop"), &PiperTTS::stop);
+	ClassDB::bind_method(D_METHOD("is_processing"), &PiperTTS::is_processing);
+
+	// Internal methods for call_deferred (worker thread → main thread)
+	ClassDB::bind_method(D_METHOD("_on_synthesis_done", "audio"), &PiperTTS::_on_synthesis_done);
+	ClassDB::bind_method(D_METHOD("_on_synthesis_failed", "error"), &PiperTTS::_on_synthesis_failed);
+
 	// --- Signals ---
 	ADD_SIGNAL(MethodInfo("initialized", PropertyInfo(Variant::BOOL, "success")));
+	ADD_SIGNAL(MethodInfo("synthesis_completed",
+			PropertyInfo(Variant::OBJECT, "audio", PROPERTY_HINT_RESOURCE_TYPE, "AudioStreamWAV")));
+	ADD_SIGNAL(MethodInfo("synthesis_failed",
+			PropertyInfo(Variant::STRING, "error")));
 }
 
 // ---------------------------------------------------------------------------
@@ -172,7 +189,7 @@ Ref<AudioStreamWAV> PiperTTS::create_audio_stream(
 }
 
 // ---------------------------------------------------------------------------
-// Public methods
+// Public methods (M2: sync)
 // ---------------------------------------------------------------------------
 
 Error PiperTTS::initialize() {
@@ -232,6 +249,11 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 		return Ref<AudioStreamWAV>();
 	}
 
+	if (processing.load()) {
+		UtilityFunctions::push_error("PiperTTS: Async synthesis in progress. Call stop() first.");
+		return Ref<AudioStreamWAV>();
+	}
+
 	// Apply current synthesis parameters to the voice config
 	voice->synthesisConfig.lengthScale = speech_rate;
 	voice->synthesisConfig.noiseScale = noise_scale;
@@ -266,6 +288,116 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 
 bool PiperTTS::is_ready() const {
 	return ready;
+}
+
+// ---------------------------------------------------------------------------
+// Public methods (M3: async)
+// ---------------------------------------------------------------------------
+
+Error PiperTTS::synthesize_async(const String &text) {
+	if (!ready) {
+		UtilityFunctions::push_error("PiperTTS: Not initialized. Call initialize() first.");
+		return ERR_UNCONFIGURED;
+	}
+
+	if (text.is_empty()) {
+		UtilityFunctions::push_error("PiperTTS: Empty text provided.");
+		return ERR_INVALID_PARAMETER;
+	}
+
+	if (processing.load()) {
+		UtilityFunctions::push_error("PiperTTS: Already processing. Call stop() first or wait for completion.");
+		return ERR_BUSY;
+	}
+
+	// Apply synthesis parameters on the main thread (safe - no worker is running)
+	voice->synthesisConfig.lengthScale = speech_rate;
+	voice->synthesisConfig.noiseScale = noise_scale;
+	voice->synthesisConfig.noiseW = noise_w;
+
+	if (speaker_id >= 0) {
+		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
+	}
+
+	// Join any previous (completed) worker thread
+	_join_worker_thread();
+
+	processing.store(true);
+	stop_requested.store(false);
+
+	std::string text_str = text.utf8().get_data();
+	worker_thread = std::make_unique<std::thread>(
+			&PiperTTS::_synthesis_thread_func, this, std::move(text_str));
+
+	return OK;
+}
+
+void PiperTTS::stop() {
+	if (!processing.load()) {
+		return;
+	}
+
+	stop_requested.store(true);
+	_join_worker_thread();
+	// processing is set to false by the thread function
+}
+
+bool PiperTTS::is_processing() const {
+	return processing.load();
+}
+
+// ---------------------------------------------------------------------------
+// Async internal methods
+// ---------------------------------------------------------------------------
+
+void PiperTTS::_join_worker_thread() {
+	if (worker_thread && worker_thread->joinable()) {
+		worker_thread->join();
+	}
+	worker_thread.reset();
+}
+
+void PiperTTS::_synthesis_thread_func(std::string text_str) {
+	std::vector<int16_t> audio_buffer;
+	piper::SynthesisResult result;
+
+	try {
+		piper::textToAudio(*piper_config, *voice, text_str,
+				audio_buffer, result, nullptr);
+	} catch (const std::exception &e) {
+		if (!stop_requested.load()) {
+			call_deferred("_on_synthesis_failed", String(e.what()));
+		}
+		processing.store(false);
+		return;
+	}
+
+	// Check if stop was requested during synthesis
+	if (stop_requested.load()) {
+		processing.store(false);
+		return;
+	}
+
+	if (audio_buffer.empty()) {
+		call_deferred("_on_synthesis_failed", String("Synthesis produced no audio."));
+		processing.store(false);
+		return;
+	}
+
+	int sample_rate = voice->synthesisConfig.sampleRate;
+	Ref<AudioStreamWAV> audio = create_audio_stream(audio_buffer, sample_rate);
+
+	call_deferred("_on_synthesis_done", audio);
+	processing.store(false);
+}
+
+void PiperTTS::_on_synthesis_done(const Ref<AudioStreamWAV> &audio) {
+	emit_signal("synthesis_completed", audio);
+}
+
+void PiperTTS::_on_synthesis_failed(const String &error_msg) {
+	UtilityFunctions::push_error(String("PiperTTS: ") + error_msg);
+	emit_signal("synthesis_failed", error_msg);
 }
 
 } // namespace godot
