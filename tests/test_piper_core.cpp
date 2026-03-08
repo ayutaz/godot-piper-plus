@@ -1,9 +1,14 @@
 #include <gtest/gtest.h>
+#include <array>
+#include <limits>
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "piper.hpp"
 #include "phoneme_ids.hpp"
+#include "piper_test_utils.hpp"
 
 class PiperCore : public ::testing::Test {
 protected:
@@ -33,6 +38,13 @@ protected:
 		return config;
 	}
 };
+
+static int readLe32(const std::array<uint8_t, 44> &header, std::size_t offset) {
+	return static_cast<int>(header[offset]) |
+		   (static_cast<int>(header[offset + 1]) << 8) |
+		   (static_cast<int>(header[offset + 2]) << 16) |
+		   (static_cast<int>(header[offset + 3]) << 24);
+}
 
 // 1. BasicPhonemeToIds
 TEST_F(PiperCore, BasicPhonemeToIds) {
@@ -214,4 +226,104 @@ TEST_F(PiperCore, PausePhonemeMapping) {
 	EXPECT_TRUE(missing.empty());
 	ASSERT_EQ(ids.size(), 5);
 	EXPECT_EQ(ids[2], 10);
+}
+
+// 12. SampleRateValidation
+TEST_F(PiperCore, SampleRateValidation) {
+	for (int sampleRate : {16000, 22050, 24000, 44100, 48000}) {
+		json config = {
+			{"audio", {{"sample_rate", sampleRate}}}
+		};
+		piper::SynthesisConfig synthesisConfig;
+		piper::parseSynthesisConfig(config, synthesisConfig);
+		EXPECT_EQ(synthesisConfig.sampleRate, sampleRate);
+	}
+}
+
+// 13. Int16Range
+TEST_F(PiperCore, Int16Range) {
+	const std::vector<float> audio = {-2.0f, -0.5f, 0.0f, 0.5f, 2.0f};
+	std::vector<int16_t> pcm;
+
+	piper::scaleAudioToInt16(audio.data(), audio.size(), pcm);
+
+	ASSERT_EQ(pcm.size(), audio.size());
+	for (int16_t sample : pcm) {
+		EXPECT_GE(sample, std::numeric_limits<int16_t>::min());
+		EXPECT_LE(sample, std::numeric_limits<int16_t>::max());
+	}
+	EXPECT_EQ(pcm.front(), -32767);
+	EXPECT_EQ(pcm.back(), std::numeric_limits<int16_t>::max());
+}
+
+// 14. WAVHeaderStructure
+TEST_F(PiperCore, WAVHeaderStructure) {
+	auto header = piper::createWavHeader(22050, 22050, 1, 2);
+
+	ASSERT_EQ(header.size(), 44u);
+	EXPECT_EQ(std::string(reinterpret_cast<const char *>(header.data()), 4), "RIFF");
+	EXPECT_EQ(std::string(reinterpret_cast<const char *>(header.data() + 8), 4), "WAVE");
+	EXPECT_EQ(std::string(reinterpret_cast<const char *>(header.data() + 12), 4), "fmt ");
+	EXPECT_EQ(std::string(reinterpret_cast<const char *>(header.data() + 36), 4), "data");
+	EXPECT_EQ(readLe32(header, 24), 22050);
+	EXPECT_EQ(readLe32(header, 40), 44100);
+}
+
+// 15. EmptyStringHandling
+TEST_F(PiperCore, EmptyStringHandling) {
+	std::vector<float> durations;
+	std::vector<piper::PhonemeId> ids;
+	piper::PhonemeIdMap idMap;
+
+	auto timings = piper::extractTimingsFromDurations(
+		durations, ids, idMap, 256, 22050, piper::TextPhonemes);
+
+	EXPECT_TRUE(timings.empty());
+}
+
+// 16. UTF8Support
+TEST_F(PiperCore, UTF8Support) {
+	EXPECT_TRUE(piper::isSingleCodepoint(u8"あ"));
+	EXPECT_EQ(piper::getCodepoint(u8"あ"), U'あ');
+
+	json config = {
+		{"phoneme_id_map", {
+			{u8"あ", json::array({42})}
+		}}
+	};
+	piper::PhonemizeConfig phonemizeConfig;
+	piper::parsePhonemizeConfig(config, phonemizeConfig);
+
+	ASSERT_EQ(phonemizeConfig.phonemeIdMap.size(), 1u);
+	EXPECT_EQ(phonemizeConfig.phonemeIdMap[U'あ'][0], 42);
+}
+
+// 17. ModelConfigParsing
+TEST_F(PiperCore, ModelConfigParsing) {
+	json config = {
+		{"phoneme_type", "openjtalk"},
+		{"phoneme_id_map", {
+			{"a", json::array({3})},
+			{u8"あ", json::array({4})}
+		}},
+		{"audio", {{"sample_rate", 24000}}},
+		{"num_speakers", 2},
+		{"speaker_id_map", {{"alice", 0}, {"bob", 1}}}
+	};
+
+	piper::PhonemizeConfig phonemizeConfig;
+	piper::SynthesisConfig synthesisConfig;
+	piper::ModelConfig modelConfig;
+
+	piper::parsePhonemizeConfig(config, phonemizeConfig);
+	piper::parseSynthesisConfig(config, synthesisConfig);
+	piper::parseModelConfig(config, modelConfig);
+
+	EXPECT_EQ(phonemizeConfig.phonemeType, piper::OpenJTalkPhonemes);
+	EXPECT_FALSE(phonemizeConfig.interspersePad);
+	EXPECT_EQ(synthesisConfig.sampleRate, 24000);
+	EXPECT_EQ(modelConfig.numSpeakers, 2);
+	ASSERT_TRUE(modelConfig.speakerIdMap.has_value());
+	EXPECT_EQ(modelConfig.speakerIdMap->at("alice"), 0);
+	EXPECT_EQ(modelConfig.speakerIdMap->at("bob"), 1);
 }

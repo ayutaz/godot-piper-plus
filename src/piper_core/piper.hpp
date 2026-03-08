@@ -1,6 +1,7 @@
 #ifndef PIPER_H_
 #define PIPER_H_
 
+#include <array>
 #include <fstream>
 #include <functional>
 #include <map>
@@ -115,8 +116,33 @@ bool isSingleCodepoint(std::string s);
 // Get the first UTF-8 codepoint of a string
 Phoneme getCodepoint(std::string s);
 
+// Convert a phoneme to a readable UTF-8 string.
+std::string phonemeToString(Phoneme ph);
+
 // Get version of Piper
 std::string getVersion();
+
+// Load JSON config information for phonemization/synthesis/model metadata.
+void parsePhonemizeConfig(json &configRoot, PhonemizeConfig &phonemizeConfig);
+void parseSynthesisConfig(json &configRoot, SynthesisConfig &synthesisConfig);
+void parseModelConfig(json &configRoot, ModelConfig &modelConfig);
+
+// Extract per-phoneme timing information from duration outputs.
+std::vector<PhonemeInfo> extractTimingsFromDurations(
+    const std::vector<float> &durations,
+    const std::vector<PhonemeId> &phonemeIds,
+    const PhonemeIdMap &idMap,
+    int hopSize,
+    int sampleRate,
+    PhonemeType phonemeType);
+
+// Audio helpers used by tests and conversion code.
+void scaleAudioToInt16(const float *audio, std::size_t audioCount,
+                       std::vector<int16_t> &audioBuffer);
+std::array<uint8_t, 44> createWavHeader(std::size_t sampleCount,
+                                        int sampleRate,
+                                        int channels = 1,
+                                        int sampleWidth = 2);
 
 // Must be called before using textToAudio
 void initialize(PiperConfig &config);

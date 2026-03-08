@@ -16,6 +16,8 @@ Thumbs.db
 
 # Binaries
 addons/piper_plus/bin/
+test/project/addons/piper_plus/bin/*
+!test/project/addons/piper_plus/bin/.gitignore
 *.o
 *.obj
 *.a

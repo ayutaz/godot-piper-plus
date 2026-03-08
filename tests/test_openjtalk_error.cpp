@@ -137,3 +137,25 @@ TEST_F(OpenJTalkError_, ThreadSafety) {
 
     EXPECT_TRUE(ok.load());
 }
+
+// 11. InvalidInput - input validation error codes should remain distinguishable
+TEST_F(OpenJTalkError_, InvalidInput) {
+    OpenJTalkResult result;
+    openjtalk_set_result(&result, OPENJTALK_ERROR_NULL_INPUT, nullptr);
+    EXPECT_EQ(result.code, OPENJTALK_ERROR_NULL_INPUT);
+    EXPECT_STREQ(result.message, "Null input provided");
+
+    openjtalk_set_result(&result, OPENJTALK_ERROR_EMPTY_INPUT, nullptr);
+    EXPECT_EQ(result.code, OPENJTALK_ERROR_EMPTY_INPUT);
+    EXPECT_STREQ(result.message, "Empty input provided");
+}
+
+// 12. InputSizeLimits - oversized-input errors should preserve the limit message
+TEST_F(OpenJTalkError_, InputSizeLimits) {
+    OpenJTalkResult result;
+    openjtalk_set_result(&result, OPENJTALK_ERROR_INPUT_TOO_LARGE,
+                         "Input size exceeds limit %d", 1048576);
+
+    EXPECT_EQ(result.code, OPENJTALK_ERROR_INPUT_TOO_LARGE);
+    EXPECT_STREQ(result.message, "Input size exceeds limit 1048576");
+}

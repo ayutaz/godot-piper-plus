@@ -1,38 +1,31 @@
-class_name TestBase
 extends RefCounted
+class_name TestBase
 
-var passed: int = 0
-var failed: int = 0
-var skipped: int = 0
 var failures: Array[String] = []
 var skips: Array[String] = []
 
+func get_suite_name() -> String:
+    return get_script().resource_path.get_file().get_basename()
 
-func assert_true(condition: bool, message: String) -> void:
-    if not condition:
-        push_failure(message)
+func reset_results() -> void:
+    failures.clear()
+    skips.clear()
 
+func assert_true(value: bool, message: String) -> void:
+    if not value:
+        failures.append(message)
+
+func assert_false(value: bool, message: String) -> void:
+    if value:
+        failures.append(message)
 
 func assert_equal(actual, expected, message: String) -> void:
     if actual != expected:
-        push_failure("%s (actual=%s expected=%s)" % [message, var_to_str(actual), var_to_str(expected)])
-
+        failures.append("%s (expected=%s actual=%s)" % [message, str(expected), str(actual)])
 
 func assert_not_null(value, message: String) -> void:
     if value == null:
-        push_failure(message)
+        failures.append(message)
 
-
-func push_failure(message: String) -> void:
-    failed += 1
-    failures.append(message)
-
-
-func push_skip(message: String) -> void:
-    skipped += 1
+func skip(message: String) -> void:
     skips.append(message)
-    print("  SKIP: %s" % message)
-
-
-func mark_pass() -> void:
-    passed += 1

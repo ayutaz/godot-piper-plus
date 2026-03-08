@@ -13,6 +13,7 @@ set(TEST_SOURCES
 # Source files under test (C++) - compiled directly since they're normally in a shared lib
 set(SUT_CXX_SOURCES
   ${CMAKE_SOURCE_DIR}/src/piper_core/custom_dictionary.cpp
+  ${CMAKE_SOURCE_DIR}/src/piper_core/piper_test_utils.cpp
   ${CMAKE_SOURCE_DIR}/src/piper_core/phoneme_parser.cpp
 )
 
@@ -31,6 +32,7 @@ add_executable(piper_plus_tests
 target_include_directories(piper_plus_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/src/piper_core
+  ${ONNXRUNTIME_INCLUDE_DIR}
 )
 
 target_link_libraries(piper_plus_tests PRIVATE
