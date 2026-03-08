@@ -93,11 +93,11 @@ GDExtensionの単一共有ライブラリ内にOpenJTalkを静的リンクし、
 
 | プラットフォーム | GDExtension出力 | ONNX Runtime | ビルドツール |
 |----------------|----------------|-------------|------------|
-| Windows x86_64 | `libpiper_plus.dll` | `onnxruntime.dll` (動的) | SCons/CMake + MSVC |
-| Android arm64-v8a | `libpiper_plus.so` | `libonnxruntime.so` (動的) | SCons/CMake + NDK |
-| iOS arm64 | `libpiper_plus.a` (静的) | 静的リンク | SCons/CMake + Xcode |
-| Linux x86_64 | `libpiper_plus.so` | `libonnxruntime.so` (動的) | SCons/CMake |
-| macOS arm64 | `libpiper_plus.framework` | framework内 | SCons/CMake |
+| Windows x86_64 | `libpiper_plus.dll` | `onnxruntime.dll` (動的) | CMake + MSVC |
+| Android arm64-v8a | `libpiper_plus.so` | `libonnxruntime.so` (動的) | CMake + NDK |
+| iOS arm64 | `libpiper_plus.a` (静的) | 静的リンク | CMake + Xcode |
+| Linux x86_64 | `libpiper_plus.so` | `libonnxruntime.so` (動的) | CMake |
+| macOS arm64 | `libpiper_plus.framework` | framework内 | CMake |
 
 **.gdextension依存ライブラリ設定（ONNX Runtime）:**
 ```ini
@@ -124,12 +124,13 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text, std::vecto
 | `custom_dictionary.cpp/hpp` | 450行 | JSON辞書解析、テキスト前処理 |
 | `phoneme_parser.cpp/hpp` | - | インライン音素パーサ `[[ phonemes ]]` |
 | `openjtalk_wrapper.c/h` | - | OpenJTalk Cバインディング |
+| `openjtalk_api.c/h` | - | OpenJTalk C API直接呼び出し（ARCH-1で追加） |
 
 Prosody結果（A1/A2/A3）: アクセント核からの相対位置、アクセント句内位置、アクセント句内モーラ数。
 
 ## ビルドシステム
 
-### GDExtension構成（予定）
+### GDExtension構成
 
 ```
 godot-piper-plus/
@@ -137,7 +138,9 @@ godot-piper-plus/
 │   ├── register_types.cpp      # GDExtension登録
 │   ├── piper_tts.cpp/h         # メインTTSノード
 │   ├── openjtalk_phonemizer.cpp/h  # 日本語音素化
-│   └── phoneme_encoder.cpp/h   # 音素エンコーダ
+│   ├── phoneme_encoder.cpp/h   # 音素エンコーダ
+│   ├── openjtalk_api.c/h       # OpenJTalk C API直接呼び出し（ARCH-1で追加）
+│   └── audio_queue.h           # ロックフリーSPSCリングバッファ
 ├── thirdparty/                 # 外部依存
 │   ├── godot-cpp/              # godot-cpp（git submodule）
 │   ├── onnxruntime/            # ONNX Runtimeヘッダ・ライブラリ
@@ -146,20 +149,25 @@ godot-piper-plus/
 │   ├── bin/                    # プラットフォーム別ビルド済バイナリ
 │   ├── models/                 # ONNXモデル
 │   └── dictionaries/           # OpenJTalk辞書・カスタム辞書
-├── SConstruct                  # SCons ビルドスクリプト
+├── CMakeLists.txt              # ルートCMakeファイル
+├── cmake/                      # CMakeモジュール
+│   ├── OpenJTalk_CMakeLists.txt
+│   ├── HTSEngine_CMakeLists.txt
+│   └── FindOnnxRuntime.cmake
+├── .github/workflows/          # CI/CDビルド
 └── demo/                       # デモプロジェクト
 ```
 
-### ビルドコマンド（予定）
+### ビルドコマンド
 
 ```bash
-# godot-cppのビルド
-cd thirdparty/godot-cpp && scons platform=<platform> target=template_release
+# 通常ビルド（macOS arm64の例）
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build -j8
 
-# GDExtensionビルド
-scons platform=<platform> target=template_release
-
-# platform: windows, linux, macos, android, ios
+# クロスコンパイル（Android arm64-v8aの例）
+cmake -B build-android -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a
+cmake --build build-android -j8
 ```
 
 ### 依存ライブラリ

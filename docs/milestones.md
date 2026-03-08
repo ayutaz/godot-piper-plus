@@ -425,3 +425,33 @@ strategy:
 | Godot AudioStreamGeneratorのスレッドセーフ問題 | M6 遅延 | M3段階でstd::thread + call_deferredのスレッドモデルを検証済み |
 | iOS静的リンクのONNX Runtimeサイズ | M4 遅延 | ort-builderでカスタムビルド、不要EPを除外 |
 | Android NDK + CMakeツールチェーン互換性 | M4 遅延 | piper-plusのAndroidビルド設定を参照 |
+
+---
+
+## コードレビュー対応（M1-M7完了後）
+
+### レビュー指摘対応 (2026-03-08)
+- **セキュリティ・安定性修正**: ModelSessionデストラクタ順序、PhonemeType enum統一、Windows UTF-8パス修正
+- **ZipSlip脆弱性対策**: モデルダウンローダにパストラバーサル検証を追加
+- **ビルド修正**: .gdextension iOS静的パス、CMakeポリシーガード、CI ORT版一元管理
+- **ドキュメント**: THIRD_PARTY_LICENSES新規作成（Apache-2.0 Section 4(d)）
+
+### ARCH-1/SEC-1: OpenJTalk system()排除 (2026-03-08)
+- **問題**: OpenJTalkが静的リンクされているにもかかわらず、`system()`/`popen()`で外部バイナリを実行していた
+- **対応**:
+  - `openjtalk_api.c/h`を追加し、C APIを直接呼び出す方式に移行
+  - `openjtalk_wrapper.c`から`system()`/`popen()`を完全削除
+  - `openjtalk_dictionary_manager.c`のsystem()ダウンロードコードも削除
+  - CMakeで不足ヘッダ9個のインストールを追加
+  - `dictionary_path`プロパティをOpenJTalk辞書パスに接続
+- **効果**: コマンドインジェクション脆弱性の根本排除、Android/iOSでの日本語TTS動作が可能に
+
+### T-2/M-4: スレッド安全性修正 (2026-03-08)
+- **T-2 問題**: `processing.store(false)`が`call_deferred`実行前に設定され、新しいsynthesize()が受理されて古いシグナルが誤発火するレース条件
+- **M-4 問題**: AudioStreamWAVがワーカースレッドで生成されていた
+- **対応**:
+  - `synthesis_generation_` atomicカウンタを追加し、古い世代のcall_deferredを自動破棄
+  - `processing.store(false)`をメインスレッドのdeferred handlerに移動
+  - AudioStreamWAV生成をメインスレッドに移動（ワーカーはPackedByteArrayのみ送信）
+  - `stop()`で世代インクリメントによりpending deferredを無効化
+- **効果**: シグナル誤発火の防止、スレッド安全性の保証

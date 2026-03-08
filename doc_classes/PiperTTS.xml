@@ -88,7 +88,7 @@
 			Path to the model configuration file ([code].onnx.json[/code]). This file contains phoneme mappings, sample rate, and other model-specific settings.
 		</member>
 		<member name="dictionary_path" type="String" setter="set_dictionary_path" getter="get_dictionary_path" default="&quot;&quot;">
-			Path to the OpenJTalk dictionary directory (e.g., naist-jdic). Currently, the dictionary is located via system paths or the [code]OPENJTALK_DICTIONARY_PATH[/code] environment variable. This property is reserved for future use when direct OpenJTalk API integration is completed.
+			Path to the OpenJTalk dictionary directory (naist-jdic). Required for Japanese TTS. Supports Godot resource paths such as [code]res://[/code] and [code]user://[/code] (e.g., [code]res://addons/piper_plus/dictionaries/naist-jdic[/code]). When set, this path is applied as the OpenJTalk dictionary path during [method initialize].
 		</member>
 		<member name="speaker_id" type="int" setter="set_speaker_id" getter="get_speaker_id" default="0">
 			Speaker ID for multi-speaker models. Valid range is 0 to 999. Ignored for single-speaker models.
