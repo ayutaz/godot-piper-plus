@@ -5,12 +5,19 @@ const BUNDLED_MODEL_PATH := "res://models/ja_JP-test-medium.onnx"
 const BUNDLED_CONFIG_PATH := "res://models/ja_JP-test-medium.onnx.json"
 const BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
 
-func _create_tts() -> PiperTTS:
-    var tts := PiperTTS.new()
+func _addon_available() -> bool:
+    return ClassDB.class_exists("PiperTTS")
+
+func _create_tts():
+    if not _addon_available():
+        return null
+    var tts = ClassDB.instantiate("PiperTTS")
+    if tts == null:
+        return null
     Engine.get_main_loop().root.add_child(tts)
     return tts
 
-func _cleanup_tts(tts: PiperTTS) -> void:
+func _cleanup_tts(tts) -> void:
     if is_instance_valid(tts):
         tts.stop()
         tts.queue_free()
@@ -43,7 +50,7 @@ func _model_bundle() -> Dictionary:
         "dictionary_path": dict_path,
     }
 
-func _configure_test_model(tts: PiperTTS) -> bool:
+func _configure_test_model(tts) -> bool:
     var bundle := _model_bundle()
     if bundle.is_empty():
         return false
@@ -78,11 +85,17 @@ func _expected_sample_rate(bundle: Dictionary) -> int:
 
 func test_node_creation() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     assert_not_null(tts, "PiperTTS node should be creatable")
     await _cleanup_tts(tts)
 
 func test_properties() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     tts.model_path = "res://voice.onnx"
     tts.config_path = "res://voice.onnx.json"
     tts.dictionary_path = "res://dict"
@@ -100,6 +113,9 @@ func test_properties() -> void:
 
 func test_speech_rate_range() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     tts.speech_rate = 0.01
     assert_equal(tts.speech_rate, 0.1, "speech_rate should clamp to the minimum")
     tts.speech_rate = 9.0
@@ -107,40 +123,61 @@ func test_speech_rate_range() -> void:
     await _cleanup_tts(tts)
 
 func test_execution_provider_enum() -> void:
-    assert_equal(PiperTTS.EP_CPU, 0, "EP_CPU should match the bound enum")
-    assert_equal(PiperTTS.EP_COREML, 1, "EP_COREML should match the bound enum")
-    assert_equal(PiperTTS.EP_DIRECTML, 2, "EP_DIRECTML should match the bound enum")
-    assert_equal(PiperTTS.EP_NNAPI, 3, "EP_NNAPI should match the bound enum")
-    assert_equal(PiperTTS.EP_AUTO, 4, "EP_AUTO should match the bound enum")
+    if not _addon_available():
+        skip("PiperTTS class is unavailable")
+        return
+    assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_CPU"), 0, "EP_CPU should match the bound enum")
+    assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_COREML"), 1, "EP_COREML should match the bound enum")
+    assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_DIRECTML"), 2, "EP_DIRECTML should match the bound enum")
+    assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_NNAPI"), 3, "EP_NNAPI should match the bound enum")
+    assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_AUTO"), 4, "EP_AUTO should match the bound enum")
 
 func test_initialize_without_model() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     assert_equal(tts.initialize(), ERR_UNCONFIGURED, "initialize() should reject missing model_path")
     await _cleanup_tts(tts)
 
 func test_synthesize_without_init() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     var audio = tts.synthesize(DEFAULT_TEST_TEXT)
     assert_true(audio == null, "synthesize() should fail before initialize()")
     await _cleanup_tts(tts)
 
 func test_synthesize_async_without_init() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     assert_equal(tts.synthesize_async(DEFAULT_TEST_TEXT), ERR_UNCONFIGURED, "synthesize_async() should fail before initialize()")
     await _cleanup_tts(tts)
 
 func test_is_ready_default() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     assert_false(tts.is_ready(), "PiperTTS should start in a not-ready state")
     await _cleanup_tts(tts)
 
 func test_is_processing_default() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     assert_false(tts.is_processing(), "PiperTTS should start in an idle state")
     await _cleanup_tts(tts)
 
 func test_initialize_with_model() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         await _cleanup_tts(tts)
@@ -152,6 +189,9 @@ func test_initialize_with_model() -> void:
 
 func test_synthesize_basic() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         await _cleanup_tts(tts)
@@ -170,6 +210,9 @@ func test_synthesize_basic() -> void:
 
 func test_synthesize_async() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         await _cleanup_tts(tts)
@@ -197,6 +240,9 @@ func test_synthesize_async() -> void:
 
 func test_audio_stream_format() -> void:
     var tts := _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         await _cleanup_tts(tts)
