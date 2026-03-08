@@ -5,27 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include "piper.hpp"
-
-extern "C" {
-    // OpenJTalk C wrapper functions
-    bool openjtalk_is_available();
-    bool openjtalk_ensure_dictionary();
-    char* openjtalk_text_to_phonemes(const char* text);
-    void openjtalk_free_phonemes(char* phonemes);
-
-    // Prosody result structure for phonemes with A1/A2/A3 values
-    typedef struct {
-        char* phonemes;         // Space-separated phonemes
-        int* prosody_a1;        // A1 values for each phoneme
-        int* prosody_a2;        // A2 values for each phoneme
-        int* prosody_a3;        // A3 values for each phoneme
-        int count;              // Number of phonemes
-    } OpenJTalkProsodyResult;
-
-    // Get phonemes with prosody features from text
-    OpenJTalkProsodyResult* openjtalk_text_to_phonemes_with_prosody(const char* text);
-    void openjtalk_free_prosody_result(OpenJTalkProsodyResult* result);
-}
+#include "openjtalk_wrapper.h"
 
 namespace piper {
 

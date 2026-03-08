@@ -81,6 +81,7 @@ set(PIPER_PLUS_SOURCES
 
 set(PIPER_PLUS_C_SOURCES
   src/piper_core/openjtalk_wrapper.c
+  src/piper_core/openjtalk_api.c
   src/piper_core/openjtalk_error.c
   src/piper_core/openjtalk_dictionary_manager.c
   src/piper_core/openjtalk_security.c

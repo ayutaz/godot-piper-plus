@@ -5,6 +5,10 @@
 
 #include "piper_core/piper.hpp"
 
+extern "C" {
+	void openjtalk_set_dictionary_path(const char* path);
+}
+
 #include <cstring>
 #include <functional>
 #include <optional>
@@ -245,6 +249,14 @@ Error PiperTTS::initialize() {
 	// Resolve Godot resource paths to absolute OS paths
 	String abs_model = resolve_path(model_path);
 	String abs_config = resolve_path(config_path);
+
+	// Set OpenJTalk dictionary path if configured
+	if (!dictionary_path.is_empty()) {
+		String abs_dict = resolve_path(dictionary_path);
+		std::string dict_str = abs_dict.utf8().get_data();
+		openjtalk_set_dictionary_path(dict_str.c_str());
+		UtilityFunctions::print(String("PiperTTS: OpenJTalk dictionary path set to: ") + abs_dict);
+	}
 
 	std::string model_str = abs_model.utf8().get_data();
 	std::string config_str = abs_config.utf8().get_data();
