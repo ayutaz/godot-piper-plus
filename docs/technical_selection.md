@@ -12,14 +12,14 @@ godot-piper-plus の実装に向けた技術調査結果と選定方針。
 |---------|-------|-------|
 | godot-cpp統合 | 公式プライマリ | 公式セカンダリ（4.3+で安定） |
 | OpenJTalk/HTSEngineビルド | 事前ビルド必要（高難度） | ExternalProject_Addで自動（piper-plus実績あり） |
-| piper-phonemize/espeak-ng | autotools統合が極めて困難 | ExternalProject_Addで自動 |
+| piper-phonemize/espeak-ng | GPL-3.0ライセンス汚染のため不使用 | GPL-3.0ライセンス汚染のため不使用 |
 | ONNX Runtimeリンク | 手動パス指定 | find_package / プリビルト検索 |
 | IDE連携 | 弱い | CLion/VSCode CMake Tools/VS |
 | MSVCランタイム | `/MT`（ONNX Runtimeと不整合） | `/MD`（ONNX Runtimeと一致） |
 
 **決定理由:**
-- piper-plusのCMakeLists.txt（855行）にOpenJTalk/HTSEngine/piper-phonemize/espeak-ng/ONNX Runtimeの全依存統合パターンが検証済みで存在し、流用可能
-- 5つの外部C/C++ライブラリの自動ビルド・リンクはSConsでは現実的でない
+- piper-plusのCMakeLists.txtにOpenJTalk/HTSEngine/ONNX Runtimeの依存統合パターンが検証済みで存在し、流用可能（espeak-ng/piper-phonemizeはGPL-3.0ライセンス汚染のため除外）
+- 外部C/C++ライブラリの自動ビルド・リンクはSConsでは現実的でない
 - godot-cppのCMakeサポートは公式ドキュメント化済み、`godot::cpp`ターゲットとして利用可能
 
 ### 参考テンプレート
@@ -34,31 +34,35 @@ godot-piper-plus の実装に向けた技術調査結果と選定方針。
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
-project(godot_piper_plus CXX C)
+project(godot-piper-plus CXX C)
 set(CMAKE_CXX_STANDARD 17)
 
-# MSVC runtime (ONNX Runtime互換)
-if(MSVC)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
-endif()
-
-# godot-cpp (submodule)
 add_subdirectory(thirdparty/godot-cpp)
 
-# 外部依存 (piper-plus CMakeパターン流用)
+# 外部依存
+# NOTE: espeak-ng/piper-phonemize は GPL-3.0 ライセンス汚染のため不使用
 include(cmake/HTSEngine.cmake)       # ExternalProject_Add
 include(cmake/OpenJTalk.cmake)        # ExternalProject_Add
-include(cmake/PiperPhonemize.cmake)   # ExternalProject_Add
 include(cmake/FindOnnxRuntime.cmake)  # プリビルト検索
 
-# GDExtension
-add_library(piper_plus SHARED
+set(PIPER_PLUS_SOURCES
   src/register_types.cpp
   src/piper_tts.cpp
-  src/phoneme_encoder.cpp
+  src/piper_core/piper.cpp
+  src/piper_core/openjtalk_phonemize.cpp
+  src/piper_core/custom_dictionary.cpp
+  src/piper_core/phoneme_parser.cpp
 )
-target_link_libraries(piper_plus PUBLIC godot::cpp onnxruntime)
-# OpenJTalk/HTSEngine/piper-phonemize は静的リンク
+set(PIPER_PLUS_C_SOURCES
+  src/piper_core/openjtalk_wrapper.c
+  src/piper_core/openjtalk_error.c
+  src/piper_core/openjtalk_dictionary_manager.c
+  src/piper_core/openjtalk_security.c
+)
+add_library(piper_plus SHARED ${PIPER_PLUS_SOURCES} ${PIPER_PLUS_C_SOURCES})
+target_link_libraries(piper_plus PRIVATE godot-cpp)
+# OpenJTalk/HTSEngine: 静的リンク
+# ONNX Runtime: 動的リンク
 ```
 
 ---
@@ -226,26 +230,62 @@ VITS推論は数百ms～数秒かかるため、**必ず別スレッドで実行
 | Godot `Thread` クラス | 可能だがCallableラッパーの複雑さ |
 | `WorkerThreadPool` | 長時間タスクにはプール枯渇リスク |
 
-### シグナル送信パターン
+### 実装パターン（M3で実装済み）
+
+`std::unique_ptr<std::thread>` + `std::atomic` フラグ + `call_deferred` による安全な非同期合成:
 
 ```cpp
-void PiperTTS::synthesize_async(const String &text) {
-    // WorkerThreadPool or std::thread
-    std::thread([this, text]() {
-        std::vector<int16_t> audioBuffer;
-        SynthesisResult result;
-        piper::textToAudio(config, voice, text.utf8().get_data(), audioBuffer, result, nullptr);
-        Ref<AudioStreamWAV> stream = create_audio_stream(audioBuffer, voice.synthesisConfig.sampleRate);
-        call_deferred("_on_synthesis_done", stream);  // メインスレッドへ
-    }).detach();
+Error PiperTTS::synthesize_async(const String &text) {
+    if (!ready) return ERR_UNCONFIGURED;
+    if (text.is_empty()) return ERR_INVALID_PARAMETER;
+    if (processing.load()) return ERR_BUSY;
+
+    // Apply synthesis params on main thread (safe - no worker running)
+    voice->synthesisConfig.lengthScale = speech_rate;
+    voice->synthesisConfig.noiseScale = noise_scale;
+    voice->synthesisConfig.noiseW = noise_w;
+    if (speaker_id >= 0)
+        voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
+
+    _join_worker_thread();
+    processing.store(true);
+    stop_requested.store(false);
+
+    std::string text_str = text.utf8().get_data();
+    worker_thread = std::make_unique<std::thread>(
+        &PiperTTS::_synthesis_thread_func, this, std::move(text_str));
+    return OK;
 }
 
-void PiperTTS::_on_synthesis_done(Ref<AudioStreamWAV> stream) {
-    emit_signal("synthesis_completed", stream);  // メインスレッドで安全に発火
+void PiperTTS::_synthesis_thread_func(std::string text_str) {
+    std::vector<int16_t> audio_buffer;
+    piper::SynthesisResult result;
+    try {
+        piper::textToAudio(*piper_config, *voice, text_str, audio_buffer, result, nullptr);
+    } catch (const std::exception &e) {
+        if (!stop_requested.load())
+            call_deferred("_on_synthesis_failed", String(e.what()));
+        processing.store(false);
+        return;
+    }
+    if (stop_requested.load()) { processing.store(false); return; }
+    if (audio_buffer.empty()) {
+        call_deferred("_on_synthesis_failed", String("Synthesis produced no audio."));
+        processing.store(false);
+        return;
+    }
+    int sample_rate = voice->synthesisConfig.sampleRate;
+    Ref<AudioStreamWAV> audio = create_audio_stream(audio_buffer, sample_rate);
+    call_deferred("_on_synthesis_done", audio);
+    processing.store(false);
 }
 ```
 
-**注意:** Godot 4.4以前では`emit_signal()`をワーカースレッドから直接呼ぶのは安全ではない。必ず`call_deferred()`を経由する。
+**設計ポイント:**
+- `.detach()` ではなく `std::unique_ptr<std::thread>` + `_join_worker_thread()` でスレッドライフサイクルを管理
+- `std::atomic<bool> processing` / `stop_requested` でスレッド間の状態同期
+- `synthesize_async()` は `Error` を返し、呼び出し元で即座にエラーハンドリング可能（`ERR_UNCONFIGURED` / `ERR_INVALID_PARAMETER` / `ERR_BUSY`）
+- `call_deferred()` 経由でメインスレッドにシグナル発火を委譲（Godot 4.4以前では `emit_signal()` をワーカースレッドから直接呼ぶのは安全ではない）
 
 ---
 
@@ -254,22 +294,35 @@ void PiperTTS::_on_synthesis_done(Ref<AudioStreamWAV> stream) {
 ### PiperTTSノード
 
 ```gdscript
-# 基本使用例
-@onready var tts = $PiperTTS
+# 基本使用例（demo/main.gd 参照）
+@onready var tts: PiperTTS = $PiperTTS
+@onready var audio_player: AudioStreamPlayer = $AudioStreamPlayer
 
 func _ready():
-    tts.synthesis_completed.connect(_on_done)
-    tts.model_path = "res://addons/piper_plus/models/tsukuyomi-chan.onnx"
-    tts.config_path = "res://addons/piper_plus/models/tsukuyomi-chan.onnx.json"
-    tts.dictionary_path = "res://addons/piper_plus/dictionaries/naist-jdic"
-    tts.initialize()
+    tts.initialized.connect(_on_tts_initialized)
+    tts.synthesis_completed.connect(_on_synthesis_completed)
+    tts.synthesis_failed.connect(_on_synthesis_failed)
+    # model_path, config_path, dictionary_path はInspectorで設定
+    var err = tts.initialize()
+    if err != OK:
+        push_error("Failed to initialize TTS: %d" % err)
 
+func _on_tts_initialized(success: bool):
+    if success:
+        print("TTS ready")
+
+# 非同期合成（推奨）
 func speak(text: String):
-    tts.synthesize_async(text)
+    var err = tts.synthesize_async(text)
+    if err != OK:
+        push_error("Failed to start synthesis: %d" % err)
 
-func _on_done(audio: AudioStreamWAV):
-    $AudioStreamPlayer.stream = audio
-    $AudioStreamPlayer.play()
+func _on_synthesis_completed(audio: AudioStreamWAV):
+    audio_player.stream = audio
+    audio_player.play()
+
+func _on_synthesis_failed(error: String):
+    push_error("Synthesis failed: %s" % error)
 ```
 
 ### プロパティ（Inspector UI対応）
@@ -280,21 +333,20 @@ func _on_done(audio: AudioStreamWAV):
 | `config_path` | String | PROPERTY_HINT_FILE, "*.json" | "" |
 | `dictionary_path` | String | PROPERTY_HINT_DIR | "" |
 | `speaker_id` | int | - | 0 |
-| `speech_rate` | float | PROPERTY_HINT_RANGE, "0.5,2.0,0.1" | 1.0 |
-| `noise_scale` | float | PROPERTY_HINT_RANGE, "0.0,1.0,0.01" | 0.667 |
-| `noise_w` | float | PROPERTY_HINT_RANGE, "0.0,1.0,0.01" | 0.8 |
+| `speech_rate` | float | PROPERTY_HINT_RANGE, "0.1,5.0,0.1" | 1.0 |
+| `noise_scale` | float | PROPERTY_HINT_RANGE, "0.0,2.0,0.01" | 0.667 |
+| `noise_w` | float | PROPERTY_HINT_RANGE, "0.0,2.0,0.01" | 0.8 |
 
 ### メソッド
 
 | メソッド | 戻り値 | 説明 |
 |---------|-------|------|
 | `initialize()` | Error | モデル・辞書ロード |
-| `synthesize(text)` | AudioStreamWAV | 同期合成 |
-| `synthesize_async(text)` | void | 非同期合成（シグナル通知） |
-| `get_phonemes(text)` | PackedStringArray | 音素取得 |
+| `synthesize(text)` | AudioStreamWAV | 同期合成（メインスレッドブロック） |
+| `synthesize_async(text)` | Error | 非同期合成開始（OK/ERR_BUSY/ERR_UNCONFIGURED） |
 | `stop()` | void | 合成中止 |
 | `is_ready()` | bool | 初期化済みか |
-| `is_processing()` | bool | 合成中か |
+| `is_processing()` | bool | 非同期合成中か |
 
 ### シグナル
 
