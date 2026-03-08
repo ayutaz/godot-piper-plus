@@ -17,6 +17,14 @@ using json = nlohmann::json;
 
 namespace piper {
 
+enum ExecutionProvider {
+    EP_CPU = 0,
+    EP_COREML = 1,
+    EP_DIRECTML = 2,
+    EP_NNAPI = 3,
+    EP_AUTO = 4,
+};
+
 typedef int64_t SpeakerId;
 
 struct PiperConfig {
@@ -119,8 +127,7 @@ void terminate(PiperConfig &config);
 // Load Onnx model and JSON config file
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
-               std::optional<SpeakerId> &speakerId, bool useCuda,
-               int gpuDeviceId = 0);
+               std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU);
 
 // Phonemize text and synthesize audio
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,

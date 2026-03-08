@@ -84,6 +84,19 @@ void PiperTTS::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_w", PROPERTY_HINT_RANGE, "0.0,2.0,0.01"),
 			"set_noise_w", "get_noise_w");
 
+	// --- Property: execution_provider ---
+	ClassDB::bind_method(D_METHOD("set_execution_provider", "provider"), &PiperTTS::set_execution_provider);
+	ClassDB::bind_method(D_METHOD("get_execution_provider"), &PiperTTS::get_execution_provider);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "execution_provider", PROPERTY_HINT_ENUM, "CPU:0,CoreML:1,DirectML:2,NNAPI:3,Auto:4"),
+			"set_execution_provider", "get_execution_provider");
+
+	// --- Enum constants: ExecutionProviderGD ---
+	BIND_ENUM_CONSTANT(EP_CPU);
+	BIND_ENUM_CONSTANT(EP_COREML);
+	BIND_ENUM_CONSTANT(EP_DIRECTML);
+	BIND_ENUM_CONSTANT(EP_NNAPI);
+	BIND_ENUM_CONSTANT(EP_AUTO);
+
 	// --- Methods (M2: sync) ---
 	ClassDB::bind_method(D_METHOD("initialize"), &PiperTTS::initialize);
 	ClassDB::bind_method(D_METHOD("synthesize", "text"), &PiperTTS::synthesize);
@@ -172,6 +185,14 @@ float PiperTTS::get_noise_w() const {
 	return noise_w;
 }
 
+void PiperTTS::set_execution_provider(int p_ep) {
+	execution_provider = p_ep;
+}
+
+int PiperTTS::get_execution_provider() const {
+	return execution_provider;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -232,8 +253,22 @@ Error PiperTTS::initialize() {
 			sid = static_cast<piper::SpeakerId>(speaker_id);
 		}
 
+		// Resolve EP_AUTO to platform-specific EP
+		int ep = execution_provider;
+		if (ep == EP_AUTO) {
+#if defined(__APPLE__)
+			ep = EP_COREML;
+#elif defined(_WIN32) && defined(PIPER_PLUS_HAS_DIRECTML)
+			ep = EP_DIRECTML;
+#elif defined(__ANDROID__)
+			ep = EP_NNAPI;
+#else
+			ep = EP_CPU;
+#endif
+		}
+
 		piper::loadVoice(*piper_config, model_str, config_str,
-				*voice, sid, /*useCuda=*/false);
+				*voice, sid, ep);
 
 		ready = true;
 		UtilityFunctions::print("PiperTTS: Voice loaded successfully.");

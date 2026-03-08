@@ -6,6 +6,7 @@
 	<description>
 		Integrates the piper-plus VITS neural text-to-speech engine into Godot as a node. Synthesizes speech audio from Japanese text using ONNX Runtime for inference and OpenJTalk for grapheme-to-phoneme conversion.
 		Set [member model_path], [member config_path], and [member dictionary_path], then call [method initialize] before synthesizing speech. Use [method synthesize] for synchronous synthesis or [method synthesize_async] for non-blocking synthesis on a worker thread.
+		Set [member execution_provider] to use GPU acceleration on supported platforms (CoreML on macOS/iOS, DirectML on Windows, NNAPI on Android).
 	</description>
 	<tutorials>
 	</tutorials>
@@ -86,6 +87,15 @@
 		<member name="noise_w" type="float" setter="set_noise_w" getter="get_noise_w" default="0.8">
 			Controls the randomness of phoneme durations. A value of [code]0.0[/code] produces the most uniform timing. Higher values introduce more variation in the duration of individual phonemes.
 		</member>
+		<member name="execution_provider" type="int" setter="set_execution_provider" getter="get_execution_provider" default="0" enum="PiperTTS.ExecutionProviderGD">
+			Execution provider for ONNX Runtime inference. Set this before calling [method initialize].
+			[b]CPU[/b] (0): Default CPU execution. Works on all platforms.
+			[b]CoreML[/b] (1): Apple Neural Engine / GPU acceleration. Available on macOS and iOS.
+			[b]DirectML[/b] (2): DirectX GPU acceleration. Available on Windows when built with DirectML-enabled ONNX Runtime.
+			[b]NNAPI[/b] (3): Android Neural Networks API acceleration. Available on Android.
+			[b]Auto[/b] (4): Automatically selects the best available execution provider for the current platform.
+			If the selected GPU execution provider is unavailable or fails, the engine automatically falls back to CPU.
+		</member>
 	</members>
 	<signals>
 		<signal name="initialized">
@@ -112,4 +122,21 @@
 			</description>
 		</signal>
 	</signals>
+	<constants>
+		<constant name="EP_CPU" value="0" enum="ExecutionProviderGD">
+			CPU execution provider. Default, works on all platforms.
+		</constant>
+		<constant name="EP_COREML" value="1" enum="ExecutionProviderGD">
+			CoreML execution provider for macOS and iOS. Uses Apple Neural Engine and GPU when available.
+		</constant>
+		<constant name="EP_DIRECTML" value="2" enum="ExecutionProviderGD">
+			DirectML execution provider for Windows. Uses DirectX GPU acceleration.
+		</constant>
+		<constant name="EP_NNAPI" value="3" enum="ExecutionProviderGD">
+			NNAPI execution provider for Android. Uses Android Neural Networks API.
+		</constant>
+		<constant name="EP_AUTO" value="4" enum="ExecutionProviderGD">
+			Automatically selects the best available execution provider for the current platform.
+		</constant>
+	</constants>
 </class>

@@ -27,6 +27,15 @@ namespace godot {
 class PiperTTS : public Node {
 	GDCLASS(PiperTTS, Node)
 
+public:
+	enum ExecutionProviderGD {
+		EP_CPU = 0,
+		EP_COREML = 1,
+		EP_DIRECTML = 2,
+		EP_NNAPI = 3,
+		EP_AUTO = 4,
+	};
+
 private:
 	// Properties
 	String model_path;
@@ -36,6 +45,7 @@ private:
 	float speech_rate = 1.0f;   // = lengthScale
 	float noise_scale = 0.667f;
 	float noise_w = 0.8f;
+	int execution_provider = 0; // EP_CPU
 
 	// Internal state
 	bool ready = false;
@@ -97,6 +107,9 @@ public:
 	void set_noise_w(float p_w);
 	float get_noise_w() const;
 
+	void set_execution_provider(int p_ep);
+	int get_execution_provider() const;
+
 	// Methods (M2: sync)
 	Error initialize();
 	Ref<AudioStreamWAV> synthesize(const String &text);
@@ -119,5 +132,7 @@ public:
 };
 
 } // namespace godot
+
+VARIANT_ENUM_CAST(godot::PiperTTS::ExecutionProviderGD);
 
 #endif // PIPER_TTS_H

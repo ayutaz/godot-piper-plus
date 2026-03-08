@@ -360,9 +360,10 @@ void terminate(PiperConfig &config) {
   spdlog::info("Terminated piper");
 }
 
-void loadModel(std::string modelPath, ModelSession &session, bool useCuda, int gpuDeviceId = 0) {
-  spdlog::debug("loadModel called with path: {}", modelPath);
-  spdlog::debug("Creating ONNX Runtime environment");
+void loadModel(std::string modelPath, ModelSession &session, int executionProvider = EP_CPU) {
+  spdlog::debug("loadModel called with path: {}, EP: {}", modelPath, executionProvider);
+
+  // Create env
   try {
     session.env = Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING,
                            instanceName.c_str());
@@ -372,28 +373,40 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda, int g
     throw;
   }
 
-  if (useCuda) {
-    // Use CUDA provider
-    OrtCUDAProviderOptions cuda_options{};
-    cuda_options.device_id = gpuDeviceId;
-    cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
-    session.options.AppendExecutionProvider_CUDA(cuda_options);
-    spdlog::info("Using CUDA execution provider with GPU device ID: {}", gpuDeviceId);
+  // Try to append GPU EP
+  bool using_gpu_ep = false;
+  if (executionProvider != EP_CPU) {
+    std::string ep_name;
+    switch (executionProvider) {
+      case EP_COREML: ep_name = "CoreML"; break;
+      case EP_DIRECTML: ep_name = "DML"; break;
+      case EP_NNAPI: ep_name = "NNAPI"; break;
+      default: break;
+    }
+    if (!ep_name.empty()) {
+      try {
+        std::unordered_map<std::string, std::string> ep_options;
+        session.options.AppendExecutionProvider(ep_name, ep_options);
+        using_gpu_ep = true;
+        spdlog::info("Using {} execution provider", ep_name);
+      } catch (const Ort::Exception& e) {
+        spdlog::warn("{} EP not available, falling back to CPU: {}", ep_name, e.what());
+        // Reset options since they might be in an inconsistent state
+        session.options = Ort::SessionOptions();
+      } catch (const std::exception& e) {
+        spdlog::warn("{} EP setup failed, falling back to CPU: {}", ep_name, e.what());
+        session.options = Ort::SessionOptions();
+      }
+    }
   }
 
-  // Slows down performance by ~2x
-  // session.options.SetIntraOpNumThreads(1);
-
-  // Roughly doubles load time for no visible inference benefit
-  // session.options.SetGraphOptimizationLevel(
-  //     GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
-
-  session.options.SetGraphOptimizationLevel(
-      GraphOptimizationLevel::ORT_DISABLE_ALL);
-
-  // Slows down performance very slightly
-  // session.options.SetExecutionMode(ExecutionMode::ORT_PARALLEL);
-
+  // Configure session options
+  if (using_gpu_ep) {
+    // GPU EPs benefit from graph optimization
+    session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+  } else {
+    session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+  }
   session.options.DisableCpuMemArena();
   session.options.DisableMemPattern();
   session.options.DisableProfiling();
@@ -407,7 +420,22 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda, int g
   auto modelPathStr = modelPath.c_str();
 #endif
 
-  session.onnx = Ort::Session(session.env, modelPathStr, session.options);
+  // Create session with fallback
+  try {
+    session.onnx = Ort::Session(session.env, modelPathStr, session.options);
+  } catch (const std::exception& e) {
+    if (using_gpu_ep) {
+      spdlog::warn("Session creation with GPU EP failed, retrying with CPU: {}", e.what());
+      session.options = Ort::SessionOptions();
+      session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+      session.options.DisableCpuMemArena();
+      session.options.DisableMemPattern();
+      session.options.DisableProfiling();
+      session.onnx = Ort::Session(session.env, modelPathStr, session.options);
+    } else {
+      throw;
+    }
+  }
 
   auto endTime = std::chrono::steady_clock::now();
   spdlog::debug("Loaded onnx model in {} second(s)",
@@ -442,8 +470,7 @@ void loadModel(std::string modelPath, ModelSession &session, bool useCuda, int g
 // Load Onnx model and JSON config file
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
-               std::optional<SpeakerId> &speakerId, bool useCuda,
-               int gpuDeviceId) {
+               std::optional<SpeakerId> &speakerId, int executionProvider) {
   spdlog::debug("loadVoice called with modelPath={}, configPath={}", modelPath, modelConfigPath);
   spdlog::debug("Parsing voice config at {}", modelConfigPath);
   std::ifstream modelConfigFile(modelConfigPath);
@@ -468,7 +495,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
 
   spdlog::debug("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
 
-  loadModel(modelPath, voice.session, useCuda, gpuDeviceId);
+  loadModel(modelPath, voice.session, executionProvider);
 
 } /* loadVoice */
 

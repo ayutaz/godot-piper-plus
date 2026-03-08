@@ -140,6 +140,27 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
   # Android: RPATH not applicable, pthread linked automatically by NDK
 endif()
 
+# ---- Execution Provider Detection ----
+# CoreML: auto-detected on Apple platforms (standard ORT builds include CoreML EP)
+# NNAPI: auto-detected on Android (standard ORT AAR includes NNAPI EP)
+# DirectML: opt-in via PIPER_PLUS_WITH_DIRECTML (requires DirectML-enabled ONNX Runtime)
+option(PIPER_PLUS_WITH_DIRECTML "Enable DirectML execution provider (Windows only, requires DirectML-enabled ONNX Runtime)" OFF)
+
+if(APPLE)
+  target_compile_definitions(piper_plus PRIVATE PIPER_PLUS_HAS_COREML)
+  message(STATUS "Execution Provider: CoreML enabled (Apple platform)")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  target_compile_definitions(piper_plus PRIVATE PIPER_PLUS_HAS_NNAPI)
+  message(STATUS "Execution Provider: NNAPI enabled (Android platform)")
+endif()
+
+if(WIN32 AND PIPER_PLUS_WITH_DIRECTML)
+  target_compile_definitions(piper_plus PRIVATE PIPER_PLUS_HAS_DIRECTML)
+  message(STATUS "Execution Provider: DirectML enabled")
+endif()
+
 # Output naming: use godot-cpp's suffix for consistent naming
 # Produces: libpiper_plus.<platform>.<target>.<arch>.<ext>
 get_target_property(_GODOTCPP_SUFFIX godot-cpp GODOTCPP_SUFFIX_GENEX)
