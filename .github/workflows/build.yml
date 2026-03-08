@@ -125,6 +125,9 @@ jobs:
           - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64 }
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
       - name: Download C++ test binary
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
@@ -139,6 +142,7 @@ jobs:
             echo "downloaded test binary not found" >&2
             exit 1
           fi
+          chmod +x "$test_bin" 2>/dev/null || true
           "$test_bin" --gtest_color=yes
 
   integration-linux:
