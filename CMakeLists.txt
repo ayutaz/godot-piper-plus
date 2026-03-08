@@ -11,10 +11,9 @@ if(POLICY CMP0135)
 endif()
 
 # MSVC compile options
-# NOTE: CMAKE_MSVC_RUNTIME_LIBRARY is set by godot-cpp's windows.cmake
-# (defaults to static /MT via GODOTCPP_USE_STATIC_CPP=ON).
-# Do NOT override it here with FORCE — see thirdparty/godot-cpp/cmake/windows.cmake.
+# Use static CRT (/MT for Release, /MTd for Debug) to match godot-cpp and ExternalProject libs.
 if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
   add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
   add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
   add_compile_options(/EHsc)
