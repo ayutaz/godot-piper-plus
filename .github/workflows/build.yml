@@ -150,6 +150,22 @@ jobs:
         run: cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
       # ---------------------------------------------------------------
+      # C++ Unit Tests (desktop platforms only)
+      # ---------------------------------------------------------------
+      - name: Configure with tests
+        if: matrix.platform != 'android' && matrix.platform != 'ios'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+
+      - name: Build tests
+        if: matrix.platform != 'android' && matrix.platform != 'ios'
+        shell: bash
+        run: cmake --build build --target piper_plus_tests -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+
+      - name: Run C++ unit tests
+        if: matrix.platform != 'android' && matrix.platform != 'ios'
+        run: ctest --test-dir build --output-on-failure -V
+
+      # ---------------------------------------------------------------
       # Copy ONNX Runtime dynamic libraries to addons/piper_plus/bin/
       # ---------------------------------------------------------------
       - name: Copy ONNX Runtime (Windows)

@@ -1,0 +1,13 @@
+{
+  "version": "2.0",
+  "description": "Test dictionary v2",
+  "metadata": {
+    "created": "test",
+    "author": "test",
+    "license": "MIT"
+  },
+  "entries": {
+    "terraform": {"pronunciation": "テラフォーム", "priority": 8},
+    "ansible": {"pronunciation": "アンシブル", "priority": 6}
+  }
+}

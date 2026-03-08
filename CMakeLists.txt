@@ -208,3 +208,19 @@ file(GLOB DOC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/doc_classes/*.xml")
 if(DOC_FILES)
   target_doc_sources(piper_plus "${DOC_FILES}")
 endif()
+
+# ---- Tests ----
+option(BUILD_TESTS "Build unit tests" OFF)
+
+if(BUILD_TESTS)
+  enable_testing()
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+  )
+  # Windows: prevent dynamic CRT conflicts
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+  add_subdirectory(tests)
+endif()
