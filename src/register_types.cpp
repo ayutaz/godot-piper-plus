@@ -5,6 +5,8 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
+#include "piper_tts.h"
+
 using namespace godot;
 
 void initialize_piper_plus_module(ModuleInitializationLevel p_level) {
@@ -12,7 +14,7 @@ void initialize_piper_plus_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 
-	// M2: ClassDB::register_class<PiperTTS>();
+	ClassDB::register_class<PiperTTS>();
 }
 
 void uninitialize_piper_plus_module(ModuleInitializationLevel p_level) {

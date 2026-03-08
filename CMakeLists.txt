@@ -56,12 +56,25 @@ include(cmake/FindOnnxRuntime.cmake)
 # ---- GDExtension library ----
 set(PIPER_PLUS_SOURCES
   src/register_types.cpp
+  src/piper_tts.cpp
+  src/piper_core/piper.cpp
+  src/piper_core/openjtalk_phonemize.cpp
+  src/piper_core/custom_dictionary.cpp
+  src/piper_core/phoneme_parser.cpp
 )
 
-add_library(piper_plus SHARED ${PIPER_PLUS_SOURCES})
+set(PIPER_PLUS_C_SOURCES
+  src/piper_core/openjtalk_wrapper.c
+  src/piper_core/openjtalk_error.c
+  src/piper_core/openjtalk_dictionary_manager.c
+  src/piper_core/openjtalk_security.c
+)
+
+add_library(piper_plus SHARED ${PIPER_PLUS_SOURCES} ${PIPER_PLUS_C_SOURCES})
 
 target_include_directories(piper_plus PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/piper_core
   ${OPENJTALK_DIR}/include
   ${HTS_ENGINE_DIR}/include
   ${ONNXRUNTIME_INCLUDE_DIR}

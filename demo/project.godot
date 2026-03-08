@@ -1,0 +1,13 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; but it can also be edited just fine.
+
+[application]
+
+config/name="Piper Plus Demo"
+run/main_scene="res://demo/main.tscn"
+config/features=PackedStringArray("4.4")
+
+[audio]
+
+driver/mix_rate=22050
