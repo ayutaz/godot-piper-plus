@@ -19,7 +19,14 @@ if(MSVC)
 endif()
 
 # External CMake args propagation for ExternalProject builds
-if(APPLE)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  # iOS cross-compilation: pass system name and architecture to ExternalProject
+  set(EXTERNAL_CMAKE_ARGS
+    -DCMAKE_SYSTEM_NAME=iOS
+    -DCMAKE_OSX_ARCHITECTURES=arm64
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
+  )
+elseif(APPLE)
   if(CMAKE_OSX_ARCHITECTURES)
     set(EXTERNAL_CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES})
   else()
@@ -29,6 +36,13 @@ elseif(MSVC)
   set(EXTERNAL_CMAKE_ARGS
     -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}
     -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+  )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  # Android cross-compilation: pass NDK toolchain to ExternalProject
+  set(EXTERNAL_CMAKE_ARGS
+    -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+    -DANDROID_ABI=${ANDROID_ABI}
+    -DANDROID_PLATFORM=${ANDROID_PLATFORM}
   )
 else()
   set(EXTERNAL_CMAKE_ARGS "")
@@ -70,7 +84,11 @@ set(PIPER_PLUS_C_SOURCES
   src/piper_core/openjtalk_security.c
 )
 
-add_library(piper_plus SHARED ${PIPER_PLUS_SOURCES} ${PIPER_PLUS_C_SOURCES})
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_library(piper_plus STATIC ${PIPER_PLUS_SOURCES} ${PIPER_PLUS_C_SOURCES})
+else()
+  add_library(piper_plus SHARED ${PIPER_PLUS_SOURCES} ${PIPER_PLUS_C_SOURCES})
+endif()
 
 target_include_directories(piper_plus PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -112,12 +130,14 @@ if(APPLE)
     INSTALL_RPATH "@loader_path"
     BUILD_WITH_INSTALL_RPATH TRUE
   )
-elseif(UNIX AND NOT APPLE)
+elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
   set_target_properties(piper_plus PROPERTIES
     INSTALL_RPATH "$ORIGIN"
     BUILD_WITH_INSTALL_RPATH TRUE
   )
   target_link_libraries(piper_plus PRIVATE pthread)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  # Android: RPATH not applicable, pthread linked automatically by NDK
 endif()
 
 # Output naming: use godot-cpp's suffix for consistent naming
@@ -127,6 +147,7 @@ get_target_property(_GODOTCPP_SUFFIX godot-cpp GODOTCPP_SUFFIX_GENEX)
 set_target_properties(piper_plus PROPERTIES
   PREFIX "lib"
   OUTPUT_NAME "piper_plus.${_GODOTCPP_SUFFIX}"
+  ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin"
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin"
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin"
 )

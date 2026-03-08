@@ -1,0 +1,180 @@
+name: Build GDExtension
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64 }
+          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64 }
+          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64 }
+          - { name: "Android arm64", os: ubuntu-22.04, platform: android, arch: arm64 }
+          - { name: "iOS arm64", os: macos-latest, platform: ios, arch: arm64 }
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ---------------------------------------------------------------
+      # Cache: ExternalProject dependencies (HTSEngine / OpenJTalk)
+      # ---------------------------------------------------------------
+      - name: Cache ExternalProject dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/he
+            build/oj
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-htsengine1.10-openjtalk1.11
+
+      # ---------------------------------------------------------------
+      # Cache: ONNX Runtime (desktop platforms only)
+      # ---------------------------------------------------------------
+      - name: Cache ONNX Runtime
+        if: matrix.platform != 'android' && matrix.platform != 'ios'
+        uses: actions/cache@v4
+        with:
+          path: build/onnxruntime
+          key: ${{ matrix.platform }}-${{ matrix.arch }}-onnxruntime-1.24.3
+
+      # ---------------------------------------------------------------
+      # Android: Download ONNX Runtime AAR + headers
+      # ---------------------------------------------------------------
+      - name: Download ONNX Runtime for Android
+        if: matrix.platform == 'android'
+        run: |
+          # Download AAR for native .so
+          curl -L -o ort.aar https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-android-1.24.3.aar
+          unzip -o ort.aar jni/arm64-v8a/libonnxruntime.so -d ort-extract
+
+          # Download headers from linux package
+          curl -L -o ort-headers.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-linux-x64-1.24.3.tgz
+          tar xf ort-headers.tgz --wildcards '*/include/*'
+
+          # Create ONNXRUNTIME_DIR structure
+          mkdir -p ort-android/lib ort-android/include
+          cp ort-extract/jni/arm64-v8a/libonnxruntime.so ort-android/lib/
+          cp onnxruntime-linux-x64-1.24.3/include/* ort-android/include/
+
+      # ---------------------------------------------------------------
+      # iOS: Download ONNX Runtime xcframework
+      # ---------------------------------------------------------------
+      - name: Download ONNX Runtime for iOS
+        if: matrix.platform == 'ios'
+        run: |
+          curl -L -o ort-ios.zip https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-c-1.24.3-ios-xcframework.zip
+          unzip ort-ios.zip -d ort-ios-extract
+
+          # Create ONNXRUNTIME_DIR for iOS
+          mkdir -p ort-ios/lib ort-ios/include
+          # xcframework内のios-arm64フォルダからライブラリとヘッダを取得
+          cp ort-ios-extract/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime ort-ios/lib/libonnxruntime.a
+          cp -r ort-ios-extract/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/Headers/* ort-ios/include/
+
+      # ---------------------------------------------------------------
+      # Configure & Build: Windows
+      # ---------------------------------------------------------------
+      - name: Configure (Windows)
+        if: matrix.platform == 'windows'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Windows)
+        if: matrix.platform == 'windows'
+        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+      # ---------------------------------------------------------------
+      # Configure & Build: Linux
+      # ---------------------------------------------------------------
+      - name: Configure (Linux)
+        if: matrix.platform == 'linux'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        run: cmake --build build -j$(nproc)
+
+      # ---------------------------------------------------------------
+      # Configure & Build: macOS
+      # ---------------------------------------------------------------
+      - name: Configure (macOS)
+        if: matrix.platform == 'macos'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build (macOS)
+        if: matrix.platform == 'macos'
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+
+      # ---------------------------------------------------------------
+      # Configure & Build: Android
+      # ---------------------------------------------------------------
+      - name: Configure (Android)
+        if: matrix.platform == 'android'
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DONNXRUNTIME_DIR=$PWD/ort-android
+
+      - name: Build (Android)
+        if: matrix.platform == 'android'
+        run: cmake --build build -j$(nproc)
+
+      # ---------------------------------------------------------------
+      # Configure & Build: iOS
+      # ---------------------------------------------------------------
+      - name: Configure (iOS)
+        if: matrix.platform == 'ios'
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DONNXRUNTIME_DIR=$PWD/ort-ios
+
+      - name: Build (iOS)
+        if: matrix.platform == 'ios'
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+
+      # ---------------------------------------------------------------
+      # Copy ONNX Runtime dynamic libraries to addons/piper_plus/bin/
+      # ---------------------------------------------------------------
+      - name: Copy ONNX Runtime (Windows)
+        if: matrix.platform == 'windows'
+        run: cp build/onnxruntime/onnxruntime-win-x64-1.24.3/lib/onnxruntime.dll addons/piper_plus/bin/
+        shell: bash
+
+      - name: Copy ONNX Runtime (Linux)
+        if: matrix.platform == 'linux'
+        run: cp build/onnxruntime/onnxruntime-linux-x64-1.24.3/lib/libonnxruntime.so* addons/piper_plus/bin/
+
+      - name: Copy ONNX Runtime (macOS)
+        if: matrix.platform == 'macos'
+        run: cp build/onnxruntime/onnxruntime-osx-arm64-1.24.3/lib/libonnxruntime*.dylib addons/piper_plus/bin/
+
+      - name: Copy ONNX Runtime (Android)
+        if: matrix.platform == 'android'
+        run: cp ort-android/lib/libonnxruntime.so addons/piper_plus/bin/
+
+      # iOS: No dynamic library copy needed (statically linked)
+
+      # ---------------------------------------------------------------
+      # Upload artifacts
+      # ---------------------------------------------------------------
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: piper-plus-${{ matrix.platform }}-${{ matrix.arch }}
+          path: addons/piper_plus/bin/

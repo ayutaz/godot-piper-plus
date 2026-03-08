@@ -3,8 +3,9 @@ include(ExternalProject)
 set(HTS_ENGINE_VERSION "1.10")
 set(HTS_ENGINE_DIR "${CMAKE_CURRENT_BINARY_DIR}/he")
 
-if(WIN32 OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64" AND CMAKE_SYSTEM_NAME STREQUAL "Linux"))
-  # CMake build for Windows and Linux ARM64
+if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "iOS" OR
+   (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64" AND CMAKE_SYSTEM_NAME STREQUAL "Linux"))
+  # CMake build (Windows, Android, iOS, Linux ARM64)
   ExternalProject_Add(
     hts_engine_external
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/h"
@@ -24,7 +25,7 @@ if(WIN32 OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64" AND CMAKE_SYSTEM_NAM
       ${HTS_ENGINE_DIR}/lib/libHTSEngine.a
   )
 else()
-  # Autotools for macOS and Linux x86_64
+  # Autotools build (macOS, Linux x86_64)
   ExternalProject_Add(
     hts_engine_external
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/h"

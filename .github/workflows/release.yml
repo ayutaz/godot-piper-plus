@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare addon package
+        run: |
+          mkdir -p package/addons/piper_plus/bin
+
+          # Copy all platform binaries into a single bin directory
+          for dir in artifacts/piper-plus-*/; do
+            cp -r "$dir"/* package/addons/piper_plus/bin/ 2>/dev/null || true
+          done
+
+          ls -la package/addons/piper_plus/bin/
+
+      - name: Download addon metadata files
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            addons/piper_plus/piper_plus.gdextension
+          sparse-checkout-cone-mode: false
+          path: repo
+
+      - name: Copy metadata to package
+        run: |
+          cp repo/addons/piper_plus/piper_plus.gdextension package/addons/piper_plus/
+
+      - name: Create release archive
+        run: |
+          cd package
+          zip -r ../piper-plus-${{ github.ref_name }}.zip addons/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: piper-plus-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
