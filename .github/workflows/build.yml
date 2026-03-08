@@ -89,12 +89,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p ci/test-bin
-          mapfile -t test_bins < <(find build -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \))
-          if [[ ${#test_bins[@]} -eq 0 ]]; then
+          test_bin="$(find build -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \) | head -n 1)"
+          if [[ -z "$test_bin" ]]; then
             echo "piper_plus_tests binary not found" >&2
             exit 1
           fi
-          cp "${test_bins[0]}" ci/test-bin/
+          cp "$test_bin" ci/test-bin/
 
       - name: Upload addon bin artifact
         if: always()
@@ -134,12 +134,12 @@ jobs:
       - name: Run C++ tests
         shell: bash
         run: |
-          mapfile -t test_bins < <(find ci/test-bin -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \))
-          if [[ ${#test_bins[@]} -eq 0 ]]; then
+          test_bin="$(find ci/test-bin -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \) | head -n 1)"
+          if [[ -z "$test_bin" ]]; then
             echo "downloaded test binary not found" >&2
             exit 1
           fi
-          "${test_bins[0]}" --gtest_color=yes
+          "$test_bin" --gtest_color=yes
 
   integration-linux:
     name: Linux Godot Headless Integration
