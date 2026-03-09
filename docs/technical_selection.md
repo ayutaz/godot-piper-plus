@@ -15,12 +15,13 @@ godot-piper-plus の実装に向けた技術調査結果と選定方針。
 | piper-phonemize/espeak-ng | GPL-3.0ライセンス汚染のため不使用 | GPL-3.0ライセンス汚染のため不使用 |
 | ONNX Runtimeリンク | 手動パス指定 | find_package / プリビルト検索 |
 | IDE連携 | 弱い | CLion/VSCode CMake Tools/VS |
-| MSVCランタイム | `/MT`（ONNX Runtimeと不整合） | `/MD`（ONNX Runtimeと一致） |
+| MSVCランタイム | 設定衝突が起きやすい | `/MT` に統一しやすい |
 
 **決定理由:**
 - piper-plusのCMakeLists.txtにOpenJTalk/HTSEngine/ONNX Runtimeの依存統合パターンが検証済みで存在し、流用可能（espeak-ng/piper-phonemizeはGPL-3.0ライセンス汚染のため除外）
 - 外部C/C++ライブラリの自動ビルド・リンクはSConsでは現実的でない
 - godot-cppのCMakeサポートは公式ドキュメント化済み、`godot::cpp`ターゲットとして利用可能
+- 現行実装では MSVC CRT を `/MT` に統一し、godot-cpp / ExternalProject 依存と整合させている
 
 ### 参考テンプレート
 
@@ -49,6 +50,7 @@ set(PIPER_PLUS_SOURCES
   src/register_types.cpp
   src/piper_tts.cpp
   src/piper_core/piper.cpp
+  src/piper_core/piper_test_utils.cpp
   src/piper_core/openjtalk_phonemize.cpp
   src/piper_core/custom_dictionary.cpp
   src/piper_core/phoneme_parser.cpp
@@ -63,27 +65,26 @@ add_library(piper_plus SHARED ${PIPER_PLUS_SOURCES} ${PIPER_PLUS_C_SOURCES})
 target_link_libraries(piper_plus PRIVATE godot-cpp)
 # OpenJTalk/HTSEngine: 静的リンク
 # ONNX Runtime: 動的リンク
+
+option(BUILD_TESTS "Build unit tests" OFF)
+if(BUILD_TESTS)
+  enable_testing()
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+  )
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+  add_subdirectory(tests)
+endif()
 ```
 
 ---
 
 ## 2. Godotバージョン: 4.4 (compatibility_minimum)
 
-### Godot 4.x リリース・サポート状況（2026年3月調査）
-
-| バージョン | リリース日 | EOL日 | 状態 |
-|-----------|----------|-------|------|
-| 4.0 | 2023-03-01 | 2023-11-29 | EOL |
-| 4.1 | 2023-07-05 | 2025-03-03 | EOL |
-| 4.2 | 2023-11-29 | 2025-03-03 | EOL |
-| 4.3 | 2024-08-15 | 2025-10-09 | EOL |
-| 4.4 | 2025-03-03 | 2025-10-23 | EOL |
-| **4.5** | 2025-09-15 | - | **Active** |
-| **4.6** | 2026-01-26 | - | **Active（最新安定: 4.6.1）** |
-
-出典: [endoflife.date/godot](https://endoflife.date/godot)
-
-### GDExtension API互換性の調査
+### プロジェクト方針
 
 | バージョン境界 | GDExtension影響 |
 |-------------|---------------|
@@ -92,23 +93,10 @@ target_link_libraries(piper_plus PRIVATE godot-cpp)
 | 4.4 → 4.5 | 軽微 |
 | 4.5 → 4.6 | 軽微 |
 
-出典: [Godot 4.x Breaking Changes](https://gist.github.com/raulsntos/06ac5dd10ebccc3a4f1e7e3ad30dc876)
-
-### 主要GDExtensionプラグインの対応状況
-
-| プラグイン | compatibility_minimum | 備考 |
-|-----------|---------------------|------|
-| GodotSteam | **4.4** | 4.1-4.3版はDeprecated |
-| godot-rust | 4.2 | 「保守的に低いバージョンで始める」方針 |
-| spine-godot | 4.3/4.4 | バージョン別ビルド |
-
-出典: [GodotSteam GDExtension 4.4+](https://godotassetlibrary.com/asset/j4zWKK/godotsteam-gdextension-4.4+), [godot-rust: Selecting a Godot version](https://godot-rust.github.io/book/toolchain/godot-version.html)
-
 ### 選定: 4.4
 
 **決定理由:**
 - GDExtensionは下位互換: 4.4でビルドすれば4.5/4.6以降全てで動作
-- GodotSteam（最も利用されているGDExtensionプラグイン）が4.4+を現行ターゲットにしている実績
 - 4.4→4.5→4.6間のGDExtension API変更は軽微（4.2→4.3の重大変更以降は安定）
 - 4.3以前はGDExtension API破壊的変更があり、対応コストが高い
 - godot-cpp v10.xの`api_version`パラメータで柔軟にターゲット可能
@@ -215,6 +203,10 @@ Ref<AudioStreamWAV> create_audio_stream(const std::vector<int16_t>& buf, int rat
 **Phase 2: AudioStreamGenerator + 文単位ストリーミング**
 - piper-plusの`textToAudioStreaming()`のchunkCallbackを活用
 - ワーカースレッド → ロックフリーキュー → メインスレッド `_process()` でpush_buffer()
+
+現状:
+- `AudioStreamWAV` による同期/非同期合成は実装済み
+- `AudioStreamGeneratorPlayback` + `AudioChunkQueue` を使った文単位ストリーミングも実装済み
 
 ---
 

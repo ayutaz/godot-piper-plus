@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <map>
 #include "spdlog/spdlog.h"
+#include "utf8.h"
 
 namespace piper {
 
@@ -17,6 +18,7 @@ static const std::map<std::string, char32_t> japanesePhonemePUA = {
     {"o:", 0xE004},
     // Special consonants
     {"cl", 0xE005},
+    {"q", 0xE005},
     // Palatalized consonants
     {"ky", 0xE006},
     {"kw", 0xE007},
@@ -46,6 +48,20 @@ static const std::map<std::string, char32_t> japanesePhonemePUA = {
     {"N_ng", 0xE01B},     // ん before k/g (velar)
     {"N_uvular", 0xE01C}, // ん at end or before vowels
 };
+
+namespace {
+
+void appendUtf8Token(const std::string& token, std::vector<Phoneme>& phonemes) {
+    std::string sanitized;
+    utf8::replace_invalid(token.begin(), token.end(), std::back_inserter(sanitized));
+
+    auto it = sanitized.begin();
+    while (it != sanitized.end()) {
+        phonemes.push_back(utf8::next(it, sanitized.end()));
+    }
+}
+
+} // namespace
 
 std::vector<TextOrPhonemes> parsePhonemeNotation(const std::string& input) {
     std::vector<TextOrPhonemes> result;
@@ -105,74 +121,16 @@ std::vector<Phoneme> parsePhonemeString(const std::string& phonemeStr, PhonemeTy
             if (it != japanesePhonemePUA.end()) {
                 // Use the PUA codepoint directly
                 phonemes.push_back(it->second);
-            } else if (token.length() == 1) {
-                // Single character phoneme
-                phonemes.push_back(static_cast<Phoneme>(token[0]));
             } else {
-                // Unknown multi-character phoneme, add each character separately
-                for (char c : token) {
-                    phonemes.push_back(static_cast<Phoneme>(c));
-                }
+                appendUtf8Token(token, phonemes);
             }
         } else {
             // For espeak-ng and text phonemes
             if (token == "pau" || token == "_") {
                 // Pause marker
                 phonemes.push_back(static_cast<Phoneme>('_'));
-            } else if (token.length() == 1) {
-                // Single character
-                phonemes.push_back(static_cast<Phoneme>(token[0]));
             } else {
-                // Multi-character phoneme for espeak - convert from UTF-8
-                // For now, just use the first character as a simple implementation
-                // In a full implementation, we'd need proper UTF-8 decoding
-                const char* str = token.c_str();
-                size_t len = token.length();
-                size_t i = 0;
-                
-                while (i < len) {
-                    char32_t codepoint = 0;
-                    unsigned char c = str[i];
-                    
-                    if ((c & 0x80) == 0) {
-                        // ASCII character
-                        codepoint = c;
-                        i++;
-                    } else if ((c & 0xE0) == 0xC0) {
-                        // 2-byte UTF-8
-                        if (i + 1 < len) {
-                            codepoint = ((c & 0x1F) << 6) | (str[i+1] & 0x3F);
-                            i += 2;
-                        } else {
-                            i++;
-                        }
-                    } else if ((c & 0xF0) == 0xE0) {
-                        // 3-byte UTF-8
-                        if (i + 2 < len) {
-                            codepoint = ((c & 0x0F) << 12) | ((str[i+1] & 0x3F) << 6) | (str[i+2] & 0x3F);
-                            i += 3;
-                        } else {
-                            i++;
-                        }
-                    } else if ((c & 0xF8) == 0xF0) {
-                        // 4-byte UTF-8
-                        if (i + 3 < len) {
-                            codepoint = ((c & 0x07) << 18) | ((str[i+1] & 0x3F) << 12) | 
-                                       ((str[i+2] & 0x3F) << 6) | (str[i+3] & 0x3F);
-                            i += 4;
-                        } else {
-                            i++;
-                        }
-                    } else {
-                        // Invalid UTF-8, skip
-                        i++;
-                        continue;
-                    }
-                    
-                    if (codepoint > 0) {
-                        phonemes.push_back(codepoint);
-                    }
-                }
+                appendUtf8Token(token, phonemes);
             }
         }
     }

@@ -19,6 +19,10 @@ if(WIN32)
     set(_ORT_PLATFORM "win-x86")
   endif()
   set(_ORT_EXT "zip")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  # iOS builds require a pre-built static ONNX Runtime; no auto-download available.
+  # Set ONNXRUNTIME_DIR to the pre-built package root (with lib/ and include/).
+  message(STATUS "iOS detected: ONNX Runtime auto-download is not available. Set ONNXRUNTIME_DIR manually.")
 elseif(APPLE)
   if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
     set(_ORT_PLATFORM "osx-arm64")
@@ -44,11 +48,13 @@ if(ONNXRUNTIME_DIR)
     NAMES onnxruntime
     PATHS "${ONNXRUNTIME_DIR}/lib"
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
   )
   find_path(ONNXRUNTIME_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     PATHS "${ONNXRUNTIME_DIR}/include"
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
   )
 endif()
 
@@ -115,11 +121,13 @@ if(NOT ONNXRUNTIME_LIB OR NOT ONNXRUNTIME_INCLUDE_DIR)
     NAMES onnxruntime
     PATHS "${ONNXRUNTIME_DIR}/lib"
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
   )
   find_path(ONNXRUNTIME_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     PATHS "${ONNXRUNTIME_DIR}/include"
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
   )
 endif()
 

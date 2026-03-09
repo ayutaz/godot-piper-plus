@@ -3,7 +3,10 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -16,43 +19,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Download packaged addon artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          path: artifacts
+          name: piper-plus-addon-package
+          path: dist
 
-      - name: Prepare addon package
-        run: |
-          mkdir -p package/addons/piper_plus/bin
-
-          # Copy all platform binaries into a single bin directory
-          for dir in artifacts/piper-plus-*/; do
-            cp -r "$dir"/* package/addons/piper_plus/bin/ 2>/dev/null || true
-          done
-
-          ls -la package/addons/piper_plus/bin/
-
-      - name: Download addon metadata files
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            addons/piper_plus/piper_plus.gdextension
-          sparse-checkout-cone-mode: false
-          path: repo
-
-      - name: Copy metadata to package
-        run: |
-          cp repo/addons/piper_plus/piper_plus.gdextension package/addons/piper_plus/
-
-      - name: Create release archive
-        run: |
-          cd package
-          zip -r ../piper-plus-${{ github.ref_name }}.zip addons/
+      - name: Rename release archive
+        shell: bash
+        run: mv dist/piper-plus-addon-package.zip "dist/piper-plus-${GITHUB_REF_NAME}.zip"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
-          files: piper-plus-${{ github.ref_name }}.zip
+          files: dist/piper-plus-${{ github.ref_name }}.zip
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
