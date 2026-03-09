@@ -1,4 +1,4 @@
-extends TestBase
+extends "res://test_base.gd"
 
 const DEFAULT_TEST_TEXT := "こんにちは"
 const BUNDLED_MODEL_PATH := "res://models/ja_JP-test-medium.onnx"
