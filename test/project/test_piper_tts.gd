@@ -25,7 +25,7 @@ func _cleanup_tts(tts) -> void:
 
 func _model_bundle() -> Dictionary:
     if FileAccess.file_exists(BUNDLED_MODEL_PATH) and FileAccess.file_exists(BUNDLED_CONFIG_PATH):
-        var bundled := {
+        var bundled = {
             "model_path": BUNDLED_MODEL_PATH,
             "config_path": BUNDLED_CONFIG_PATH,
             "dictionary_path": "",
@@ -34,9 +34,9 @@ func _model_bundle() -> Dictionary:
             bundled["dictionary_path"] = BUNDLED_DICT_PATH
         return bundled
 
-    var model_path := OS.get_environment("PIPER_TEST_MODEL_PATH")
-    var config_path := OS.get_environment("PIPER_TEST_CONFIG_PATH")
-    var dict_path := OS.get_environment("PIPER_TEST_DICT_PATH")
+    var model_path = OS.get_environment("PIPER_TEST_MODEL_PATH")
+    var config_path = OS.get_environment("PIPER_TEST_CONFIG_PATH")
+    var dict_path = OS.get_environment("PIPER_TEST_DICT_PATH")
 
     if model_path.is_empty():
         return {}
@@ -51,7 +51,7 @@ func _model_bundle() -> Dictionary:
     }
 
 func _configure_test_model(tts) -> bool:
-    var bundle := _model_bundle()
+    var bundle = _model_bundle()
     if bundle.is_empty():
         return false
 
@@ -69,7 +69,7 @@ func _configure_test_model(tts) -> bool:
     return true
 
 func _expected_sample_rate(bundle: Dictionary) -> int:
-    var text := FileAccess.get_file_as_string(bundle["config_path"])
+    var text = FileAccess.get_file_as_string(bundle["config_path"])
     if text.is_empty():
         return 22050
 
@@ -77,14 +77,14 @@ func _expected_sample_rate(bundle: Dictionary) -> int:
     if typeof(parsed) != TYPE_DICTIONARY:
         return 22050
 
-    var audio := parsed.get("audio", {})
+    var audio = parsed.get("audio", {})
     if typeof(audio) == TYPE_DICTIONARY:
         return int(audio.get("sample_rate", 22050))
 
     return 22050
 
 func test_node_creation() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -92,7 +92,7 @@ func test_node_creation() -> void:
     await _cleanup_tts(tts)
 
 func test_properties() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -112,7 +112,7 @@ func test_properties() -> void:
     await _cleanup_tts(tts)
 
 func test_speech_rate_range() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -133,7 +133,7 @@ func test_execution_provider_enum() -> void:
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_AUTO"), 4, "EP_AUTO should match the bound enum")
 
 func test_initialize_without_model() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -141,7 +141,7 @@ func test_initialize_without_model() -> void:
     await _cleanup_tts(tts)
 
 func test_synthesize_without_init() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -150,7 +150,7 @@ func test_synthesize_without_init() -> void:
     await _cleanup_tts(tts)
 
 func test_synthesize_async_without_init() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -158,7 +158,7 @@ func test_synthesize_async_without_init() -> void:
     await _cleanup_tts(tts)
 
 func test_is_ready_default() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -166,7 +166,7 @@ func test_is_ready_default() -> void:
     await _cleanup_tts(tts)
 
 func test_is_processing_default() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -174,7 +174,7 @@ func test_is_processing_default() -> void:
     await _cleanup_tts(tts)
 
 func test_initialize_with_model() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -188,7 +188,7 @@ func test_initialize_with_model() -> void:
     await _cleanup_tts(tts)
 
 func test_synthesize_basic() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -209,7 +209,7 @@ func test_synthesize_basic() -> void:
     await _cleanup_tts(tts)
 
 func test_synthesize_async() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -224,13 +224,13 @@ func test_synthesize_async() -> void:
         return
 
     var completed_audio = null
-    var failed_error := ""
+    var failed_error = ""
     tts.synthesis_completed.connect(func(audio): completed_audio = audio)
     tts.synthesis_failed.connect(func(error): failed_error = error)
 
     assert_equal(tts.synthesize_async(DEFAULT_TEST_TEXT), OK, "synthesize_async() should start successfully")
 
-    var deadline := Time.get_ticks_msec() + 5000
+    var deadline = Time.get_ticks_msec() + 5000
     while completed_audio == null and failed_error.is_empty() and Time.get_ticks_msec() < deadline:
         await Engine.get_main_loop().process_frame
 
@@ -239,7 +239,7 @@ func test_synthesize_async() -> void:
     await _cleanup_tts(tts)
 
 func test_audio_stream_format() -> void:
-    var tts := _create_tts()
+    var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
@@ -248,8 +248,8 @@ func test_audio_stream_format() -> void:
         await _cleanup_tts(tts)
         return
 
-    var bundle := _model_bundle()
-    var expected_rate := _expected_sample_rate(bundle)
+    var bundle = _model_bundle()
+    var expected_rate = _expected_sample_rate(bundle)
     if tts.initialize() != OK:
         failures.append("initialize() failed for audio_stream_format")
         await _cleanup_tts(tts)
