@@ -2,6 +2,8 @@
 set(TEST_SOURCES
   test_phoneme_mapping.cpp
   test_custom_dictionary.cpp
+  test_english_phonemize.cpp
+  test_language_detector.cpp
   test_phoneme_parser.cpp
   test_openjtalk_security.cpp
   test_openjtalk_error.cpp
@@ -13,6 +15,9 @@ set(TEST_SOURCES
 # Source files under test (C++) - compiled directly since they're normally in a shared lib
 set(SUT_CXX_SOURCES
   ${CMAKE_SOURCE_DIR}/src/piper_core/custom_dictionary.cpp
+  ${CMAKE_SOURCE_DIR}/src/piper_core/english_phonemize.cpp
+  ${CMAKE_SOURCE_DIR}/src/piper_core/language_detector.cpp
+  ${CMAKE_SOURCE_DIR}/src/piper_core/multilingual_phonemize.cpp
   ${CMAKE_SOURCE_DIR}/src/piper_core/piper_test_utils.cpp
   ${CMAKE_SOURCE_DIR}/src/piper_core/phoneme_parser.cpp
 )

@@ -14,13 +14,31 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 - 高品質なニューラル音声合成（VITS / piper-plusベース）
 - 日本語テキスト音声合成（OpenJTalk）
+- 英語テキスト音声合成（CMU辞書ベースの英語 G2P）
+- ja/en 混在テキストの最小 multilingual ルーティング
 - GDExtension（C++）によるネイティブパフォーマンス
 - OpenJTalk による日本語音素化
+- `language_id` / `language_code` 指定とモデル名/エイリアス解決
 - Prosody（韻律）サポート：より自然なイントネーション（A1/A2/A3）
 - 同期 / 非同期 / streaming 合成
 - カスタム辞書エディタと runtime 適用（`custom_dictionary_path`）
 - オフライン動作（クラウド不要）
-- 英語モデル配布の準備中（英語 G2P は未実装）
+
+## 現在の対応状況
+
+現時点で `P0` は完了です。現実装のスコープは次のとおりです。
+
+- 日本語 OpenJTalk と英語 CMU 辞書ベース G2P を使った text input 合成
+- bilingual / multilingual モデルに対する `ja/en` 最小ルーティング
+- `language_id` と `language_code` による言語選択
+- `model_path` の実ファイル指定、モデル名/エイリアス解決、`config_path` fallback
+- `custom_dictionary_path` による辞書前処理と `[[ phonemes ]]` 直入力
+- 英語 text input では `cmudict_data.json` が必要です。`addons/piper_plus/dictionaries/`、モデル同梱ディレクトリ、または config 同階層を探索します。
+
+## 検証状況
+
+- 2026-03-22 時点で `ctest --test-dir build-test --output-on-failure` は `123/123` pass
+- Godot headless の `test/project` は起動するが、現状は `PiperTTS class is unavailable` で GDScript 側が skip。GDExtension 読み込み条件の確認は `P1` 側の残件です。
 
 ## サポートプラットフォーム
 
@@ -34,12 +52,12 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 ## 対応モデル
 
-モデルは `addons/piper_plus/models/` へ手動配置するか、エディタの downloader から取得する前提です。`config_path` を省略した場合は `<model>.json`、次に同じディレクトリの `config.json` を探索します。
+モデルは `addons/piper_plus/models/` へ手動配置するか、エディタの downloader から取得する前提です。`model_path` には `.onnx` の実ファイルだけでなく、登録済みモデル名やエイリアスも指定できます。`config_path` を省略した場合は `<model>.json`、次に同じディレクトリの `config.json` を探索します。
 
 | モデル名 | 言語 | Prosody対応 | 説明 |
 |---------|------|------------|------|
 | ja_JP-test-medium | 日本語 | なし | 標準日本語モデル |
-| en_US-ljspeech-medium | 英語 | なし | モデル配布対象。英語 G2P 未実装のため text input 合成は未対応 |
+| en_US-ljspeech-medium | 英語 | なし | 英語 G2P 対応の英語モデル |
 | tsukuyomi-chan | 日本語 | あり | Prosody対応日本語モデル（より自然なイントネーション） |
 
 ## アーキテクチャ
@@ -53,7 +71,8 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
     ↓
 Phonemizer（音素変換）
     • 日本語: OpenJTalk
-    • 英語: 未実装（Flite LTS + CMU辞書で実装予定）
+    • 英語: CMU辞書ベースの英語 G2P
+    • bilingual / multilingual: Unicode ベースの ja/en 分割
     ↓
 音素エンコーディング（PUA マッピング）
     ↓

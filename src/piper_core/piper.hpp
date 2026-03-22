@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <onnxruntime_cxx_api.h>
@@ -30,6 +31,7 @@ enum ExecutionProvider {
 };
 
 typedef int64_t SpeakerId;
+typedef int64_t LanguageId;
 
 struct PiperConfig {
   // Empty config - eSpeak and tashkeel removed for GDExtension
@@ -37,8 +39,13 @@ struct PiperConfig {
 
 enum PhonemeType {
   TextPhonemes = 0,
-  OpenJTalkPhonemes = 1
+  OpenJTalkPhonemes = 1,
+  MultilingualPhonemes = 2,
 };
+
+inline bool usesOpenJTalk(PhonemeType type) {
+  return type == OpenJTalkPhonemes || type == MultilingualPhonemes;
+}
 
 struct PhonemizeConfig {
   PhonemeType phonemeType = TextPhonemes;
@@ -65,16 +72,23 @@ struct SynthesisConfig {
   // Speaker id from 0 to numSpeakers - 1
   std::optional<SpeakerId> speakerId;
 
+  // Language id from 0 to numLanguages - 1
+  std::optional<LanguageId> languageId;
+
   // Extra silence
   float sentenceSilenceSeconds = 0.2f;
   std::optional<std::map<piper::Phoneme, float>> phonemeSilenceSeconds;
 };
 
 struct ModelConfig {
-  int numSpeakers;
+  int numSpeakers = 0;
+  int numLanguages = 1;
 
   // speaker name -> id
   std::optional<std::map<std::string, SpeakerId>> speakerIdMap;
+
+  // language code -> id
+  std::optional<std::map<std::string, LanguageId>> languageIdMap;
 };
 
 struct ModelSession {
@@ -85,6 +99,8 @@ struct ModelSession {
   bool hasDurationOutput = false;  // Whether model outputs duration information
   bool hasProsodyInput = false;    // Whether model accepts prosody_features input
   bool hasMultiSpeaker = false;    // Whether model has sid (speaker ID) input
+  bool hasLidInput = false;        // Whether model has lid (language ID) input
+  std::string lidInputName = "lid";
 
   ModelSession() : onnx(nullptr){};
 };
@@ -112,6 +128,7 @@ struct Voice {
   ModelConfig modelConfig;
   ModelSession session;
   std::shared_ptr<CustomDictionary> customDictionary;
+  std::unordered_map<std::string, std::string> cmuDict;
 };
 
 // True if the string is a single UTF-8 codepoint

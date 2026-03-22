@@ -69,9 +69,14 @@ void parsePhonemizeConfig(json &configRoot, PhonemizeConfig &phonemizeConfig) {
         auto phonemeTypeStr = configRoot["phoneme_type"].get<std::string>();
         if (phonemeTypeStr == "text") {
             phonemizeConfig.phonemeType = TextPhonemes;
+            phonemizeConfig.interspersePad = true;
         } else if (phonemeTypeStr == "openjtalk") {
             phonemizeConfig.phonemeType = OpenJTalkPhonemes;
             phonemizeConfig.interspersePad = false;
+        } else if (phonemeTypeStr == "multilingual" ||
+                   phonemeTypeStr == "bilingual") {
+            phonemizeConfig.phonemeType = MultilingualPhonemes;
+            phonemizeConfig.interspersePad = true;
         }
     }
 
@@ -158,7 +163,9 @@ void parseSynthesisConfig(json &configRoot, SynthesisConfig &synthesisConfig) {
 }
 
 void parseModelConfig(json &configRoot, ModelConfig &modelConfig) {
-    modelConfig.numSpeakers = configRoot["num_speakers"].get<SpeakerId>();
+    if (configRoot.contains("num_speakers")) {
+        modelConfig.numSpeakers = configRoot["num_speakers"].get<SpeakerId>();
+    }
 
     if (configRoot.contains("speaker_id_map")) {
         if (!modelConfig.speakerIdMap) {
@@ -168,6 +175,38 @@ void parseModelConfig(json &configRoot, ModelConfig &modelConfig) {
         auto speakerIdMapValue = configRoot["speaker_id_map"];
         for (auto &speakerItem : speakerIdMapValue.items()) {
             (*modelConfig.speakerIdMap)[speakerItem.key()] = speakerItem.value().get<SpeakerId>();
+        }
+
+        if (!configRoot.contains("num_speakers") && !modelConfig.speakerIdMap->empty()) {
+            SpeakerId maxSpeakerId = 0;
+            for (const auto &item : *modelConfig.speakerIdMap) {
+                maxSpeakerId = std::max(maxSpeakerId, item.second);
+            }
+            modelConfig.numSpeakers = static_cast<int>(maxSpeakerId + 1);
+        }
+    }
+
+    if (configRoot.contains("num_languages")) {
+        modelConfig.numLanguages = configRoot["num_languages"].get<int>();
+    }
+
+    if (configRoot.contains("language_id_map")) {
+        if (!modelConfig.languageIdMap) {
+            modelConfig.languageIdMap.emplace();
+        }
+
+        auto languageIdMapValue = configRoot["language_id_map"];
+        for (auto &languageItem : languageIdMapValue.items()) {
+            (*modelConfig.languageIdMap)[languageItem.key()] =
+                languageItem.value().get<LanguageId>();
+        }
+
+        if (!configRoot.contains("num_languages") && !modelConfig.languageIdMap->empty()) {
+            LanguageId maxLanguageId = 0;
+            for (const auto &item : *modelConfig.languageIdMap) {
+                maxLanguageId = std::max(maxLanguageId, item.second);
+            }
+            modelConfig.numLanguages = static_cast<int>(maxLanguageId + 1);
         }
     }
 }
@@ -222,7 +261,7 @@ std::vector<PhonemeInfo> extractTimingsFromDurations(
         timings.push_back(info);
     }
 
-    if (phonemeType == OpenJTalkPhonemes) {
+    if (usesOpenJTalk(phonemeType)) {
         for (std::size_t i = 0; i < timings.size(); ++i) {
             if (timings[i].phoneme == "cl" && i > 0) {
                 float overlap = (timings[i].end_time - timings[i].start_time) * JAPANESE_CL_OVERLAP_RATIO;

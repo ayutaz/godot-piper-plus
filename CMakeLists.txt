@@ -97,8 +97,11 @@ set(PIPER_PLUS_SOURCES
   src/piper_tts.cpp
   src/piper_core/piper.cpp
   src/piper_core/piper_test_utils.cpp
+  src/piper_core/english_phonemize.cpp
   src/piper_core/openjtalk_phonemize.cpp
   src/piper_core/custom_dictionary.cpp
+  src/piper_core/language_detector.cpp
+  src/piper_core/multilingual_phonemize.cpp
   src/piper_core/phoneme_parser.cpp
 )
 

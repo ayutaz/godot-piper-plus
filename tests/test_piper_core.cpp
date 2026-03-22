@@ -327,3 +327,54 @@ TEST_F(PiperCore, ModelConfigParsing) {
 	EXPECT_EQ(modelConfig.speakerIdMap->at("alice"), 0);
 	EXPECT_EQ(modelConfig.speakerIdMap->at("bob"), 1);
 }
+
+// 18. PhonemizeConfigBilingualAlias
+TEST_F(PiperCore, PhonemizeConfigBilingualAlias) {
+	json config = {
+		{"phoneme_type", "bilingual"}
+	};
+
+	piper::PhonemizeConfig phonemizeConfig;
+	piper::parsePhonemizeConfig(config, phonemizeConfig);
+
+	EXPECT_EQ(phonemizeConfig.phonemeType, piper::MultilingualPhonemes);
+	EXPECT_TRUE(phonemizeConfig.interspersePad);
+}
+
+// 19. ModelConfigLanguageParsing
+TEST_F(PiperCore, ModelConfigLanguageParsing) {
+	json config = {
+		{"num_languages", 3},
+		{"language_id_map", {
+			{"ja", 0},
+			{"en", 1},
+			{"zh", 2}
+		}}
+	};
+
+	piper::ModelConfig modelConfig;
+	piper::parseModelConfig(config, modelConfig);
+
+	EXPECT_EQ(modelConfig.numLanguages, 3);
+	ASSERT_TRUE(modelConfig.languageIdMap.has_value());
+	EXPECT_EQ(modelConfig.languageIdMap->at("ja"), 0);
+	EXPECT_EQ(modelConfig.languageIdMap->at("en"), 1);
+	EXPECT_EQ(modelConfig.languageIdMap->at("zh"), 2);
+}
+
+// 20. ModelConfigLanguageCountInference - infer num_languages from language_id_map
+TEST_F(PiperCore, ModelConfigLanguageCountInference) {
+	json config = {
+		{"language_id_map", {
+			{"ja", 0},
+			{"en", 1}
+		}}
+	};
+
+	piper::ModelConfig modelConfig;
+	piper::parseModelConfig(config, modelConfig);
+
+	EXPECT_EQ(modelConfig.numLanguages, 2);
+	ASSERT_TRUE(modelConfig.languageIdMap.has_value());
+	EXPECT_EQ(modelConfig.languageIdMap->size(), 2u);
+}

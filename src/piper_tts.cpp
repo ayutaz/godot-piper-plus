@@ -1,5 +1,6 @@
 #include "piper_tts.h"
 
+#include <algorithm>
 #include <filesystem>
 
 #include <godot_cpp/classes/project_settings.hpp>
@@ -15,10 +16,100 @@ extern "C" {
 #include <cstring>
 #include <functional>
 #include <optional>
+#include <vector>
 
 namespace godot {
 
 namespace {
+
+struct ModelCatalogEntry {
+	std::string key;
+	std::vector<std::string> aliases;
+};
+
+const std::vector<ModelCatalogEntry> &get_model_catalog() {
+	static const std::vector<ModelCatalogEntry> catalog = {
+		{"ja_JP-test-medium", {}},
+		{"tsukuyomi-chan", {"tsukuyomi", "tsukuyomi-chan-6lang-fp16", "ja_JP-tsukuyomi-chan-medium", "ja-tsukuyomi"}},
+		{"en_US-ljspeech-medium", {"ljspeech", "en-ljspeech-medium"}},
+	};
+	return catalog;
+}
+
+bool has_suffix(const std::string &value, const char *suffix) {
+	const std::string suffix_str = suffix;
+	return value.size() >= suffix_str.size() &&
+			value.compare(value.size() - suffix_str.size(), suffix_str.size(), suffix_str) == 0;
+}
+
+std::string strip_model_filename_suffix(const std::string &name) {
+	if (has_suffix(name, ".onnx.json")) {
+		return name.substr(0, name.size() - 10);
+	}
+	if (has_suffix(name, ".onnx")) {
+		return name.substr(0, name.size() - 5);
+	}
+	return name;
+}
+
+std::string resolve_catalog_key(const std::string &name) {
+	for (const auto &entry : get_model_catalog()) {
+		if (name == entry.key) {
+			return entry.key;
+		}
+		for (const auto &alias : entry.aliases) {
+			if (name == alias) {
+				return entry.key;
+			}
+		}
+	}
+	return {};
+}
+
+std::optional<std::filesystem::path> find_onnx_in_directory(
+		const std::filesystem::path &directory, const std::string &preferred_stem) {
+	std::error_code ec;
+	if (!std::filesystem::exists(directory, ec) ||
+			!std::filesystem::is_directory(directory, ec)) {
+		return std::nullopt;
+	}
+
+	const std::filesystem::path preferred_file = directory / (preferred_stem + ".onnx");
+	if (std::filesystem::exists(preferred_file, ec) &&
+			std::filesystem::is_regular_file(preferred_file, ec)) {
+		return preferred_file;
+	}
+
+	const std::filesystem::path nested_directory = directory / preferred_stem;
+	if (std::filesystem::exists(nested_directory, ec) &&
+			std::filesystem::is_directory(nested_directory, ec)) {
+		const std::filesystem::path nested_preferred =
+				nested_directory / (preferred_stem + ".onnx");
+		if (std::filesystem::exists(nested_preferred, ec) &&
+				std::filesystem::is_regular_file(nested_preferred, ec)) {
+			return nested_preferred;
+		}
+	}
+
+	std::optional<std::filesystem::path> single_onnx;
+	for (const auto &entry : std::filesystem::directory_iterator(directory, ec)) {
+		if (ec) {
+			break;
+		}
+		if (!entry.is_regular_file(ec)) {
+			continue;
+		}
+		if (entry.path().extension() != ".onnx") {
+			continue;
+		}
+		if (single_onnx.has_value()) {
+			return std::nullopt;
+		}
+		single_onnx = entry.path();
+	}
+
+	return single_onnx;
+}
 
 bool path_exists(const String &path) {
 	if (path.is_empty()) {
@@ -26,6 +117,69 @@ bool path_exists(const String &path) {
 	}
 
 	return std::filesystem::exists(std::filesystem::path(path.utf8().get_data()));
+}
+
+std::string normalize_language_code(const String &code) {
+	String normalized = code.strip_edges().to_lower();
+	std::string utf8 = normalized.utf8().get_data();
+	std::replace(utf8.begin(), utf8.end(), '_', '-');
+	return utf8;
+}
+
+Error apply_requested_language(
+		piper::Voice &voice, int requested_language_id,
+		const String &requested_language_code, String &error_message) {
+	const std::string normalized_code = normalize_language_code(requested_language_code);
+	if (!normalized_code.empty()) {
+		if (!voice.modelConfig.languageIdMap || voice.modelConfig.languageIdMap->empty()) {
+			error_message = "PiperTTS: language_code was set, but the loaded model does not expose language_id_map.";
+			return ERR_INVALID_PARAMETER;
+		}
+
+		std::vector<std::string> candidates = {normalized_code};
+		const std::size_t separator = normalized_code.find('-');
+		if (separator != std::string::npos && separator > 0) {
+			candidates.push_back(normalized_code.substr(0, separator));
+		}
+
+		for (const auto &[language_code, language_value] : *voice.modelConfig.languageIdMap) {
+			const std::string normalized_map_code =
+					normalize_language_code(String(language_code.c_str()));
+			for (const std::string &candidate : candidates) {
+				if (candidate == normalized_map_code) {
+					voice.synthesisConfig.languageId = language_value;
+					return OK;
+				}
+				const std::size_t separator = normalized_map_code.find('-');
+				if (separator != std::string::npos &&
+						candidate == normalized_map_code.substr(0, separator)) {
+					voice.synthesisConfig.languageId = language_value;
+					return OK;
+				}
+			}
+		}
+
+		error_message = String("PiperTTS: language_code '") +
+				requested_language_code.strip_edges() +
+				"' was not found in language_id_map.";
+		return ERR_INVALID_PARAMETER;
+	}
+
+	if (requested_language_id >= 0) {
+		if (voice.modelConfig.numLanguages > 0 &&
+				requested_language_id >= voice.modelConfig.numLanguages) {
+			error_message = String("PiperTTS: language_id is out of range for this model: ") +
+					String::num_int64(requested_language_id);
+			return ERR_INVALID_PARAMETER;
+		}
+
+		voice.synthesisConfig.languageId =
+				static_cast<piper::LanguageId>(requested_language_id);
+		return OK;
+	}
+
+	voice.synthesisConfig.languageId.reset();
+	return OK;
 }
 
 } // namespace
@@ -90,6 +244,18 @@ void PiperTTS::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_speaker_id"), &PiperTTS::get_speaker_id);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "speaker_id", PROPERTY_HINT_RANGE, "0,999,1"),
 			"set_speaker_id", "get_speaker_id");
+
+	// --- Property: language_id ---
+	ClassDB::bind_method(D_METHOD("set_language_id", "id"), &PiperTTS::set_language_id);
+	ClassDB::bind_method(D_METHOD("get_language_id"), &PiperTTS::get_language_id);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "language_id", PROPERTY_HINT_RANGE, "-1,999,1"),
+			"set_language_id", "get_language_id");
+
+	// --- Property: language_code ---
+	ClassDB::bind_method(D_METHOD("set_language_code", "code"), &PiperTTS::set_language_code);
+	ClassDB::bind_method(D_METHOD("get_language_code"), &PiperTTS::get_language_code);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "language_code"),
+			"set_language_code", "get_language_code");
 
 	// --- Property: speech_rate ---
 	ClassDB::bind_method(D_METHOD("set_speech_rate", "rate"), &PiperTTS::set_speech_rate);
@@ -186,12 +352,28 @@ String PiperTTS::get_custom_dictionary_path() const {
 	return custom_dictionary_path;
 }
 
+void PiperTTS::set_language_code(const String &p_code) {
+	language_code = p_code.strip_edges();
+}
+
+String PiperTTS::get_language_code() const {
+	return language_code;
+}
+
 void PiperTTS::set_speaker_id(int p_id) {
 	speaker_id = p_id < 0 ? 0 : p_id;
 }
 
 int PiperTTS::get_speaker_id() const {
 	return speaker_id;
+}
+
+void PiperTTS::set_language_id(int p_id) {
+	language_id = p_id < 0 ? -1 : p_id;
+}
+
+int PiperTTS::get_language_id() const {
+	return language_id;
 }
 
 void PiperTTS::set_speech_rate(float p_rate) {
@@ -237,12 +419,79 @@ String PiperTTS::resolve_path(const String &path) const {
 	return path;
 }
 
+String PiperTTS::resolve_model_path(const String &path) const {
+	if (path.is_empty()) {
+		return String();
+	}
+
+	String resolved_path = resolve_path(path.strip_edges());
+	if (!resolved_path.is_empty()) {
+		std::filesystem::path fs_path = std::filesystem::path(resolved_path.utf8().get_data());
+		std::error_code ec;
+		if (std::filesystem::exists(fs_path, ec)) {
+			if (std::filesystem::is_regular_file(fs_path, ec) &&
+					fs_path.extension() == ".onnx") {
+				return resolved_path;
+			}
+			if (std::filesystem::is_directory(fs_path, ec)) {
+				std::optional<std::filesystem::path> maybe_file =
+						find_onnx_in_directory(fs_path, fs_path.filename().string());
+				if (maybe_file.has_value()) {
+					std::string maybe_file_str = maybe_file->string();
+					return String(maybe_file_str.c_str());
+				}
+			}
+		}
+	}
+
+	String stripped = path.strip_edges();
+	std::string input_name = stripped.get_file().utf8().get_data();
+	input_name = strip_model_filename_suffix(input_name);
+	const std::string canonical_key = resolve_catalog_key(input_name);
+	if (canonical_key.empty()) {
+		return String();
+	}
+
+	const std::vector<String> model_roots = {
+		"user://piper/models",
+		"res://addons/piper_plus/models",
+	};
+
+	const std::vector<std::string> search_stems = canonical_key == input_name
+			? std::vector<std::string>{canonical_key}
+			: std::vector<std::string>{canonical_key, input_name};
+
+	for (const String &root_path : model_roots) {
+		const String resolved_root = resolve_path(root_path);
+		if (resolved_root.is_empty()) {
+			continue;
+		}
+
+		std::filesystem::path root_fs = std::filesystem::path(resolved_root.utf8().get_data());
+		for (const std::string &search_stem : search_stems) {
+			for (const std::filesystem::path &candidate_dir : {
+					root_fs,
+					root_fs / search_stem,
+			}) {
+				std::optional<std::filesystem::path> maybe_file =
+						find_onnx_in_directory(candidate_dir, search_stem);
+				if (maybe_file.has_value()) {
+					std::string maybe_file_str = maybe_file->string();
+					return String(maybe_file_str.c_str());
+				}
+			}
+		}
+	}
+
+	return String();
+}
+
 String PiperTTS::resolve_config_path(const String &resolved_model_path) const {
 	if (!config_path.is_empty()) {
 		return resolve_path(config_path);
 	}
 
-	String model_config_path = resolved_model_path + ".json";
+	String model_config_path = resolved_model_path + String(".json");
 	if (path_exists(model_config_path)) {
 		return model_config_path;
 	}
@@ -295,7 +544,13 @@ Error PiperTTS::initialize() {
 	}
 
 	// Resolve Godot resource paths to absolute OS paths
-	String abs_model = resolve_path(model_path);
+	String abs_model = resolve_model_path(model_path);
+	if (abs_model.is_empty()) {
+		UtilityFunctions::push_error(
+				"PiperTTS: model_path could not be resolved to a valid .onnx model file.");
+		emit_signal("initialized", false);
+		return ERR_CANT_OPEN;
+	}
 	String abs_config = resolve_config_path(abs_model);
 
 	if (abs_config.is_empty()) {
@@ -350,7 +605,19 @@ Error PiperTTS::initialize() {
 		piper::loadVoice(*piper_config, model_str, config_str,
 				*voice, sid, ep);
 
+		String language_error;
+		if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+			UtilityFunctions::push_error(language_error);
+			piper::terminate(*piper_config);
+			voice->customDictionary.reset();
+			emit_signal("initialized", false);
+			return ERR_INVALID_PARAMETER;
+		}
+
 		ready = true;
+		if (model_path != abs_model) {
+			UtilityFunctions::print(String("PiperTTS: Model resolved to: ") + abs_model);
+		}
 		if (config_path.is_empty()) {
 			UtilityFunctions::print(String("PiperTTS: Config auto-resolved to: ") + abs_config);
 		}
@@ -392,6 +659,11 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 	// Update speaker ID if multi-speaker model
 	if (speaker_id >= 0) {
 		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
+	}
+	String language_error;
+	if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+		UtilityFunctions::push_error(language_error);
+		return Ref<AudioStreamWAV>();
 	}
 
 	std::string text_str = text.utf8().get_data();
@@ -447,6 +719,11 @@ Error PiperTTS::synthesize_async(const String &text) {
 
 	if (speaker_id >= 0) {
 		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
+	}
+	String language_error;
+	if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+		UtilityFunctions::push_error(language_error);
+		return ERR_INVALID_PARAMETER;
 	}
 
 	// Join any previous (completed) worker thread
@@ -603,6 +880,11 @@ Error PiperTTS::synthesize_streaming(
 
 	if (speaker_id >= 0) {
 		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
+	}
+	String language_error;
+	if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+		UtilityFunctions::push_error(language_error);
+		return ERR_INVALID_PARAMETER;
 	}
 
 	_join_worker_thread();

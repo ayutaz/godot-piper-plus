@@ -123,6 +123,8 @@ func test_properties() -> void:
     tts.dictionary_path = "res://dict"
     tts.custom_dictionary_path = "res://custom_dictionary.json"
     tts.speaker_id = 3
+    tts.language_id = 1
+    tts.language_code = "en"
     tts.noise_scale = 1.2
     tts.noise_w = 0.6
 
@@ -131,6 +133,8 @@ func test_properties() -> void:
     assert_equal(tts.dictionary_path, "res://dict", "dictionary_path should round-trip")
     assert_equal(tts.custom_dictionary_path, "res://custom_dictionary.json", "custom_dictionary_path should round-trip")
     assert_equal(tts.speaker_id, 3, "speaker_id should round-trip")
+    assert_equal(tts.language_id, 1, "language_id should round-trip")
+    assert_equal(tts.language_code, "en", "language_code should round-trip")
     assert_equal(tts.noise_scale, 1.2, "noise_scale should round-trip")
     assert_equal(tts.noise_w, 0.6, "noise_w should round-trip")
     await _cleanup_tts(tts)
