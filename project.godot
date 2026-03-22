@@ -21,3 +21,7 @@ config/features=PackedStringArray("4.6")
 [audio]
 
 driver/mix_rate=22050
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_loop_mcp/plugin.cfg")
