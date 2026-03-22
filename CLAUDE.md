@@ -11,7 +11,7 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 ## 現在の状態
 
 - `P0` は完了扱いです。
-- `P1` は実装と検証まで完了しており、残りは外部作業としての Asset Library 登録です。
+- `P1` は機能実装まで完了していますが、package / platform verification の follow-up が残っています。
 - `P2` は repo 内実装まで完了しています。
 - text input 合成は、日本語 OpenJTalk、英語 CMU 辞書ベース G2P、`ja/en` 最小 multilingual runtime が入っています。
 - `custom_dictionary_path` は runtime 接続済みです。
@@ -24,7 +24,11 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 - editor には downloader、dictionary editor、Inspector 拡張、test speech UI があります。
 - 英語 text input では `cmudict_data.json` が必要で、モデル同梱、config 同階層、`addons/piper_plus/dictionaries` を探索します。
 - C++ テストは `123/123` pass です。
-- Godot headless の `test/project` は、addon bin と `test/models` を同期した状態で GDScript テストを完走できます。
+- Windows の source build は、addon bin と `test/models` を同期した状態で Godot headless の `test/project` を完走できます。
+- ただし packaged addon は 2026-03-23 時点で Windows editor/headless load failure を再現しており、debug binary / runtime dependency の package 導線が未解決です。
+- Linux の Godot headless CI はありますが、現状は all-skip でも green になり得ます。
+- macOS は arm64 build と C++ test まで、Android/iOS は build までで、Godot runtime / export 検証は未実施です。
+- Web は現状サポート対象外です。
 - builtin OpenJTalk fallback の日本語テストは compiled `naist-jdic` が無い環境では skip されます。
 
 ## 設計方針
@@ -122,16 +126,19 @@ godot --headless --path test/project
 
 注記:
 - `test/prepare-assets.sh` か同等の手順で、`addons/piper_plus/bin/` と `test/models/` を `test/project` 側へ同期してから実行する
-- 2026-03-23 時点では `multilingual-test-medium.onnx` を使って `test_piper_tts.gd` が完走する
+- 2026-03-23 時点では Windows source build + asset 同期済み環境で `multilingual-test-medium.onnx` を使って `test_piper_tts.gd` が完走する
+- 現状の CI 判定は all-skip を failure と見なしていないため、package/load failure を完全には検出できない
 - builtin OpenJTalk fallback の日本語ケースは compiled `naist-jdic` が無い場合 skip される
 
 ## 現在の優先タスク
 
 優先順位は [docs/milestones.md](C:/Users/yuta/Desktop/Private/godot-piper-plus/docs/milestones.md) を基準にする。
 
+- `R1` package に debug/editor binary を含める
+- `R2` ONNX Runtime sidecar dependency を package へ反映する
+- `R3` all-skip CI を failure 扱いにする
+- `R4` Windows packaged addon smoke test
 - `P1-8` Asset Library 登録
-- package / icon / README / changelog の公開向け整形
-- Asset Library 申請文面とスクリーンショット準備
 
 ## 参照プロジェクト
 
