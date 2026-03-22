@@ -29,3 +29,7 @@ test/project/addons/piper_plus/bin/*
 
 # ONNX Runtime (downloaded)
 onnxruntime/
+
+# Godot generated cache and editor state
+/.godot/
+/test/project/.godot/
