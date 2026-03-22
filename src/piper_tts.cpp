@@ -1,12 +1,16 @@
 #include "piper_tts.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 
 #include <godot_cpp/classes/project_settings.hpp>
+#include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/packed_int64_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "piper_core/custom_dictionary.hpp"
+#include "piper_core/phoneme_parser.hpp"
 #include "piper_core/piper.hpp"
 
 extern "C" {
@@ -182,6 +186,226 @@ Error apply_requested_language(
 	return OK;
 }
 
+struct EffectiveRequest {
+	bool has_text = false;
+	bool has_phoneme_string = false;
+	String text;
+	String phoneme_string;
+	int speaker_id = 0;
+	int language_id = -1;
+	String language_code;
+	float speech_rate = 1.0f;
+	float noise_scale = 0.667f;
+	float noise_w = 0.8f;
+	float sentence_silence_seconds = 0.2f;
+	Dictionary phoneme_silence_seconds;
+};
+
+class ScopedVoiceSynthesisConfig {
+public:
+	explicit ScopedVoiceSynthesisConfig(piper::Voice &voice)
+			: voice_(voice), saved_(voice.synthesisConfig) {}
+
+	~ScopedVoiceSynthesisConfig() {
+		voice_.synthesisConfig = saved_;
+	}
+
+private:
+	piper::Voice &voice_;
+	piper::SynthesisConfig saved_;
+};
+
+String packed_or_array_to_phoneme_string(const Variant &value, String &error_message) {
+	if (value.get_type() == Variant::STRING) {
+		return value;
+	}
+
+	PackedStringArray tokens;
+	if (value.get_type() == Variant::PACKED_STRING_ARRAY) {
+		tokens = value;
+	} else if (value.get_type() == Variant::ARRAY) {
+		Array array = value;
+		tokens.resize(array.size());
+		for (int i = 0; i < array.size(); ++i) {
+			tokens.set(i, String(array[i]));
+		}
+	} else {
+		error_message = "PiperTTS: request.phonemes must be a String, Array, or PackedStringArray.";
+		return String();
+	}
+
+	String joined;
+	for (int i = 0; i < tokens.size(); ++i) {
+		if (i > 0) {
+			joined += " ";
+		}
+		joined += String(tokens[i]).strip_edges();
+	}
+
+	return joined.strip_edges();
+}
+
+String language_code_from_id(const piper::Voice &voice,
+		const std::optional<piper::LanguageId> &language_id) {
+	if (!language_id.has_value() || !voice.modelConfig.languageIdMap) {
+		return String();
+	}
+
+	for (const auto &[code, value] : *voice.modelConfig.languageIdMap) {
+		if (value == *language_id) {
+			return String(code.c_str());
+		}
+	}
+
+	return String();
+}
+
+Array phoneme_timings_to_dictionary_array(
+		const std::vector<piper::PhonemeInfo> &phoneme_timings) {
+	Array timings;
+	for (const auto &timing : phoneme_timings) {
+		Dictionary entry;
+		entry["phoneme"] = String::utf8(timing.phoneme.c_str());
+		entry["start_time"] = timing.start_time;
+		entry["end_time"] = timing.end_time;
+		entry["start_frame"] = timing.start_frame;
+		entry["end_frame"] = timing.end_frame;
+		timings.push_back(entry);
+	}
+	return timings;
+}
+
+Dictionary synthesis_result_to_dictionary(const piper::SynthesisResult &result, int sample_rate) {
+	Dictionary data;
+	data["sample_rate"] = sample_rate;
+	data["infer_seconds"] = result.inferSeconds;
+	data["audio_seconds"] = result.audioSeconds;
+	data["real_time_factor"] = result.realTimeFactor;
+	data["has_timing_info"] = result.hasTimingInfo;
+	data["phoneme_timings"] = phoneme_timings_to_dictionary_array(result.phonemeTimings);
+	return data;
+}
+
+Dictionary inspection_result_to_dictionary(
+		const piper::InspectionResult &result, const piper::Voice &voice) {
+	Dictionary data;
+	Array phoneme_sentences;
+	Array phoneme_id_sentences;
+
+	for (std::size_t sentence_index = 0; sentence_index < result.phonemeSentences.size();
+			++sentence_index) {
+		const auto &sentence = result.phonemeSentences[sentence_index];
+		PackedStringArray phoneme_tokens;
+		phoneme_tokens.resize(static_cast<int>(sentence.size()));
+		for (std::size_t phoneme_index = 0; phoneme_index < sentence.size(); ++phoneme_index) {
+			phoneme_tokens.set(static_cast<int>(phoneme_index),
+					String::utf8(
+							piper::phonemeToString(sentence[phoneme_index]).c_str()));
+		}
+		phoneme_sentences.push_back(phoneme_tokens);
+
+		PackedInt64Array id_tokens;
+		if (sentence_index < result.phonemeIdSentences.size()) {
+			const auto &ids = result.phonemeIdSentences[sentence_index];
+			id_tokens.resize(static_cast<int>(ids.size()));
+			for (std::size_t id_index = 0; id_index < ids.size(); ++id_index) {
+				id_tokens.set(static_cast<int>(id_index), ids[id_index]);
+			}
+		}
+		phoneme_id_sentences.push_back(id_tokens);
+	}
+
+	Dictionary missing_phonemes;
+	for (const auto &[phoneme, count] : result.missingPhonemes) {
+		missing_phonemes[String::utf8(piper::phonemeToString(phoneme).c_str())] =
+				static_cast<int64_t>(count);
+	}
+
+	data["phoneme_sentences"] = phoneme_sentences;
+	data["phoneme_id_sentences"] = phoneme_id_sentences;
+	data["missing_phonemes"] = missing_phonemes;
+	data["resolved_language_id"] =
+			result.resolvedLanguageId.has_value() ? Variant(*result.resolvedLanguageId) : Variant(-1);
+	data["resolved_language_code"] =
+			language_code_from_id(voice, result.resolvedLanguageId);
+	return data;
+}
+
+bool build_effective_request(
+		const PiperTTS &tts, const Dictionary &request, EffectiveRequest &effective_request,
+		String &error_message) {
+	effective_request.speaker_id = tts.get_speaker_id();
+	effective_request.language_id = tts.get_language_id();
+	effective_request.language_code = tts.get_language_code();
+	effective_request.speech_rate = tts.get_speech_rate();
+	effective_request.noise_scale = tts.get_noise_scale();
+	effective_request.noise_w = tts.get_noise_w();
+	effective_request.sentence_silence_seconds = tts.get_sentence_silence_seconds();
+	effective_request.phoneme_silence_seconds = tts.get_phoneme_silence_seconds();
+
+	if (request.has("text")) {
+		effective_request.has_text = true;
+		effective_request.text = String(request["text"]);
+	}
+
+	if (request.has("phoneme_string")) {
+		effective_request.has_phoneme_string = true;
+		effective_request.phoneme_string = String(request["phoneme_string"]).strip_edges();
+	}
+
+	if (request.has("phonemes")) {
+		effective_request.has_phoneme_string = true;
+		effective_request.phoneme_string =
+				packed_or_array_to_phoneme_string(request["phonemes"], error_message);
+		if (!error_message.is_empty()) {
+			return false;
+		}
+	}
+
+	if (request.has("speaker_id")) {
+		effective_request.speaker_id = static_cast<int>(request["speaker_id"]);
+	}
+	if (request.has("language_id")) {
+		effective_request.language_id = static_cast<int>(request["language_id"]);
+	}
+	if (request.has("language_code")) {
+		effective_request.language_code = String(request["language_code"]).strip_edges();
+	}
+	if (request.has("speech_rate")) {
+		effective_request.speech_rate = static_cast<double>(request["speech_rate"]);
+	}
+	if (request.has("noise_scale")) {
+		effective_request.noise_scale = static_cast<double>(request["noise_scale"]);
+	}
+	if (request.has("noise_w")) {
+		effective_request.noise_w = static_cast<double>(request["noise_w"]);
+	}
+	if (request.has("sentence_silence_seconds")) {
+		effective_request.sentence_silence_seconds =
+				static_cast<double>(request["sentence_silence_seconds"]);
+	} else if (request.has("sentence_silence")) {
+		effective_request.sentence_silence_seconds =
+				static_cast<double>(request["sentence_silence"]);
+	}
+	if (request.has("phoneme_silence_seconds")) {
+		effective_request.phoneme_silence_seconds = request["phoneme_silence_seconds"];
+	} else if (request.has("phoneme_silence")) {
+		effective_request.phoneme_silence_seconds = request["phoneme_silence"];
+	}
+
+	if (effective_request.has_text && effective_request.has_phoneme_string) {
+		error_message = "PiperTTS: request cannot contain both text and phoneme input.";
+		return false;
+	}
+
+	if (!effective_request.has_text && !effective_request.has_phoneme_string) {
+		error_message = "PiperTTS: request must contain text, phoneme_string, or phonemes.";
+		return false;
+	}
+
+	return true;
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -273,6 +497,18 @@ void PiperTTS::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_w", PROPERTY_HINT_RANGE, "0.0,2.0,0.01"),
 			"set_noise_w", "get_noise_w");
 
+	// --- Property: sentence_silence_seconds ---
+	ClassDB::bind_method(D_METHOD("set_sentence_silence_seconds", "seconds"), &PiperTTS::set_sentence_silence_seconds);
+	ClassDB::bind_method(D_METHOD("get_sentence_silence_seconds"), &PiperTTS::get_sentence_silence_seconds);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sentence_silence_seconds", PROPERTY_HINT_RANGE, "0.0,5.0,0.01"),
+			"set_sentence_silence_seconds", "get_sentence_silence_seconds");
+
+	// --- Property: phoneme_silence_seconds ---
+	ClassDB::bind_method(D_METHOD("set_phoneme_silence_seconds", "silence_map"), &PiperTTS::set_phoneme_silence_seconds);
+	ClassDB::bind_method(D_METHOD("get_phoneme_silence_seconds"), &PiperTTS::get_phoneme_silence_seconds);
+	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "phoneme_silence_seconds"),
+			"set_phoneme_silence_seconds", "get_phoneme_silence_seconds");
+
 	// --- Property: execution_provider ---
 	ClassDB::bind_method(D_METHOD("set_execution_provider", "provider"), &PiperTTS::set_execution_provider);
 	ClassDB::bind_method(D_METHOD("get_execution_provider"), &PiperTTS::get_execution_provider);
@@ -289,7 +525,14 @@ void PiperTTS::_bind_methods() {
 	// --- Methods (M2: sync) ---
 	ClassDB::bind_method(D_METHOD("initialize"), &PiperTTS::initialize);
 	ClassDB::bind_method(D_METHOD("synthesize", "text"), &PiperTTS::synthesize);
+	ClassDB::bind_method(D_METHOD("synthesize_request", "request"), &PiperTTS::synthesize_request);
+	ClassDB::bind_method(D_METHOD("synthesize_phoneme_string", "phoneme_string"), &PiperTTS::synthesize_phoneme_string);
 	ClassDB::bind_method(D_METHOD("is_ready"), &PiperTTS::is_ready);
+	ClassDB::bind_method(D_METHOD("inspect_text", "text"), &PiperTTS::inspect_text);
+	ClassDB::bind_method(D_METHOD("inspect_request", "request"), &PiperTTS::inspect_request);
+	ClassDB::bind_method(D_METHOD("inspect_phoneme_string", "phoneme_string"), &PiperTTS::inspect_phoneme_string);
+	ClassDB::bind_method(D_METHOD("get_last_synthesis_result"), &PiperTTS::get_last_synthesis_result);
+	ClassDB::bind_method(D_METHOD("get_last_inspection_result"), &PiperTTS::get_last_inspection_result);
 
 	// --- Methods (M3: async) ---
 	ClassDB::bind_method(D_METHOD("synthesize_async", "text"), &PiperTTS::synthesize_async);
@@ -396,6 +639,22 @@ void PiperTTS::set_noise_w(float p_w) {
 
 float PiperTTS::get_noise_w() const {
 	return noise_w;
+}
+
+void PiperTTS::set_sentence_silence_seconds(float p_seconds) {
+	sentence_silence_seconds = MAX(p_seconds, 0.0f);
+}
+
+float PiperTTS::get_sentence_silence_seconds() const {
+	return sentence_silence_seconds;
+}
+
+void PiperTTS::set_phoneme_silence_seconds(const Dictionary &p_map) {
+	phoneme_silence_seconds = p_map;
+}
+
+Dictionary PiperTTS::get_phoneme_silence_seconds() const {
+	return phoneme_silence_seconds;
 }
 
 void PiperTTS::set_execution_provider(int p_ep) {
@@ -518,6 +777,77 @@ Ref<AudioStreamWAV> PiperTTS::create_audio_stream(
 	return stream;
 }
 
+namespace {
+
+Error apply_phoneme_silence_dictionary(
+		const Dictionary &silence_map, piper::Voice &voice, String &error_message) {
+	if (silence_map.is_empty()) {
+		voice.synthesisConfig.phonemeSilenceSeconds.reset();
+		return OK;
+	}
+
+	std::map<piper::Phoneme, float> parsed_map;
+	Array keys = silence_map.keys();
+	for (int i = 0; i < keys.size(); ++i) {
+		String key = String(keys[i]).strip_edges();
+		if (key.is_empty()) {
+			error_message = "PiperTTS: phoneme_silence_seconds keys must not be empty.";
+			return ERR_INVALID_PARAMETER;
+		}
+
+		std::vector<piper::Phoneme> phonemes = piper::parsePhonemeString(
+				key.utf8().get_data(), static_cast<int>(voice.phonemizeConfig.phonemeType));
+		if (phonemes.size() != 1) {
+			error_message = String("PiperTTS: phoneme_silence_seconds key '") + key +
+					"' must resolve to exactly one phoneme token.";
+			return ERR_INVALID_PARAMETER;
+		}
+
+		double silence_seconds = static_cast<double>(silence_map[key]);
+		if (!std::isfinite(silence_seconds) || silence_seconds < 0.0) {
+			error_message = String("PiperTTS: phoneme_silence_seconds value for '") + key +
+					"' must be a finite value >= 0.0.";
+			return ERR_INVALID_PARAMETER;
+		}
+
+		parsed_map[phonemes.front()] = static_cast<float>(silence_seconds);
+	}
+
+	voice.synthesisConfig.phonemeSilenceSeconds = std::move(parsed_map);
+	return OK;
+}
+
+Error apply_effective_request_to_voice(
+		piper::Voice &voice, const EffectiveRequest &effective_request,
+		String &error_message) {
+	voice.synthesisConfig.lengthScale = CLAMP(effective_request.speech_rate, 0.1f, 5.0f);
+	voice.synthesisConfig.noiseScale = CLAMP(effective_request.noise_scale, 0.0f, 2.0f);
+	voice.synthesisConfig.noiseW = CLAMP(effective_request.noise_w, 0.0f, 2.0f);
+	voice.synthesisConfig.sentenceSilenceSeconds =
+			MAX(effective_request.sentence_silence_seconds, 0.0f);
+	voice.synthesisConfig.speakerId =
+			static_cast<piper::SpeakerId>(MAX(effective_request.speaker_id, 0));
+
+	Error silence_error = apply_phoneme_silence_dictionary(
+			effective_request.phoneme_silence_seconds, voice, error_message);
+	if (silence_error != OK) {
+		return silence_error;
+	}
+
+	return apply_requested_language(
+			voice, effective_request.language_id, effective_request.language_code,
+			error_message);
+}
+
+std::vector<piper::Phoneme> parse_effective_phoneme_string(
+		const piper::Voice &voice, const String &phoneme_string) {
+	return piper::parsePhonemeString(
+			phoneme_string.utf8().get_data(),
+			static_cast<int>(voice.phonemizeConfig.phonemeType));
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------
 // Public methods (M2: sync)
 // ---------------------------------------------------------------------------
@@ -532,6 +862,12 @@ Error PiperTTS::initialize() {
 	if (ready) {
 		piper::terminate(*piper_config);
 		ready = false;
+	}
+	last_synthesis_result_.clear();
+	last_inspection_result_.clear();
+	{
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_.reset();
 	}
 
 	if (model_path.is_empty()) {
@@ -655,18 +991,23 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 		UtilityFunctions::push_error("PiperTTS: Synthesis in progress. Call stop() first.");
 		return Ref<AudioStreamWAV>();
 	}
+	last_synthesis_result_.clear();
 
-	// Apply current synthesis parameters to the voice config
-	voice->synthesisConfig.lengthScale = speech_rate;
-	voice->synthesisConfig.noiseScale = noise_scale;
-	voice->synthesisConfig.noiseW = noise_w;
+	ScopedVoiceSynthesisConfig scoped_config(*voice);
+	EffectiveRequest request;
+	request.has_text = true;
+	request.text = text;
+	request.speaker_id = speaker_id;
+	request.language_id = language_id;
+	request.language_code = language_code;
+	request.speech_rate = speech_rate;
+	request.noise_scale = noise_scale;
+	request.noise_w = noise_w;
+	request.sentence_silence_seconds = sentence_silence_seconds;
+	request.phoneme_silence_seconds = phoneme_silence_seconds;
 
-	// Update speaker ID if multi-speaker model
-	if (speaker_id >= 0) {
-		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
-	}
 	String language_error;
-	if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+	if (apply_effective_request_to_voice(*voice, request, language_error) != OK) {
 		UtilityFunctions::push_error(language_error);
 		return Ref<AudioStreamWAV>();
 	}
@@ -690,11 +1031,157 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 	}
 
 	int sample_rate = voice->synthesisConfig.sampleRate;
+	last_synthesis_result_ = synthesis_result_to_dictionary(result, sample_rate);
+	last_synthesis_result_["input_mode"] = "text";
+	last_synthesis_result_["sentence_silence_seconds"] = voice->synthesisConfig.sentenceSilenceSeconds;
+	last_synthesis_result_["phoneme_silence_seconds"] = phoneme_silence_seconds;
 	return create_audio_stream(audio_buffer, sample_rate);
+}
+
+Ref<AudioStreamWAV> PiperTTS::synthesize_request(const Dictionary &request_dictionary) {
+	if (!ready) {
+		UtilityFunctions::push_error("PiperTTS: Not initialized. Call initialize() first.");
+		return Ref<AudioStreamWAV>();
+	}
+
+	if (processing.load() || streaming_active_.load()) {
+		UtilityFunctions::push_error("PiperTTS: Synthesis in progress. Call stop() first.");
+		return Ref<AudioStreamWAV>();
+	}
+	last_synthesis_result_.clear();
+
+	EffectiveRequest request;
+	String error_message;
+	if (!build_effective_request(*this, request_dictionary, request, error_message)) {
+		UtilityFunctions::push_error(error_message);
+		return Ref<AudioStreamWAV>();
+	}
+
+	if ((request.has_text && request.text.is_empty()) ||
+			(request.has_phoneme_string && request.phoneme_string.is_empty())) {
+		UtilityFunctions::push_error("PiperTTS: Request input must not be empty.");
+		return Ref<AudioStreamWAV>();
+	}
+
+	ScopedVoiceSynthesisConfig scoped_config(*voice);
+	if (apply_effective_request_to_voice(*voice, request, error_message) != OK) {
+		UtilityFunctions::push_error(error_message);
+		return Ref<AudioStreamWAV>();
+	}
+
+	std::vector<int16_t> audio_buffer;
+	piper::SynthesisResult result;
+
+	try {
+		if (request.has_phoneme_string) {
+			std::vector<piper::Phoneme> phonemes =
+					parse_effective_phoneme_string(*voice, request.phoneme_string);
+			piper::phonemesToAudio(*piper_config, *voice, phonemes, audio_buffer, result, nullptr);
+		} else {
+			piper::textToAudio(*piper_config, *voice, request.text.utf8().get_data(),
+					audio_buffer, result, nullptr);
+		}
+	} catch (const std::exception &e) {
+		UtilityFunctions::push_error(
+				String("PiperTTS: Synthesis failed -- ") + String(e.what()));
+		return Ref<AudioStreamWAV>();
+	}
+
+	if (audio_buffer.empty()) {
+		UtilityFunctions::push_warning("PiperTTS: Synthesis produced no audio.");
+		return Ref<AudioStreamWAV>();
+	}
+
+	int sample_rate = voice->synthesisConfig.sampleRate;
+	last_synthesis_result_ = synthesis_result_to_dictionary(result, sample_rate);
+	last_synthesis_result_["input_mode"] = request.has_phoneme_string ? "phoneme_string" : "text";
+	last_synthesis_result_["sentence_silence_seconds"] = voice->synthesisConfig.sentenceSilenceSeconds;
+	last_synthesis_result_["phoneme_silence_seconds"] = request.phoneme_silence_seconds;
+	return create_audio_stream(audio_buffer, sample_rate);
+}
+
+Ref<AudioStreamWAV> PiperTTS::synthesize_phoneme_string(const String &phoneme_string) {
+	Dictionary request;
+	request["phoneme_string"] = phoneme_string;
+	return synthesize_request(request);
 }
 
 bool PiperTTS::is_ready() const {
 	return ready;
+}
+
+Dictionary PiperTTS::inspect_text(const String &text) {
+	Dictionary request;
+	request["text"] = text;
+	return inspect_request(request);
+}
+
+Dictionary PiperTTS::inspect_request(const Dictionary &request_dictionary) {
+	Dictionary empty_result;
+	if (!ready) {
+		UtilityFunctions::push_error("PiperTTS: Not initialized. Call initialize() first.");
+		return empty_result;
+	}
+	if (processing.load() || streaming_active_.load()) {
+		UtilityFunctions::push_error("PiperTTS: Cannot inspect while synthesis is in progress.");
+		return empty_result;
+	}
+	last_inspection_result_.clear();
+
+	EffectiveRequest request;
+	String error_message;
+	if (!build_effective_request(*this, request_dictionary, request, error_message)) {
+		UtilityFunctions::push_error(error_message);
+		return empty_result;
+	}
+
+	if ((request.has_text && request.text.is_empty()) ||
+			(request.has_phoneme_string && request.phoneme_string.is_empty())) {
+		UtilityFunctions::push_error("PiperTTS: Request input must not be empty.");
+		return empty_result;
+	}
+
+	ScopedVoiceSynthesisConfig scoped_config(*voice);
+	if (apply_effective_request_to_voice(*voice, request, error_message) != OK) {
+		UtilityFunctions::push_error(error_message);
+		return empty_result;
+	}
+
+	piper::InspectionResult inspection_result;
+	try {
+		if (request.has_phoneme_string) {
+			std::vector<piper::Phoneme> phonemes =
+					parse_effective_phoneme_string(*voice, request.phoneme_string);
+			piper::inspectPhonemes(*voice, phonemes, inspection_result);
+		} else {
+			piper::inspectText(*piper_config, *voice, request.text.utf8().get_data(),
+					inspection_result);
+		}
+	} catch (const std::exception &e) {
+		UtilityFunctions::push_error(
+				String("PiperTTS: Inspection failed -- ") + String(e.what()));
+		return empty_result;
+	}
+
+	last_inspection_result_ = inspection_result_to_dictionary(inspection_result, *voice);
+	last_inspection_result_["input_mode"] = request.has_phoneme_string ? "phoneme_string" : "text";
+	last_inspection_result_["sentence_silence_seconds"] = voice->synthesisConfig.sentenceSilenceSeconds;
+	last_inspection_result_["phoneme_silence_seconds"] = request.phoneme_silence_seconds;
+	return last_inspection_result_;
+}
+
+Dictionary PiperTTS::inspect_phoneme_string(const String &phoneme_string) {
+	Dictionary request;
+	request["phoneme_string"] = phoneme_string;
+	return inspect_request(request);
+}
+
+Dictionary PiperTTS::get_last_synthesis_result() const {
+	return last_synthesis_result_;
+}
+
+Dictionary PiperTTS::get_last_inspection_result() const {
+	return last_inspection_result_;
 }
 
 // ---------------------------------------------------------------------------
@@ -716,23 +1203,38 @@ Error PiperTTS::synthesize_async(const String &text) {
 		UtilityFunctions::push_error("PiperTTS: Already processing. Call stop() first or wait for completion.");
 		return ERR_BUSY;
 	}
+	last_synthesis_result_.clear();
 
-	// Apply synthesis parameters on the main thread (safe - no worker is running)
-	voice->synthesisConfig.lengthScale = speech_rate;
-	voice->synthesisConfig.noiseScale = noise_scale;
-	voice->synthesisConfig.noiseW = noise_w;
+	EffectiveRequest request;
+	request.has_text = true;
+	request.text = text;
+	request.speaker_id = speaker_id;
+	request.language_id = language_id;
+	request.language_code = language_code;
+	request.speech_rate = speech_rate;
+	request.noise_scale = noise_scale;
+	request.noise_w = noise_w;
+	request.sentence_silence_seconds = sentence_silence_seconds;
+	request.phoneme_silence_seconds = phoneme_silence_seconds;
 
-	if (speaker_id >= 0) {
-		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
-	}
 	String language_error;
-	if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+	if (apply_effective_request_to_voice(*voice, request, language_error) != OK) {
 		UtilityFunctions::push_error(language_error);
 		return ERR_INVALID_PARAMETER;
 	}
 
 	// Join any previous (completed) worker thread
 	_join_worker_thread();
+	{
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_.reset();
+		pending_async_result_metadata_.clear();
+		pending_async_result_metadata_["input_mode"] = "text";
+		pending_async_result_metadata_["sentence_silence_seconds"] =
+				request.sentence_silence_seconds;
+		pending_async_result_metadata_["phoneme_silence_seconds"] =
+				request.phoneme_silence_seconds;
+	}
 
 	processing.store(true);
 	stop_requested.store(false);
@@ -759,6 +1261,9 @@ void PiperTTS::stop() {
 	if (was_processing) {
 		_join_worker_thread();
 		processing.store(false);
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_.reset();
+		pending_async_result_metadata_.clear();
 	}
 
 	if (was_streaming) {
@@ -767,6 +1272,9 @@ void PiperTTS::stop() {
 		pending_samples_.clear();
 		pending_sample_offset_ = 0;
 		streaming_playback_ = Ref<AudioStreamGeneratorPlayback>();
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_.reset();
+		pending_async_result_metadata_.clear();
 		set_process(false);
 	}
 }
@@ -814,6 +1322,10 @@ void PiperTTS::_synthesis_thread_func(std::string text_str, uint32_t generation)
 	}
 
 	int sample_rate = voice->synthesisConfig.sampleRate;
+	{
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_ = std::make_unique<piper::SynthesisResult>(result);
+	}
 
 	// Pack raw PCM data for main-thread delivery (no Godot objects on worker thread)
 	PackedByteArray pcm_data;
@@ -838,6 +1350,21 @@ void PiperTTS::_on_synthesis_raw_done(const PackedByteArray &pcm_data, int sampl
 	stream->set_stereo(false);
 	stream->set_data(pcm_data);
 
+	{
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		if (pending_async_result_) {
+			last_synthesis_result_ = synthesis_result_to_dictionary(
+					*pending_async_result_, sample_rate);
+			Array metadata_keys = pending_async_result_metadata_.keys();
+			for (int i = 0; i < metadata_keys.size(); ++i) {
+				Variant key = metadata_keys[i];
+				last_synthesis_result_[key] = pending_async_result_metadata_[key];
+			}
+		}
+		pending_async_result_.reset();
+		pending_async_result_metadata_.clear();
+	}
+
 	processing.store(false);
 	emit_signal("synthesis_completed", stream);
 }
@@ -849,6 +1376,12 @@ void PiperTTS::_on_synthesis_failed(const String &error_msg, uint32_t generation
 	}
 	processing.store(false);
 	UtilityFunctions::push_error(String("PiperTTS: ") + error_msg);
+	last_synthesis_result_.clear();
+	{
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_.reset();
+		pending_async_result_metadata_.clear();
+	}
 	emit_signal("synthesis_failed", error_msg);
 }
 
@@ -877,22 +1410,37 @@ Error PiperTTS::synthesize_streaming(
 		UtilityFunctions::push_error("PiperTTS: Already processing. Call stop() first.");
 		return ERR_BUSY;
 	}
+	last_synthesis_result_.clear();
 
-	// Apply synthesis parameters
-	voice->synthesisConfig.lengthScale = speech_rate;
-	voice->synthesisConfig.noiseScale = noise_scale;
-	voice->synthesisConfig.noiseW = noise_w;
+	EffectiveRequest request;
+	request.has_text = true;
+	request.text = text;
+	request.speaker_id = speaker_id;
+	request.language_id = language_id;
+	request.language_code = language_code;
+	request.speech_rate = speech_rate;
+	request.noise_scale = noise_scale;
+	request.noise_w = noise_w;
+	request.sentence_silence_seconds = sentence_silence_seconds;
+	request.phoneme_silence_seconds = phoneme_silence_seconds;
 
-	if (speaker_id >= 0) {
-		voice->synthesisConfig.speakerId = static_cast<piper::SpeakerId>(speaker_id);
-	}
 	String language_error;
-	if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {
+	if (apply_effective_request_to_voice(*voice, request, language_error) != OK) {
 		UtilityFunctions::push_error(language_error);
 		return ERR_INVALID_PARAMETER;
 	}
 
 	_join_worker_thread();
+	{
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_.reset();
+		pending_async_result_metadata_.clear();
+		pending_async_result_metadata_["input_mode"] = "text";
+		pending_async_result_metadata_["sentence_silence_seconds"] =
+				request.sentence_silence_seconds;
+		pending_async_result_metadata_["phoneme_silence_seconds"] =
+				request.phoneme_silence_seconds;
+	}
 
 	streaming_playback_ = playback;
 	audio_chunk_queue_.clear();
@@ -935,6 +1483,21 @@ void PiperTTS::_process(double p_delta) {
 	// Check if streaming is complete (worker done + queue empty + all samples pushed)
 	if (!processing.load() && audio_chunk_queue_.empty() &&
 			pending_sample_offset_ >= pending_samples_.size()) {
+		{
+			std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+			if (pending_async_result_) {
+				last_synthesis_result_ =
+						synthesis_result_to_dictionary(*pending_async_result_,
+								voice->synthesisConfig.sampleRate);
+				Array metadata_keys = pending_async_result_metadata_.keys();
+				for (int i = 0; i < metadata_keys.size(); ++i) {
+					Variant key = metadata_keys[i];
+					last_synthesis_result_[key] = pending_async_result_metadata_[key];
+				}
+			}
+			pending_async_result_.reset();
+			pending_async_result_metadata_.clear();
+		}
 		pending_samples_.clear();
 		pending_sample_offset_ = 0;
 		streaming_active_.store(false);
@@ -978,6 +1541,10 @@ void PiperTTS::_streaming_thread_func(std::string text_str, uint32_t generation)
 	//  or if the last sentence's callback was called but audioBuffer wasn't cleared)
 	if (!audioBuffer.empty() && !stop_requested.load()) {
 		audio_chunk_queue_.push(std::move(audioBuffer));
+	}
+	if (!stop_requested.load()) {
+		std::lock_guard<std::mutex> lock(pending_async_result_mutex_);
+		pending_async_result_ = std::make_unique<piper::SynthesisResult>(result);
 	}
 
 	processing.store(false);

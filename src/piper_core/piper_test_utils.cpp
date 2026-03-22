@@ -25,7 +25,8 @@ const std::unordered_map<char32_t, std::string> puaToPhoneme = {
     {0xE005, "cl"}, {0xE006, "ky"}, {0xE007, "kw"}, {0xE008, "gy"}, {0xE009, "gw"},
     {0xE00A, "ty"}, {0xE00B, "dy"}, {0xE00C, "py"}, {0xE00D, "by"}, {0xE00E, "ch"},
     {0xE00F, "ts"}, {0xE010, "sh"}, {0xE011, "zy"}, {0xE012, "hy"}, {0xE013, "ny"},
-    {0xE014, "my"}, {0xE015, "ry"}
+    {0xE014, "my"}, {0xE015, "ry"}, {0xE016, "?!"}, {0xE017, "?."}, {0xE018, "?~"},
+    {0xE019, "N_m"}, {0xE01A, "N_n"}, {0xE01B, "N_ng"}, {0xE01C, "N_uvular"}
 };
 
 void writeU16(std::array<uint8_t, 44> &header, std::size_t offset, uint16_t value) {

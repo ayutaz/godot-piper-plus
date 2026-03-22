@@ -22,6 +22,26 @@ func _cleanup_tts(tts) -> void:
         tts.stop()
         tts.free()
 
+func _has_property(object: Object, property_name: String) -> bool:
+    if object == null:
+        return false
+    for property_info in object.get_property_list():
+        if String(property_info.get("name", "")) == property_name:
+            return true
+    return false
+
+func _require_method(object: Object, method_name: String) -> bool:
+    if object == null or not object.has_method(method_name):
+        failures.append("PiperTTS should expose %s()" % method_name)
+        return false
+    return true
+
+func _require_property(object: Object, property_name: String) -> bool:
+    if not _has_property(object, property_name):
+        failures.append("PiperTTS should expose property %s" % property_name)
+        return false
+    return true
+
 func _model_bundle() -> Dictionary:
     if FileAccess.file_exists(BUNDLED_MODEL_PATH) and FileAccess.file_exists(BUNDLED_CONFIG_PATH):
         var bundled = {
@@ -163,44 +183,32 @@ func list_test_names() -> Array[String]:
         "test_is_ready_default",
         "test_is_processing_default",
         "test_initialize_with_model",
+        "test_directory_model_path_resolution",
+        "test_language_code_normalization",
         "test_initialize_with_config_fallback",
+        "test_inspect_text",
+        "test_inspect_request_with_phonemes",
         "test_synthesize_basic",
+        "test_synthesize_phoneme_string",
+        "test_synthesize_phoneme_string_with_silence_map",
+        "test_reject_negative_phoneme_silence",
+        "test_question_marker_phoneme_string",
+        "test_synthesize_request_with_sentence_silence",
         "test_synthesize_async",
         "test_audio_stream_format",
+        "test_last_synthesis_result_timing",
     ]
 
 func run_test(method_name: String) -> void:
-    match method_name:
-        "test_node_creation":
-            await test_node_creation()
-        "test_properties":
-            await test_properties()
-        "test_speech_rate_range":
-            await test_speech_rate_range()
-        "test_execution_provider_enum":
-            await test_execution_provider_enum()
-        "test_initialize_without_model":
-            await test_initialize_without_model()
-        "test_synthesize_without_init":
-            await test_synthesize_without_init()
-        "test_synthesize_async_without_init":
-            await test_synthesize_async_without_init()
-        "test_is_ready_default":
-            await test_is_ready_default()
-        "test_is_processing_default":
-            await test_is_processing_default()
-        "test_initialize_with_model":
-            await test_initialize_with_model()
-        "test_initialize_with_config_fallback":
-            await test_initialize_with_config_fallback()
-        "test_synthesize_basic":
-            await test_synthesize_basic()
-        "test_synthesize_async":
-            await test_synthesize_async()
-        "test_audio_stream_format":
-            await test_audio_stream_format()
-        _:
-            failures.append("Unknown test: %s" % method_name)
+    if not has_method(method_name):
+        failures.append("Unknown test: %s" % method_name)
+        return
+
+    if method_name == "test_synthesize_async":
+        await Callable(self, method_name).call()
+        return
+
+    Callable(self, method_name).call()
 
 func test_node_creation() -> void:
     var tts = _create_tts()
@@ -215,6 +223,9 @@ func test_properties() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
+    if not _require_property(tts, "sentence_silence_seconds") or not _require_property(tts, "phoneme_silence_seconds"):
+        _cleanup_tts(tts)
+        return
     tts.model_path = "res://voice.onnx"
     tts.config_path = "res://voice.onnx.json"
     tts.dictionary_path = "res://dict"
@@ -224,6 +235,8 @@ func test_properties() -> void:
     tts.language_code = "en"
     tts.noise_scale = 1.2
     tts.noise_w = 0.6
+    tts.sentence_silence_seconds = 0.35
+    tts.phoneme_silence_seconds = {"a": 0.05, "?!": 0.1}
 
     assert_equal(tts.model_path, "res://voice.onnx", "model_path should round-trip")
     assert_equal(tts.config_path, "res://voice.onnx.json", "config_path should round-trip")
@@ -234,6 +247,8 @@ func test_properties() -> void:
     assert_equal(tts.language_code, "en", "language_code should round-trip")
     assert_equal(tts.noise_scale, 1.2, "noise_scale should round-trip")
     assert_equal(tts.noise_w, 0.6, "noise_w should round-trip")
+    assert_equal(tts.sentence_silence_seconds, 0.35, "sentence_silence_seconds should round-trip")
+    assert_equal(tts.phoneme_silence_seconds, {"a": 0.05, "?!": 0.1}, "phoneme_silence_seconds should round-trip")
     _cleanup_tts(tts)
 
 func test_speech_rate_range() -> void:
@@ -313,6 +328,62 @@ func test_initialize_with_model() -> void:
     assert_true(tts.is_ready(), "PiperTTS should be ready after initialize()")
     _cleanup_tts(tts)
 
+func test_directory_model_path_resolution() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    var model_directory := String(bundle["model_path"]).get_base_dir()
+    if model_directory.is_empty():
+        skip("test model bundle does not expose a model directory")
+        _cleanup_tts(tts)
+        return
+
+    tts.model_path = model_directory
+    tts.config_path = ""
+    if not String(bundle.get("dictionary_path", "")).is_empty():
+        tts.dictionary_path = bundle["dictionary_path"]
+
+    var preferred_language := _preferred_test_language_code(bundle)
+    if not preferred_language.is_empty():
+        tts.language_code = preferred_language
+
+    assert_equal(tts.initialize(), OK, "initialize() should resolve a model from the directory path")
+    assert_true(tts.is_ready(), "PiperTTS should be ready after resolving a model directory")
+    _cleanup_tts(tts)
+
+func test_language_code_normalization() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    tts.language_code = " EN_us "
+    assert_equal(tts.initialize(), OK, "initialize() should accept normalized language_code aliases")
+
+    if not _require_method(tts, "inspect_text"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_text(DEFAULT_EN_TEST_TEXT)
+    assert_equal(String(inspected.get("resolved_language_code", "")), "en", "inspect_text() should resolve language_code aliases to the canonical code")
+    assert_equal(int(inspected.get("resolved_language_id", -1)), 1, "inspect_text() should resolve EN_us to language_id=1 for the bundled multilingual model")
+    _cleanup_tts(tts)
+
 func test_initialize_with_config_fallback() -> void:
     var tts = _create_tts()
     if tts == null:
@@ -326,6 +397,90 @@ func test_initialize_with_config_fallback() -> void:
     tts.config_path = ""
     assert_equal(tts.initialize(), OK, "initialize() should resolve config_path from the model path")
     assert_true(tts.is_ready(), "PiperTTS should be ready after fallback config resolution")
+    _cleanup_tts(tts)
+
+func test_inspect_text() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for inspect_text")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "inspect_text") or not _require_method(tts, "get_last_inspection_result"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_text(_test_text(bundle))
+    assert_equal(String(inspected.get("input_mode", "")), "text", "inspect_text() should report text input_mode")
+
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    var phoneme_id_sentences: Array = inspected.get("phoneme_id_sentences", [])
+    assert_true(phoneme_sentences.size() > 0, "inspect_text() should return at least one phoneme sentence")
+    assert_equal(phoneme_sentences.size(), phoneme_id_sentences.size(), "inspect_text() should return matching phoneme and phoneme_id sentence counts")
+
+    if _preferred_test_language_code(bundle) == "en":
+        assert_equal(String(inspected.get("resolved_language_code", "")), "en", "inspect_text() should resolve the configured English language code")
+    else:
+        assert_true(int(inspected.get("resolved_language_id", -1)) >= -1, "inspect_text() should expose a resolved language id")
+
+    assert_equal(tts.get_last_inspection_result(), inspected, "inspect_text() should update get_last_inspection_result()")
+    _cleanup_tts(tts)
+
+func test_inspect_request_with_phonemes() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for inspect_request_with_phonemes")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "inspect_request") or not _require_method(tts, "get_last_inspection_result"):
+        _cleanup_tts(tts)
+        return
+    var request := {
+        "phonemes": PackedStringArray(["h", "ə", "l", "o"]),
+        "language_code": "en",
+    }
+    var inspected: Dictionary = tts.inspect_request(request)
+    assert_equal(String(inspected.get("input_mode", "")), "phoneme_string", "inspect_request() should report phoneme_string input_mode for phoneme arrays")
+
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_equal(phoneme_sentences.size(), 1, "inspect_request() should keep raw phoneme input as a single sentence")
+    if phoneme_sentences.size() == 1:
+        var sentence: PackedStringArray = phoneme_sentences[0]
+        assert_equal(sentence, PackedStringArray(["h", "ə", "l", "o"]), "inspect_request() should preserve the supplied phoneme tokens")
+
+    var phoneme_id_sentences: Array = inspected.get("phoneme_id_sentences", [])
+    assert_equal(phoneme_id_sentences.size(), 1, "inspect_request() should return one phoneme ID sentence for raw phoneme input")
+    if phoneme_id_sentences.size() == 1:
+        var ids: PackedInt64Array = phoneme_id_sentences[0]
+        assert_true(ids.size() >= 4, "inspect_request() should resolve raw phonemes to IDs")
+
+    assert_equal(tts.get_last_inspection_result(), inspected, "inspect_request() should update get_last_inspection_result()")
     _cleanup_tts(tts)
 
 func test_synthesize_basic() -> void:
@@ -352,6 +507,183 @@ func test_synthesize_basic() -> void:
     assert_not_null(audio, "synthesize() should return AudioStreamWAV")
     if audio != null:
         assert_true(audio.data.size() > 0, "AudioStreamWAV should contain PCM data")
+    _cleanup_tts(tts)
+
+func test_synthesize_phoneme_string() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for synthesize_phoneme_string")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_phoneme_string") or not _require_method(tts, "get_last_synthesis_result"):
+        _cleanup_tts(tts)
+        return
+    var audio = tts.synthesize_phoneme_string("a i u")
+    assert_not_null(audio, "synthesize_phoneme_string() should return AudioStreamWAV")
+    if audio != null:
+        assert_true(audio.data.size() > 0, "synthesize_phoneme_string() should produce PCM data")
+
+    var result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(result.get("input_mode", "")), "phoneme_string", "synthesize_phoneme_string() should record phoneme_string input_mode")
+    _cleanup_tts(tts)
+
+func test_synthesize_phoneme_string_with_silence_map() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for synthesize_phoneme_string_with_silence_map")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_request"):
+        _cleanup_tts(tts)
+        return
+
+    var baseline = tts.synthesize_request({"phoneme_string": "a i"})
+    var with_silence = tts.synthesize_request({
+        "phoneme_string": "a i",
+        "phoneme_silence_seconds": {"a": 0.1},
+    })
+    assert_not_null(baseline, "baseline phoneme_string synthesis should succeed")
+    assert_not_null(with_silence, "phoneme_silence_seconds should be accepted for phoneme_string synthesis")
+    if baseline != null and with_silence != null:
+        assert_true(with_silence.data.size() > baseline.data.size(), "phoneme_silence_seconds should increase output PCM length for raw phoneme input")
+    _cleanup_tts(tts)
+
+func test_reject_negative_phoneme_silence() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for reject_negative_phoneme_silence")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_request"):
+        _cleanup_tts(tts)
+        return
+
+    var audio = tts.synthesize_request({
+        "phoneme_string": "a i",
+        "phoneme_silence_seconds": {"a": -0.1},
+    })
+    assert_true(audio == null, "negative phoneme_silence_seconds should be rejected")
+    _cleanup_tts(tts)
+
+func test_question_marker_phoneme_string() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for question_marker_phoneme_string")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "inspect_phoneme_string") or not _require_method(tts, "synthesize_phoneme_string"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_phoneme_string("a ?! a")
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_equal(phoneme_sentences.size(), 1, "inspect_phoneme_string() should keep raw phoneme input as a single sentence")
+    if phoneme_sentences.size() == 1:
+        var sentence: PackedStringArray = phoneme_sentences[0]
+        assert_equal(sentence, PackedStringArray(["a", "?!", "a"]), "inspect_phoneme_string() should preserve question-marker phonemes")
+
+    var audio = tts.synthesize_phoneme_string("a ?! a")
+    assert_not_null(audio, "synthesize_phoneme_string() should support question-marker phonemes")
+    _cleanup_tts(tts)
+
+func test_synthesize_request_with_sentence_silence() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for synthesize_request_with_sentence_silence")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_request") or not _require_method(tts, "get_last_synthesis_result"):
+        _cleanup_tts(tts)
+        return
+    var multi_sentence_text := "hello. hello."
+    if _preferred_test_language_code(bundle) != "en":
+        multi_sentence_text = "こんにちは。こんにちは。"
+
+    var baseline = tts.synthesize_request({
+        "text": multi_sentence_text,
+        "sentence_silence_seconds": 0.0,
+    })
+    var with_silence = tts.synthesize_request({
+        "text": multi_sentence_text,
+        "sentence_silence_seconds": 0.25,
+    })
+
+    assert_not_null(baseline, "synthesize_request() should synthesize a baseline multi-sentence request")
+    assert_not_null(with_silence, "synthesize_request() should synthesize with sentence silence overrides")
+    if baseline != null and with_silence != null:
+        assert_true(with_silence.data.size() > baseline.data.size(), "sentence_silence_seconds should increase output PCM length for multi-sentence input")
+
+    var result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(float(result.get("sentence_silence_seconds", -1.0)), 0.25, "synthesize_request() should expose the applied sentence_silence_seconds override")
     _cleanup_tts(tts)
 
 func test_synthesize_async() -> void:
@@ -419,4 +751,45 @@ func test_audio_stream_format() -> void:
         assert_equal(audio.mix_rate, expected_rate, "Audio mix rate should match the model config")
         assert_false(audio.stereo, "Audio should be mono")
         assert_true(audio.data.size() > 0, "Audio data should not be empty")
+    _cleanup_tts(tts)
+
+func test_last_synthesis_result_timing() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for last_synthesis_result_timing")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "get_last_synthesis_result"):
+        _cleanup_tts(tts)
+        return
+    var audio = tts.synthesize(_test_text(bundle))
+    assert_not_null(audio, "synthesize() should return audio before timing metadata is checked")
+
+    var result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(result.get("input_mode", "")), "text", "get_last_synthesis_result() should record text input_mode")
+    assert_true(bool(result.get("has_timing_info", false)), "get_last_synthesis_result() should expose timing metadata")
+    assert_equal(int(result.get("sample_rate", 0)), _expected_sample_rate(bundle), "get_last_synthesis_result() should expose the resolved sample rate")
+
+    var phoneme_timings: Array = result.get("phoneme_timings", [])
+    assert_true(phoneme_timings.size() > 0, "get_last_synthesis_result() should expose at least one phoneme timing entry")
+    if phoneme_timings.size() > 0:
+        var timing: Dictionary = phoneme_timings[0]
+        assert_true(timing.has("phoneme"), "phoneme timing entries should expose phoneme")
+        assert_true(timing.has("start_time"), "phoneme timing entries should expose start_time")
+        assert_true(timing.has("end_time"), "phoneme timing entries should expose end_time")
+        assert_true(float(timing.get("end_time", -1.0)) >= float(timing.get("start_time", 0.0)), "phoneme timing entries should have end_time >= start_time")
     _cleanup_tts(tts)

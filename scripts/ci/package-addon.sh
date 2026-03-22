@@ -9,6 +9,7 @@ PACKAGE_ROOT="${2:-$REPO_ROOT/package}"
 ADDON_SRC="${3:-$REPO_ROOT/addons/piper_plus}"
 PACKAGE_ADDON_DIR="$PACKAGE_ROOT/addons/piper_plus"
 PACKAGE_BIN_DIR="$PACKAGE_ADDON_DIR/bin"
+GDEXTENSION_FILE="$PACKAGE_ADDON_DIR/piper_plus.gdextension"
 
 if [[ ! -d "$ADDON_SRC" ]]; then
   echo "ERROR: addon source directory not found: $ADDON_SRC" >&2
@@ -30,18 +31,37 @@ if [[ ${#artifact_dirs[@]} -eq 0 ]]; then
   exit 1
 fi
 
+required_binaries=()
+while IFS= read -r binary_name; do
+  [[ -n "$binary_name" ]] && required_binaries+=("$binary_name")
+done < <(
+  grep '\.release' "$GDEXTENSION_FILE" \
+    | sed -n 's/.*"res:\/\/addons\/piper_plus\/bin\/\([^"]*\)".*/\1/p' \
+    | sort -u
+)
+
+if [[ ${#required_binaries[@]} -eq 0 ]]; then
+  echo "ERROR: no release binaries were parsed from $GDEXTENSION_FILE" >&2
+  exit 1
+fi
+
 copied_any=0
 for artifact_dir in "${artifact_dirs[@]}"; do
+  artifact_bin_dir=""
   if [[ -d "$artifact_dir/bin" ]]; then
-    cp -f "$artifact_dir/bin"/* "$PACKAGE_BIN_DIR"/ 2>/dev/null || true
-    copied_any=1
+    artifact_bin_dir="$artifact_dir/bin"
   elif [[ -d "$artifact_dir/addons/piper_plus/bin" ]]; then
-    cp -f "$artifact_dir/addons/piper_plus/bin"/* "$PACKAGE_BIN_DIR"/ 2>/dev/null || true
-    copied_any=1
+    artifact_bin_dir="$artifact_dir/addons/piper_plus/bin"
   else
-    cp -f "$artifact_dir"/* "$PACKAGE_BIN_DIR"/ 2>/dev/null || true
-    copied_any=1
+    artifact_bin_dir="$artifact_dir"
   fi
+
+  for binary_name in "${required_binaries[@]}"; do
+    if [[ -f "$artifact_bin_dir/$binary_name" ]]; then
+      cp -f "$artifact_bin_dir/$binary_name" "$PACKAGE_BIN_DIR"/
+      copied_any=1
+    fi
+  done
 done
 
 if [[ $copied_any -eq 0 ]]; then

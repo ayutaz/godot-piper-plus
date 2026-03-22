@@ -150,6 +150,7 @@ jobs:
   integration-linux:
     name: Linux Godot Headless Integration
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     needs:
       - build-desktop
       - test-desktop

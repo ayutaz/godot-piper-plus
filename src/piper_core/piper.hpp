@@ -114,11 +114,18 @@ struct PhonemeInfo {
 };
 
 struct SynthesisResult {
-  double inferSeconds;
-  double audioSeconds;
-  double realTimeFactor;
+  double inferSeconds = 0.0;
+  double audioSeconds = 0.0;
+  double realTimeFactor = 0.0;
   std::vector<PhonemeInfo> phonemeTimings;  // Phoneme timing information
   bool hasTimingInfo = false;                // Whether timing info is available
+};
+
+struct InspectionResult {
+  std::vector<std::vector<Phoneme>> phonemeSentences;
+  std::vector<std::vector<PhonemeId>> phonemeIdSentences;
+  std::map<Phoneme, std::size_t> missingPhonemes;
+  std::optional<LanguageId> resolvedLanguageId;
 };
 
 struct Voice {
@@ -187,6 +194,12 @@ void phonemesToAudio(PiperConfig &config, Voice &voice,
                      std::vector<int16_t> &audioBuffer,
                      SynthesisResult &result,
                      const std::function<void()> &audioCallback = nullptr);
+
+// Inspect phonemization and phoneme-id conversion without ONNX inference.
+void inspectText(PiperConfig &config, Voice &voice, std::string text,
+                 InspectionResult &result);
+void inspectPhonemes(Voice &voice, const std::vector<Phoneme> &phonemes,
+                     InspectionResult &result);
 
 } // namespace piper
 

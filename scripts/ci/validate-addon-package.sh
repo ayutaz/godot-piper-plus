@@ -13,6 +13,12 @@ required_files=(
   "$PACKAGE_ADDON_DIR/piper_plus_plugin.gd"
   "$PACKAGE_ADDON_DIR/model_downloader.gd"
   "$PACKAGE_ADDON_DIR/dictionary_editor.gd"
+  "$PACKAGE_ADDON_DIR/piper_tts_inspector_plugin.gd"
+  "$PACKAGE_ADDON_DIR/test_speech_dialog.gd"
+  "$PACKAGE_ADDON_DIR/icon.svg"
+  "$PACKAGE_ADDON_DIR/README.md"
+  "$PACKAGE_ADDON_DIR/LICENSE"
+  "$PACKAGE_ADDON_DIR/THIRD_PARTY_LICENSES.txt"
   "$GDEXTENSION_FILE"
 )
 

@@ -7,9 +7,25 @@ var _failures: Array[String] = []
 var _suites: Array = []
 
 func _ready() -> void:
-    _suites = [
-        load("res://test_piper_tts.gd").new(),
-    ]
+    var suite_script = load("res://test_piper_tts.gd")
+    if suite_script == null:
+        _failures.append("Failed to load res://test_piper_tts.gd")
+        print(FAILURE_STRING)
+        print(_failures[0])
+        print(END_STRING)
+        get_tree().quit(1)
+        return
+
+    var suite = suite_script.new()
+    if suite == null:
+        _failures.append("Failed to instantiate res://test_piper_tts.gd")
+        print(FAILURE_STRING)
+        print(_failures[0])
+        print(END_STRING)
+        get_tree().quit(1)
+        return
+
+    _suites = [suite]
     await get_tree().process_frame
     await _run_all()
     get_tree().quit(_failures.size())
@@ -27,7 +43,7 @@ func _run_all() -> void:
             for message in suite.skips:
                 print("  SKIP %s.%s: %s" % [suite_name, method_name, message])
 
-            if suite.failures.is_empty():
+            if suite.failures.is_empty() and suite.skips.is_empty():
                 print("  PASS %s.%s" % [suite_name, method_name])
             else:
                 for message in suite.failures:

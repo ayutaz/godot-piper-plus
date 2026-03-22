@@ -26,19 +26,24 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 ## 現在の対応状況
 
-現時点で `P0` は完了です。現実装のスコープは次のとおりです。
+現時点で `P0` は完了、`P1` は実装と検証まで完了しています。残っているのは外部作業としての Godot Asset Library 登録です。現実装のスコープは次のとおりです。
 
 - 日本語 OpenJTalk と英語 CMU 辞書ベース G2P を使った text input 合成
 - bilingual / multilingual モデルに対する `ja/en` 最小ルーティング
 - `language_id` と `language_code` による言語選択
 - `model_path` の実ファイル指定、モデル名/エイリアス解決、`config_path` fallback
+- `synthesize_request` / `inspect_request` による request ベース API
+- `synthesize_phoneme_string` / `inspect_phoneme_string` による raw phoneme 入力
+- `sentence_silence_seconds` / `phoneme_silence_seconds` の制御
+- `inspect_*` と `get_last_synthesis_result()` による dry-run / timing / 結果取得
 - `custom_dictionary_path` による辞書前処理と `[[ phonemes ]]` 直入力
+- Inspector 拡張、preset 適用、テスト発話 UI、モデル downloader、辞書 editor
 - 英語 text input では `cmudict_data.json` が必要です。`addons/piper_plus/dictionaries/`、モデル同梱ディレクトリ、または config 同階層を探索します。
 
 ## 検証状況
 
-- 2026-03-22 時点で `ctest --test-dir build-test --output-on-failure` は `123/123` pass
-- 2026-03-22 時点で Godot headless の `test/project` は `test/models/multilingual-test-medium.onnx` を使って GDScript テストを完走できます
+- 2026-03-22 時点で `ctest --test-dir build-p1-debug -C Debug --output-on-failure` は `123/123` pass
+- 2026-03-22 時点で Godot headless の `test/project` は `test/models/multilingual-test-medium.onnx` を使って parity テストを含む GDScript テストを完走できます
 - Windows の headless 実行では `addons/piper_plus/bin/onnxruntime.dll` が必要です。`test/prepare-assets.sh` は `onnxruntime.windows.x86_64.dll` しか無い場合でも plain 名へ複製します
 
 ## サポートプラットフォーム

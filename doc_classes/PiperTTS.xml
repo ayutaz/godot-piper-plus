@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="PiperTTS" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
 	<brief_description>
-		VITS neural TTS engine for Godot.
+		VITS neural TTS engine and phoneme inspection node for Godot.
 	</brief_description>
 	<description>
-		Integrates the piper-plus VITS neural text-to-speech engine into Godot as a node. Synthesizes speech audio from Japanese text using ONNX Runtime for inference and OpenJTalk for grapheme-to-phoneme conversion.
-		Set [member model_path], [member config_path], and [member dictionary_path], then call [method initialize] before synthesizing speech. Use [method synthesize] for synchronous synthesis or [method synthesize_async] for non-blocking synthesis on a worker thread.
+		Integrates the piper-plus VITS neural text-to-speech engine into Godot as a node. It supports Japanese text via OpenJTalk, English text via the bundled CMU-based G2P path, raw phoneme input, and inspection utilities that expose phoneme routing and timing metadata without requiring custom engine bindings.
+		Set [member model_path] and any optional configuration members, then call [method initialize] before synthesis or inspection. [member model_path] can point to a concrete [code].onnx[/code] file, a directory that contains a single matching model, or a registered bundled model key/alias. If [member config_path] is empty, the node falls back to [code]&lt;model&gt;.json[/code] and then [code]config.json[/code] next to the resolved model.
+		Use [method synthesize], [method synthesize_request], or [method synthesize_phoneme_string] for synchronous synthesis, [method synthesize_async] for worker-thread synthesis, and [method synthesize_streaming] for low-latency streamed playback. Use [method inspect_text], [method inspect_request], or [method inspect_phoneme_string] to inspect phoneme output without generating audio. The most recent synthesis and inspection metadata is cached in [method get_last_synthesis_result] and [method get_last_inspection_result].
 		Set [member execution_provider] to use GPU acceleration on supported platforms (CoreML on macOS/iOS, DirectML on Windows, NNAPI on Android).
 		[codeblocks]
 		[gdscript]
 		# Basic usage example
 		var tts = PiperTTS.new()
-		tts.model_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx"
-		tts.config_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx.json"
+		tts.model_path = "ja_JP-test-medium"
+		tts.dictionary_path = "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
 		tts.execution_provider = PiperTTS.EP_AUTO
 		add_child(tts)
 		tts.initialize()
@@ -20,6 +21,10 @@
 		# Async synthesis
 		tts.synthesis_completed.connect(func(audio): $AudioStreamPlayer.stream = audio; $AudioStreamPlayer.play())
 		tts.synthesize_async("こんにちは、世界！")
+
+		# Phoneme inspection
+		var inspected = tts.inspect_text("hello from godot")
+		print(inspected.get("phoneme_sentences", []))
 		[/gdscript]
 		[/codeblocks]
 	</description>
@@ -29,7 +34,7 @@
 		<method name="initialize">
 			<return type="int" enum="Error" />
 			<description>
-				Loads the ONNX model, model configuration, and OpenJTalk dictionary, then initializes the TTS engine. [member model_path], [member config_path], and [member dictionary_path] must be set before calling this method.
+				Loads the resolved ONNX model, applies [member config_path] fallback lookup when needed, configures the OpenJTalk dictionary, applies [member custom_dictionary_path] if set, and initializes the TTS engine. [member model_path] must be set before calling this method.
 				Returns [constant OK] on success, or an error code on failure. The [signal initialized] signal is also emitted when initialization completes.
 			</description>
 		</method>
@@ -38,7 +43,24 @@
 			<param index="0" name="text" type="String" />
 			<description>
 				Synthesizes speech from the given text synchronously and returns the resulting audio as an [AudioStreamWAV] (22050 Hz, 16-bit PCM). This method blocks the calling thread until synthesis is complete.
-				Returns [code]null[/code] if the engine has not been initialized. Call [method initialize] first.
+				Returns [code]null[/code] if the engine has not been initialized or synthesis fails. On success, [method get_last_synthesis_result] is updated with timing and performance metadata for the generated audio.
+			</description>
+		</method>
+		<method name="synthesize_request">
+			<return type="AudioStreamWAV" />
+			<param index="0" name="request" type="Dictionary" />
+			<description>
+				Flexible synchronous synthesis entry point. The request must contain exactly one input source: [code]text[/code], [code]phoneme_string[/code], or [code]phonemes[/code]. [code]phonemes[/code] may be a [PackedStringArray], [Array], or [String], and is normalized into a single raw phoneme string before synthesis.
+				Optional per-request overrides include [code]speaker_id[/code], [code]language_id[/code], [code]language_code[/code], [code]speech_rate[/code], [code]noise_scale[/code], [code]noise_w[/code], [code]sentence_silence_seconds[/code] (or the alias [code]sentence_silence[/code]), and [code]phoneme_silence_seconds[/code] (or the alias [code]phoneme_silence[/code]).
+				Returns [code]null[/code] on validation or synthesis failure. On success, [method get_last_synthesis_result] is updated. The result dictionary contains [code]input_mode[/code], [code]sample_rate[/code], [code]infer_seconds[/code], [code]audio_seconds[/code], [code]real_time_factor[/code], [code]has_timing_info[/code], [code]phoneme_timings[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
+			</description>
+		</method>
+		<method name="synthesize_phoneme_string">
+			<return type="AudioStreamWAV" />
+			<param index="0" name="phoneme_string" type="String" />
+			<description>
+				Synthesizes speech synchronously from a raw phoneme string instead of text. This is a convenience wrapper around [method synthesize_request] with [code]phoneme_string[/code] set.
+				Returns [code]null[/code] if the node is not initialized or the phoneme string cannot be synthesized. On success, [method get_last_synthesis_result] is updated and reports [code]input_mode = "phoneme_string"[/code].
 			</description>
 		</method>
 		<method name="synthesize_async">
@@ -47,7 +69,7 @@
 			<description>
 				Synthesizes speech from the given text asynchronously on a worker thread. This method does not block the main thread.
 				On success, the [signal synthesis_completed] signal is emitted with the resulting [AudioStreamWAV]. On failure, the [signal synthesis_failed] signal is emitted with an error message.
-				Returns [constant OK] if the synthesis task was started, or [constant ERR_BUSY] if a synthesis is already in progress.
+				Returns [constant OK] if the synthesis task was started, [constant ERR_UNCONFIGURED] if the node is not initialized, [constant ERR_INVALID_PARAMETER] if the text is empty or the language selection is invalid, or [constant ERR_BUSY] if synthesis is already in progress. On success, [method get_last_synthesis_result] is updated when the deferred completion handler runs.
 			</description>
 		</method>
 		<method name="stop">
@@ -62,10 +84,48 @@
 				Returns [code]true[/code] if the TTS engine has been successfully initialized and is ready to synthesize speech.
 			</description>
 		</method>
+		<method name="inspect_text">
+			<return type="Dictionary" />
+			<param index="0" name="text" type="String" />
+			<description>
+				Inspects the given text without generating audio and returns a dictionary describing the resolved phoneme sentences. The returned dictionary includes [code]phoneme_sentences[/code], [code]phoneme_id_sentences[/code], [code]missing_phonemes[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]input_mode[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
+				Returns an empty dictionary if the node is not initialized, synthesis is already running, validation fails, or inspection throws an error. On success, [method get_last_inspection_result] is updated.
+			</description>
+		</method>
+		<method name="inspect_request">
+			<return type="Dictionary" />
+			<param index="0" name="request" type="Dictionary" />
+			<description>
+				Flexible inspection entry point that accepts the same request dictionary schema as [method synthesize_request], but performs phonemization and routing inspection only. Raw phoneme input remains grouped as a single sentence in [code]phoneme_sentences[/code] and [code]phoneme_id_sentences[/code].
+				Returns an empty dictionary on validation failure or if the node is busy or uninitialized. On success, [method get_last_inspection_result] is updated. When phoneme input is supplied, the dictionary reports [code]input_mode = "phoneme_string"[/code].
+			</description>
+		</method>
+		<method name="inspect_phoneme_string">
+			<return type="Dictionary" />
+			<param index="0" name="phoneme_string" type="String" />
+			<description>
+				Inspects a raw phoneme string without generating audio. This is a convenience wrapper around [method inspect_request] with [code]phoneme_string[/code] set.
+				Returns an empty dictionary on failure. On success, [method get_last_inspection_result] is updated and reports [code]input_mode = "phoneme_string"[/code].
+			</description>
+		</method>
+		<method name="get_last_synthesis_result" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns the most recent synthesis metadata dictionary produced by [method synthesize], [method synthesize_request], [method synthesize_phoneme_string], [method synthesize_async], or [method synthesize_streaming].
+				The dictionary is empty until a synthesis succeeds. On success it contains [code]input_mode[/code], [code]sample_rate[/code], [code]infer_seconds[/code], [code]audio_seconds[/code], [code]real_time_factor[/code], [code]has_timing_info[/code], [code]phoneme_timings[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code]. Each item in [code]phoneme_timings[/code] is a dictionary with [code]phoneme[/code], [code]start_time[/code], [code]end_time[/code], [code]start_frame[/code], and [code]end_frame[/code].
+			</description>
+		</method>
+		<method name="get_last_inspection_result" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns the most recent inspection metadata dictionary produced by [method inspect_text], [method inspect_request], or [method inspect_phoneme_string].
+				The dictionary is empty until an inspection succeeds. On success it contains [code]phoneme_sentences[/code], [code]phoneme_id_sentences[/code], [code]missing_phonemes[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]input_mode[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
+			</description>
+		</method>
 		<method name="is_processing" qualifiers="const">
 			<return type="bool" />
 			<description>
-				Returns [code]true[/code] if an asynchronous synthesis started by [method synthesize_async] is currently in progress.
+				Returns [code]true[/code] if an asynchronous synthesis started by [method synthesize_async] or a streaming synthesis started by [method synthesize_streaming] is currently in progress.
 			</description>
 		</method>
 		<method name="synthesize_streaming">
@@ -82,16 +142,25 @@
 	</methods>
 	<members>
 		<member name="model_path" type="String" setter="set_model_path" getter="get_model_path" default="&quot;&quot;">
-			Path to the ONNX model file ([code].onnx[/code]). Supports Godot resource paths (e.g., [code]res://addons/piper_plus/models/ja_JP-test-medium.onnx[/code]).
+			Model selector used during [method initialize]. This may be a direct [code].onnx[/code] path, a directory that contains a single matching model, or a registered bundled model key/alias such as [code]ja_JP-test-medium[/code]. Supports Godot resource paths (for example [code]res://[/code] and [code]user://[/code]).
 		</member>
 		<member name="config_path" type="String" setter="set_config_path" getter="get_config_path" default="&quot;&quot;">
-			Path to the model configuration file ([code].onnx.json[/code]). This file contains phoneme mappings, sample rate, and other model-specific settings.
+			Optional path to the model configuration file ([code].json[/code]). If empty, [method initialize] searches for [code]&lt;resolved_model&gt;.json[/code] first and [code]config.json[/code] in the model directory second.
 		</member>
 		<member name="dictionary_path" type="String" setter="set_dictionary_path" getter="get_dictionary_path" default="&quot;&quot;">
 			Path to the OpenJTalk dictionary directory (naist-jdic). Required for Japanese TTS. Supports Godot resource paths such as [code]res://[/code] and [code]user://[/code] (e.g., [code]res://addons/piper_plus/dictionaries/naist-jdic[/code]). When set, this path is applied as the OpenJTalk dictionary path during [method initialize].
 		</member>
+		<member name="custom_dictionary_path" type="String" setter="set_custom_dictionary_path" getter="get_custom_dictionary_path" default="&quot;&quot;">
+			Optional path to a custom dictionary JSON file that is loaded during [method initialize] and applied before phonemization. Supports Godot resource paths.
+		</member>
 		<member name="speaker_id" type="int" setter="set_speaker_id" getter="get_speaker_id" default="0">
 			Speaker ID for multi-speaker models. Valid range is 0 to 999. Ignored for single-speaker models.
+		</member>
+		<member name="language_id" type="int" setter="set_language_id" getter="get_language_id" default="-1">
+			Optional explicit language ID override for multilingual models. A negative value means automatic selection. If both [member language_id] and [member language_code] are set, [member language_code] takes precedence.
+		</member>
+		<member name="language_code" type="String" setter="set_language_code" getter="get_language_code" default="&quot;&quot;">
+			Optional language code override for multilingual models. Codes are normalized by trimming whitespace, lowercasing, and treating underscores and hyphens as equivalent during lookup, so values such as [code]EN_us[/code] are accepted when the model exposes a matching canonical code like [code]en[/code].
 		</member>
 		<member name="speech_rate" type="float" setter="set_speech_rate" getter="get_speech_rate" default="1.0">
 			Speech rate multiplier corresponding to the VITS [code]lengthScale[/code] parameter. A value of [code]1.0[/code] is the default speed. Smaller values produce faster speech, and larger values produce slower speech.
@@ -101,6 +170,12 @@
 		</member>
 		<member name="noise_w" type="float" setter="set_noise_w" getter="get_noise_w" default="0.8">
 			Controls the randomness of phoneme durations. A value of [code]0.0[/code] produces the most uniform timing. Higher values introduce more variation in the duration of individual phonemes.
+		</member>
+		<member name="sentence_silence_seconds" type="float" setter="set_sentence_silence_seconds" getter="get_sentence_silence_seconds" default="0.2">
+			Default silence inserted between synthesized sentences, in seconds. Per-request overrides can be supplied through [method synthesize_request] or [method inspect_request].
+		</member>
+		<member name="phoneme_silence_seconds" type="Dictionary" setter="set_phoneme_silence_seconds" getter="get_phoneme_silence_seconds" default="{}">
+			Optional per-phoneme silence override map. Each key must resolve to exactly one phoneme token, and each value is the silence duration in seconds that should be applied when that phoneme is encountered.
 		</member>
 		<member name="execution_provider" type="int" setter="set_execution_provider" getter="get_execution_provider" default="0" enum="PiperTTS.ExecutionProviderGD">
 			Execution provider for ONNX Runtime inference. Set this before calling [method initialize].

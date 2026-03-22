@@ -11,11 +11,14 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 ## 現在の状態
 
 - `P0` は完了扱いです。
+- `P1` は実装と検証まで完了しており、残りは外部作業としての Asset Library 登録です。
 - text input 合成は、日本語 OpenJTalk、英語 CMU 辞書ベース G2P、`ja/en` 最小 multilingual runtime が入っています。
 - `custom_dictionary_path` は runtime 接続済みです。
 - `language_id` / `language_code` は `PiperTTS` から公開済みです。
 - `model_path` は実ファイル指定に加えて、登録済みモデル名やエイリアス解決に対応しています。
 - `config_path` は省略可能で、`<model>.json` と同一ディレクトリの `config.json` を順に探索します。
+- `synthesize_request` / `inspect_request`、raw phoneme 入力、timing 出力、silence override が使えます。
+- editor には downloader、dictionary editor、Inspector 拡張、test speech UI があります。
 - 英語 text input では `cmudict_data.json` が必要で、モデル同梱、config 同階層、`addons/piper_plus/dictionaries` を探索します。
 - C++ テストは `123/123` pass です。
 - Godot headless の `test/project` は、addon bin と `test/models` を同期した状態で GDScript テストを完走できます。
@@ -28,7 +31,8 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 - GDExtension が C++ なので、日本語 G2P は OpenJTalk 静的リンクを前提にする
 - GPL 系依存は持ち込まない
 - 英語 G2P は CMU 辞書ベースの自前 C++ 実装で扱う
-- multilingual はまず `ja/en` 最小構成で維持し、上流 parity 拡張は `P1` で進める
+- multilingual はまず `ja/en` 最小構成で維持し、上流 parity 拡張は `P2` 以降で進める
+- `openjtalk-native` を使う場合も `openjtalk_wrapper.*` を安定境界として backend 側で吸収する
 
 ### 現行データフロー
 
@@ -119,12 +123,9 @@ godot --path test/project --headless
 
 優先順位は [docs/milestones.md](C:/Users/yuta/Desktop/Private/godot-piper-plus/docs/milestones.md) を基準にする。
 
-- `P1-1` 高度 runtime API 公開
-- `P1-5` parity テスト追加
-- `P1-6` Layer 2 CI / headless 検証の拡張
-- `P1-7` エディタ UI 改善
 - `P1-8` Asset Library 登録
-- `P1-9` `CHANGELOG.md` 整備
+- `P2-1` `openjtalk_optimized` / `openjtalk-native` 方針整理
+- `P2-2` CUDA 固有制御対応
 
 ## 参照プロジェクト
 
