@@ -11,7 +11,9 @@
 - Windows は source build の Godot headless に加えて、package 化した addon を使う headless smoke をローカルで再確認済みです。
 - Linux の Godot headless CI は strict 化し、all-skip や model bundle 欠落を failure 扱いにする導線を追加しました。
 - macOS は arm64 build と C++ test に加えて、packaged addon smoke test の CI job を追加しました。初回実行結果の確認は未了です。
-- Android/iOS は debug/release の native binary を package に含める導線と validator に加え、`test/project/export_presets.cfg` と export smoke job を追加しました。初回実行結果の確認は未了です。
+- Android/iOS は debug/release の native binary を package に含める導線と validator に加え、`test/project/export_presets.cfg`、`scripts/ci/install-godot-export-templates.sh`、`scripts/ci/export-android-smoke.sh`、`scripts/ci/export-ios-smoke.sh` を追加しました。
+- Android arm64 の debug GDExtension build は Windows local で通過しています。
+- Windows + Godot 4.6 の local Android headless export は、現時点では generic な configuration error で未解決です。Android/iOS の可否確定は CI の初回結果確認まで保留です。
 - Web は現状サポート対象外です。
 - 現在の multilingual runtime は `ja/en` の最小実装です。さらなる上流 parity 拡張は別タスクとして扱います。
 - 英語 text input は `cmudict_data.json` の配置が前提です。
@@ -34,8 +36,8 @@
 | R3 | 完了 | all-skip CI を failure 扱いにする | `PiperTTS class is unavailable` や model bundle 欠落で green にならないよう、Godot integration の判定を強化する | package/load 失敗が CI で検出される |
 | R4 | 完了 | Windows packaged addon smoke test | package 後の addon を Godot editor/headless で実行確認する | ローカル手順で packaged addon の Windows load を再確認し、CI job も追加済み |
 | R5 | 進行中 | macOS arm64 runtime 検証 | macOS arm64 で Godot から addon load / initialize / synthesize を確認する | packaged addon smoke test の CI 実行結果を確認し、可否を文書で確定する |
-| R6 | 進行中 | Android arm64 runtime / export 検証 | export した Godot project で addon load と synthesize を確認する | `export_presets.cfg` と `export-android-smoke` job は追加済み。初回 CI 結果を確認し、必要な export 設定差分を詰める |
-| R7 | 進行中 | iOS arm64 runtime / export 検証 | export/link を含めて addon load と synthesize を確認する | `export-ios-smoke` job は追加済み。初回 CI 結果を確認し、Xcode project/link の差分を詰める |
+| R6 | 進行中 | Android arm64 runtime / export 検証 | export した Godot project で addon load と synthesize を確認する | `export_presets.cfg`、`install-godot-export-templates.sh`、`export-android-smoke` job は追加済み。初回 CI 結果を確認し、必要な export 設定差分を詰める |
+| R7 | 進行中 | iOS arm64 runtime / export 検証 | export/link を含めて addon load と synthesize を確認する | `export_presets.cfg`、`install-godot-export-templates.sh`、`export-ios-smoke` job は追加済み。初回 CI 結果を確認し、Xcode project/link の差分を詰める |
 | R8 | 完了 | Web 非対応の明文化維持 | README / package / Asset Library 文面で Web を対象外として明記する | Web の過大説明が無い |
 
 ## Asset Library
@@ -47,5 +49,6 @@
 ## 直近の着手候補
 
 - `R5` macOS packaged addon smoke の CI 実行結果を確認する
-- `R6` Android export smoke の初回結果を確認し、Windows local の generic export error の原因を詰める
-- `R7` iOS export/link smoke の初回結果を確認する
+- `R6` Android export smoke の初回結果を確認し、必要なら `export_presets.cfg` と SDK/keystore 解決を修正する
+- `R6` Windows local の generic Android export error の原因を追加で切り分ける
+- `R7` iOS export/link smoke の初回結果を確認し、必要なら Xcode project/link 差分を詰める
