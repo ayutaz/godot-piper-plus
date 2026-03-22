@@ -10,7 +10,7 @@
 - 現在の multilingual runtime は `ja/en` の最小実装です。上流 parity の拡張は `P1` で扱います。
 - 英語 text input は `cmudict_data.json` の配置が前提です。
 - C++ 側の `ctest --test-dir build-test --output-on-failure` は `123/123` pass です。
-- Godot headless の `test/project` は起動するが、現状は `PiperTTS class is unavailable` で GDScript 側が skip します。
+- Godot headless の `test/project` は `test/models/multilingual-test-medium.onnx` を使って GDScript テストを実行できます。
 
 ## 実行順
 
@@ -27,7 +27,7 @@
 | P1-3 | 未着手 | raw phoneme 入力対応 | テキストではなく音素列を直接与える経路を追加する | 発音固定テストや検証に使える |
 | P1-4 | 未着手 | dry-run / 検査モード追加 | 音声再生なしで解析や検証に使えるモードを追加する | 検査用途で安全に実行できる |
 | P1-5 | 未着手 | parity テスト追加 | multilingual runtime、model resolver、question marker、raw phoneme、timing のテストを追加する | 不足領域の自動テストが揃う |
-| P1-6 | 未着手 | Layer 2 CI の対象拡張 | 既存の headless 実行に multilingual / model manager / parity 項目を追加し、`test/project` の GDExtension 読み込み確認まで含める | workflow 上で不足領域の検証が自動実行される |
+| P1-6 | 未着手 | Layer 2 CI の対象拡張 | 既存の headless 実行に multilingual / model manager / parity 項目を追加する | workflow 上で不足領域の検証が自動実行される |
 | P1-7 | 未着手 | エディタ UI 改善 | `addons/piper_plus/icon.svg`、Inspector カスタマイズ、テスト発話 UI を実装する | エディタ内でモデル選択と試聴が完結する |
 | P1-8 | 未着手 | Asset Library 登録 | Godot Asset Library 向けの公開導線を整備する | Asset Library から導入可能になる |
 | P1-9 | 未着手 | CHANGELOG 整備 | リリースノート管理用の `CHANGELOG.md` を追加する | リリース差分を追える |

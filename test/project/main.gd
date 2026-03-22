@@ -10,6 +10,7 @@ func _ready() -> void:
     _suites = [
         load("res://test_piper_tts.gd").new(),
     ]
+    await get_tree().process_frame
     await _run_all()
     get_tree().quit(_failures.size())
 

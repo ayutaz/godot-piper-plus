@@ -38,7 +38,8 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 ## 検証状況
 
 - 2026-03-22 時点で `ctest --test-dir build-test --output-on-failure` は `123/123` pass
-- Godot headless の `test/project` は起動するが、現状は `PiperTTS class is unavailable` で GDScript 側が skip。GDExtension 読み込み条件の確認は `P1` 側の残件です。
+- 2026-03-22 時点で Godot headless の `test/project` は `test/models/multilingual-test-medium.onnx` を使って GDScript テストを完走できます
+- Windows の headless 実行では `addons/piper_plus/bin/onnxruntime.dll` が必要です。`test/prepare-assets.sh` は `onnxruntime.windows.x86_64.dll` しか無い場合でも plain 名へ複製します
 
 ## サポートプラットフォーム
 

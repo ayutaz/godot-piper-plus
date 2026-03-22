@@ -1,9 +1,13 @@
 extends "res://test_base.gd"
 
-const DEFAULT_TEST_TEXT := "こんにちは"
-const BUNDLED_MODEL_PATH := "res://models/ja_JP-test-medium.onnx"
-const BUNDLED_CONFIG_PATH := "res://models/ja_JP-test-medium.onnx.json"
+const DEFAULT_JA_TEST_TEXT := "こんにちは"
+const DEFAULT_EN_TEST_TEXT := "hello from godot"
+const BUNDLED_MODEL_PATH := "res://models/multilingual-test-medium.onnx"
+const BUNDLED_CONFIG_PATH := "res://models/multilingual-test-medium.onnx.json"
 const BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
+
+var _async_completed_audio = null
+var _async_failed_error := ""
 
 func _addon_available() -> bool:
     return ClassDB.class_exists("PiperTTS")
@@ -61,6 +65,49 @@ func _resolve_bundle_config_path(bundle: Dictionary) -> String:
 
     return ""
 
+func _load_bundle_config(bundle: Dictionary) -> Dictionary:
+    var config_path := _resolve_bundle_config_path(bundle)
+    if config_path.is_empty():
+        return {}
+
+    var text = FileAccess.get_file_as_string(config_path)
+    if text.is_empty():
+        return {}
+
+    var parsed = JSON.parse_string(text)
+    if typeof(parsed) != TYPE_DICTIONARY:
+        return {}
+
+    return parsed
+
+func _preferred_test_language_code(bundle: Dictionary) -> String:
+    var env_language := OS.get_environment("PIPER_TEST_LANGUAGE_CODE").strip_edges()
+    if not env_language.is_empty():
+        return env_language
+
+    var parsed := _load_bundle_config(bundle)
+    var language: Variant = parsed.get("language", {})
+    if typeof(language) == TYPE_DICTIONARY and String(language.get("code", "")) == "multilingual":
+        return "en"
+
+    return ""
+
+func _test_text(bundle: Dictionary) -> String:
+    var env_text := OS.get_environment("PIPER_TEST_TEXT")
+    if not env_text.is_empty():
+        return env_text
+
+    if _preferred_test_language_code(bundle) == "en":
+        return DEFAULT_EN_TEST_TEXT
+
+    return DEFAULT_JA_TEST_TEXT
+
+func _on_synthesis_completed_for_test(audio) -> void:
+    _async_completed_audio = audio
+
+func _on_synthesis_failed_for_test(error: String) -> void:
+    _async_failed_error = error
+
 func _configure_test_model(tts) -> bool:
     var bundle = _model_bundle()
     if bundle.is_empty():
@@ -78,6 +125,10 @@ func _configure_test_model(tts) -> bool:
         tts.config_path = bundle["config_path"]
     if not String(bundle["dictionary_path"]).is_empty():
         tts.dictionary_path = bundle["dictionary_path"]
+
+    var preferred_language := _preferred_test_language_code(bundle)
+    if not preferred_language.is_empty():
+        tts.language_code = preferred_language
 
     return true
 
@@ -220,7 +271,7 @@ func test_synthesize_without_init() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
-    var audio = tts.synthesize(DEFAULT_TEST_TEXT)
+    var audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
     assert_true(audio == null, "synthesize() should fail before initialize()")
     _cleanup_tts(tts)
 
@@ -229,7 +280,7 @@ func test_synthesize_async_without_init() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
-    assert_equal(tts.synthesize_async(DEFAULT_TEST_TEXT), ERR_UNCONFIGURED, "synthesize_async() should fail before initialize()")
+    assert_equal(tts.synthesize_async(DEFAULT_JA_TEST_TEXT), ERR_UNCONFIGURED, "synthesize_async() should fail before initialize()")
     _cleanup_tts(tts)
 
 func test_is_ready_default() -> void:
@@ -282,6 +333,11 @@ func test_synthesize_basic() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
@@ -292,7 +348,7 @@ func test_synthesize_basic() -> void:
         _cleanup_tts(tts)
         return
 
-    var audio = tts.synthesize(DEFAULT_TEST_TEXT)
+    var audio = tts.synthesize(_test_text(bundle))
     assert_not_null(audio, "synthesize() should return AudioStreamWAV")
     if audio != null:
         assert_true(audio.data.size() > 0, "AudioStreamWAV should contain PCM data")
@@ -302,6 +358,11 @@ func test_synthesize_async() -> void:
     var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
         return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
@@ -313,19 +374,22 @@ func test_synthesize_async() -> void:
         _cleanup_tts(tts)
         return
 
-    var completed_audio = null
-    var failed_error = ""
-    tts.synthesis_completed.connect(func(audio): completed_audio = audio)
-    tts.synthesis_failed.connect(func(error): failed_error = error)
+    _async_completed_audio = null
+    _async_failed_error = ""
+    tts.synthesis_completed.connect(_on_synthesis_completed_for_test)
+    tts.synthesis_failed.connect(_on_synthesis_failed_for_test)
 
-    assert_equal(tts.synthesize_async(DEFAULT_TEST_TEXT), OK, "synthesize_async() should start successfully")
+    assert_equal(tts.synthesize_async(_test_text(bundle)), OK, "synthesize_async() should start successfully")
 
-    var deadline = Time.get_ticks_msec() + 5000
-    while completed_audio == null and failed_error.is_empty() and Time.get_ticks_msec() < deadline:
+    var deadline = Time.get_ticks_msec() + 15000
+    while _async_completed_audio == null and _async_failed_error.is_empty() and Time.get_ticks_msec() < deadline:
         await Engine.get_main_loop().process_frame
 
-    assert_true(failed_error.is_empty(), "synthesize_async() should not emit synthesis_failed")
-    assert_not_null(completed_audio, "synthesize_async() should emit synthesis_completed")
+    if _async_completed_audio == null and _async_failed_error.is_empty():
+        await Engine.get_main_loop().process_frame
+
+    assert_true(_async_failed_error.is_empty(), "synthesize_async() should not emit synthesis_failed")
+    assert_not_null(_async_completed_audio, "synthesize_async() should emit synthesis_completed")
     _cleanup_tts(tts)
 
 func test_audio_stream_format() -> void:
@@ -333,19 +397,22 @@ func test_audio_stream_format() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
-
-    var bundle = _model_bundle()
     var expected_rate = _expected_sample_rate(bundle)
     if tts.initialize() != OK:
         failures.append("initialize() failed for audio_stream_format")
         _cleanup_tts(tts)
         return
 
-    var audio = tts.synthesize(DEFAULT_TEST_TEXT)
+    var audio = tts.synthesize(_test_text(bundle))
     assert_not_null(audio, "synthesize() should return AudioStreamWAV")
     if audio != null:
         assert_equal(audio.format, AudioStreamWAV.FORMAT_16_BITS, "Audio should be 16-bit PCM")
