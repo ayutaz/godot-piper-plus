@@ -29,7 +29,7 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 - package script / validator は `.gdextension` の debug / release binary と Windows ONNX Runtime sidecar を拾うように更新済みです。
 - Linux の Godot headless CI は all-skip / pass 0 / addon 未登録 / model bundle 欠落を failure 扱いに更新済みです。
 - macOS は arm64 build と C++ test に加えて packaged smoke の CI job を追加済みですが、初回実行結果の確認はまだです。
-- Android/iOS は debug / release binary を package validator の対象に含めていますが、Godot export / runtime 検証は未実施です。
+- Android/iOS は debug / release binary を package validator の対象に含め、`test/project/export_presets.cfg` と export smoke job まで追加済みです。初回結果の確認はまだ残っています。
 - Web は現状サポート対象外です。
 - builtin OpenJTalk fallback の日本語テストは compiled `naist-jdic` が無い環境では skip されます。
 
@@ -138,8 +138,8 @@ godot --headless --path test/project
 優先順位は [docs/milestones.md](C:/Users/yuta/Desktop/Private/godot-piper-plus/docs/milestones.md) を基準にする。
 
 - `R5` macOS packaged addon smoke の CI 実行結果を確認する
-- `R6` Android export fixture / smoke を追加する
-- `R7` iOS export/link fixture / smoke を追加する
+- `R6` Android export smoke の初回結果を確認し、必要なら export preset / SDK 解決を修正する
+- `R7` iOS export/link smoke の初回結果を確認する
 - `P1-8` Asset Library 登録
 
 ## 参照プロジェクト

@@ -55,7 +55,9 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 - Windows の headless 実行では `addons/piper_plus/bin/onnxruntime.dll` が必要です。`test/prepare-assets.sh` は `onnxruntime.windows.x86_64.dll` しか無い場合でも plain 名へ複製します
 - 2026-03-23 時点で `openjtalk-native` 無効パス時の builtin fallback と `gpu_device_id` の GDScript test を追加済みです。compiled `naist-jdic` が無い環境では builtin fallback の日本語 test は skip されます
 - `test/project/main.gd` と `test/run-tests.sh` は all-skip / pass 0 / `PiperTTS class is unavailable` / model bundle 欠落を CI failure として扱うように更新済みです
-- GitHub Actions には Windows / macOS packaged addon smoke test job を追加しました。macOS 側は CI 実行結果の確認がまだ残っています
+- GitHub Actions には Windows / macOS packaged addon smoke test に加えて、Android export smoke と iOS export/link smoke の job を追加しました。初回実行結果の確認はまだ残っています
+- 2026-03-23 時点で Android arm64 の debug GDExtension build は Windows local で通過しています。`test/project/export_presets.cfg` と `scripts/ci/export-android-smoke.sh` / `scripts/ci/export-ios-smoke.sh` / `scripts/ci/install-godot-export-templates.sh` を追加しました
+- 2026-03-23 時点で Windows + Godot 4.6 の local Android headless export は generic な configuration error でまだ通っていません。Android/iOS の可否確定は CI の初回結果待ちです
 
 ## サポートプラットフォーム
 
@@ -64,11 +66,11 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 | Windows | x86_64 | source build と local packaged smoke で動作確認済み | packaged addon smoke の CI job も追加済み |
 | Linux | x86_64 | CI build と headless integration あり | all-skip / pass 0 を failure 扱いに更新済み |
 | macOS | arm64 (Apple Silicon) | CI build と C++ test 済み | packaged addon smoke の CI job を追加済み。初回実行結果は未確認 |
-| Android | arm64-v8a | CI build と package completeness gate あり | debug / release binary は validator 対象。Godot export / runtime は未検証 |
-| iOS | arm64 | CI build と package completeness gate あり | debug / release binary は validator 対象。Godot export / link は未検証 |
+| Android | arm64-v8a | CI build / package gate / export smoke job 追加済み | debug / release binary は validator 対象。初回 CI 結果と runtime 可否の確定待ち |
+| iOS | arm64 | CI build / package gate / export-link smoke job 追加済み | debug / release binary は validator 対象。初回 CI 結果の確定待ち |
 | Web | - | 未対応 | `web.*` GDExtension entry と build/export 導線がありません |
 
-release package をそのまま「全 platform で使える addon」と言い切るにはまだ早く、残っている主作業は macOS packaged runtime の確認と Android/iOS export/runtime 検証です。
+release package をそのまま「全 platform で使える addon」と言い切るにはまだ早く、残っている主作業は macOS packaged runtime の確認と Android/iOS export smoke の初回結果確認、必要ならその場で出る export/link 問題の修正です。
 
 ## 対応モデル
 
