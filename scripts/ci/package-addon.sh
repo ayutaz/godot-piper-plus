@@ -31,17 +31,42 @@ if [[ ${#artifact_dirs[@]} -eq 0 ]]; then
   exit 1
 fi
 
+collect_manifest_bin_files() {
+  local gdextension_file="$1"
+
+  grep -o 'res://addons/piper_plus/bin/[^"]*' "$gdextension_file" \
+    | sed 's#res://addons/piper_plus/bin/##' \
+    | sort -u
+}
+
+copy_runtime_sidecars() {
+  local artifact_bin_dir="$1"
+  local pattern=""
+  local sidecar_path=""
+  local -a extra_patterns=(
+    "onnxruntime*.dll"
+    "libonnxruntime*.so"
+    "libonnxruntime*.so.*"
+    "libonnxruntime*.dylib"
+    "DirectML.dll"
+  )
+
+  for pattern in "${extra_patterns[@]}"; do
+    for sidecar_path in "$artifact_bin_dir"/$pattern; do
+      if [[ -f "$sidecar_path" ]]; then
+        cp -f "$sidecar_path" "$PACKAGE_BIN_DIR"/
+      fi
+    done
+  done
+}
+
 required_binaries=()
 while IFS= read -r binary_name; do
   [[ -n "$binary_name" ]] && required_binaries+=("$binary_name")
-done < <(
-  grep '\.release' "$GDEXTENSION_FILE" \
-    | sed -n 's/.*"res:\/\/addons\/piper_plus\/bin\/\([^"]*\)".*/\1/p' \
-    | sort -u
-)
+done < <(collect_manifest_bin_files "$GDEXTENSION_FILE")
 
 if [[ ${#required_binaries[@]} -eq 0 ]]; then
-  echo "ERROR: no release binaries were parsed from $GDEXTENSION_FILE" >&2
+  echo "ERROR: no addon binaries were parsed from $GDEXTENSION_FILE" >&2
   exit 1
 fi
 
@@ -62,6 +87,8 @@ for artifact_dir in "${artifact_dirs[@]}"; do
       copied_any=1
     fi
   done
+
+  copy_runtime_sidecars "$artifact_bin_dir"
 done
 
 if [[ $copied_any -eq 0 ]]; then

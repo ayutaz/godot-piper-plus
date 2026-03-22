@@ -8,6 +8,7 @@ PREPARE_SCRIPT="$SCRIPT_DIR/prepare-assets.sh"
 
 END_STRING="==== TESTS FINISHED ===="
 FAILURE_STRING="******** FAILED ********"
+RESULT_PREFIX="RESULT total="
 
 if [[ -n "${GODOT:-}" ]]; then
   GODOT_BIN="$GODOT"
@@ -20,10 +21,27 @@ else
   exit 1
 fi
 
+if [[ -z "${PIPER_FAIL_ON_SKIP_PATTERNS:-}" ]]; then
+  export PIPER_FAIL_ON_SKIP_PATTERNS=$'PiperTTS class is unavailable\ntest model bundle is not available'
+fi
+
+if [[ -z "${PIPER_REQUIRE_PASS:-}" ]]; then
+  export PIPER_REQUIRE_PASS=1
+fi
+
 "$PREPARE_SCRIPT"
 
+PROJECT_ARG="$PROJECT_DIR"
+if [[ "${GODOT_BIN,,}" == *.exe ]]; then
+  if command -v cygpath >/dev/null 2>&1; then
+    PROJECT_ARG="$(cygpath -w "$PROJECT_DIR")"
+  elif command -v wslpath >/dev/null 2>&1; then
+    PROJECT_ARG="$(wslpath -w "$PROJECT_DIR")"
+  fi
+fi
+
 set +e
-OUTPUT="$("$GODOT_BIN" --path "$PROJECT_DIR" --headless 2>&1)"
+OUTPUT="$("$GODOT_BIN" --path "$PROJECT_ARG" --headless 2>&1)"
 ERRCODE=$?
 set -e
 
@@ -39,6 +57,23 @@ if ! echo "$OUTPUT" | grep -e "$END_STRING" >/dev/null; then
 fi
 
 if echo "$OUTPUT" | grep -e "$FAILURE_STRING" >/dev/null; then
+  exit 1
+fi
+
+RESULT_LINE="$(echo "$OUTPUT" | grep -e "^$RESULT_PREFIX" | tail -n 1)"
+if [[ -z "$RESULT_LINE" ]]; then
+  echo "ERROR: Test summary was not emitted"
+  exit 1
+fi
+
+PASS_COUNT="$(echo "$RESULT_LINE" | sed -n 's/.* pass=\([0-9][0-9]*\).*/\1/p')"
+if [[ -z "$PASS_COUNT" ]]; then
+  echo "ERROR: Could not parse pass count from summary: $RESULT_LINE"
+  exit 1
+fi
+
+if [[ "$PASS_COUNT" -eq 0 ]]; then
+  echo "ERROR: Test run completed without any passing tests"
   exit 1
 fi
 

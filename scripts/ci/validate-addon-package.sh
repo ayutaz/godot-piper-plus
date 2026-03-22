@@ -34,14 +34,18 @@ if [[ ! -d "$PACKAGE_BIN_DIR" ]]; then
   exit 1
 fi
 
+collect_manifest_bin_files() {
+  local gdextension_file="$1"
+
+  grep -o 'res://addons/piper_plus/bin/[^"]*' "$gdextension_file" \
+    | sed 's#res://addons/piper_plus/bin/##' \
+    | sort -u
+}
+
 required_binaries=()
 while IFS= read -r binary_name; do
   [[ -n "$binary_name" ]] && required_binaries+=("$binary_name")
-done < <(
-  grep '\.release' "$GDEXTENSION_FILE" \
-    | sed -n 's/.*"res:\/\/addons\/piper_plus\/bin\/\([^"]*\)".*/\1/p' \
-    | sort -u
-)
+done < <(collect_manifest_bin_files "$GDEXTENSION_FILE")
 
 if [[ ${#required_binaries[@]} -eq 0 ]]; then
   echo "ERROR: no binaries or dependencies were parsed from $GDEXTENSION_FILE" >&2

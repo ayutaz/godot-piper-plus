@@ -25,9 +25,11 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 - 英語 text input では `cmudict_data.json` が必要で、モデル同梱、config 同階層、`addons/piper_plus/dictionaries` を探索します。
 - C++ テストは `123/123` pass です。
 - Windows の source build は、addon bin と `test/models` を同期した状態で Godot headless の `test/project` を完走できます。
-- ただし packaged addon は 2026-03-23 時点で Windows editor/headless load failure を再現しており、debug binary / runtime dependency の package 導線が未解決です。
-- Linux の Godot headless CI はありますが、現状は all-skip でも green になり得ます。
-- macOS は arm64 build と C++ test まで、Android/iOS は build までで、Godot runtime / export 検証は未実施です。
+- Windows の packaged addon も、local build bin から組み立てた package を使う headless smoke で再確認済みです。
+- package script / validator は `.gdextension` の debug / release binary と Windows ONNX Runtime sidecar を拾うように更新済みです。
+- Linux の Godot headless CI は all-skip / pass 0 / addon 未登録 / model bundle 欠落を failure 扱いに更新済みです。
+- macOS は arm64 build と C++ test に加えて packaged smoke の CI job を追加済みですが、初回実行結果の確認はまだです。
+- Android/iOS は debug / release binary を package validator の対象に含めていますが、Godot export / runtime 検証は未実施です。
 - Web は現状サポート対象外です。
 - builtin OpenJTalk fallback の日本語テストは compiled `naist-jdic` が無い環境では skip されます。
 
@@ -127,17 +129,17 @@ godot --headless --path test/project
 注記:
 - `test/prepare-assets.sh` か同等の手順で、`addons/piper_plus/bin/` と `test/models/` を `test/project` 側へ同期してから実行する
 - 2026-03-23 時点では Windows source build + asset 同期済み環境で `multilingual-test-medium.onnx` を使って `test_piper_tts.gd` が完走する
-- 現状の CI 判定は all-skip を failure と見なしていないため、package/load failure を完全には検出できない
+- `test/run-tests.sh` は all-skip / pass 0 / `PiperTTS class is unavailable` / model bundle 欠落を failure 扱いにする
+- `scripts/ci/smoke-test-packaged-addon.sh` を使うと packaged addon を `test/project` に同期して smoke できる
 - builtin OpenJTalk fallback の日本語ケースは compiled `naist-jdic` が無い場合 skip される
 
 ## 現在の優先タスク
 
 優先順位は [docs/milestones.md](C:/Users/yuta/Desktop/Private/godot-piper-plus/docs/milestones.md) を基準にする。
 
-- `R1` package に debug/editor binary を含める
-- `R2` ONNX Runtime sidecar dependency を package へ反映する
-- `R3` all-skip CI を failure 扱いにする
-- `R4` Windows packaged addon smoke test
+- `R5` macOS packaged addon smoke の CI 実行結果を確認する
+- `R6` Android export fixture / smoke を追加する
+- `R7` iOS export/link fixture / smoke を追加する
 - `P1-8` Asset Library 登録
 
 ## 参照プロジェクト

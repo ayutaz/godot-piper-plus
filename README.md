@@ -28,7 +28,7 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 ## 現在の対応状況
 
-現時点で repo 内の `P0` `P1` `P2` の機能実装は完了しています。ただし、配布 package とプラットフォーム検証は未完です。特に debug/editor 向け native binary の同梱、ONNX Runtime sidecar 依存の package 反映、Windows/macOS/mobile の Godot 実行検証が残っています。現実装のスコープは次のとおりです。
+現時点で repo 内の `P0` `P1` `P2` の機能実装は完了しています。release package と platform verification は継続中ですが、`R1` から `R4` の package/CI 是正は実装済みです。現実装のスコープは次のとおりです。
 
 - 日本語 OpenJTalk と英語 CMU 辞書ベース G2P を使った text input 合成
 - bilingual / multilingual モデルに対する `ja/en` 最小ルーティング
@@ -49,23 +49,26 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 - 2026-03-23 時点で `ctest --test-dir build-p1-debug -C Debug --output-on-failure` は `123/123` pass
 - 2026-03-23 時点で Windows の source build は `test/prepare-assets.sh` 相当で asset を同期した上で Godot headless の `test/project` を完走できます
-- 2026-03-23 時点で `scripts/ci/package-addon.sh` で再現した Windows package は Godot editor/headless で `PiperTTS` を load できず、配布 package は未解決です
+- 2026-03-23 時点で `scripts/ci/package-addon.sh` は `.gdextension` に書かれた debug / release binary を全 platform 分拾い、Windows の `onnxruntime_providers_shared.dll` も package へ含めます
+- 2026-03-23 時点で `scripts/ci/validate-addon-package.sh` は manifest 上の全 binary / dependency を検証し、local で Windows だけの partial package を渡した場合も Android/iOS binary 欠落で失敗することを確認しています
+- 2026-03-23 時点で Windows の packaged addon は、現在の local build bin から組み立てた package を使う headless smoke (`scripts/ci/smoke-test-packaged-addon.sh`) で再確認済みです
 - Windows の headless 実行では `addons/piper_plus/bin/onnxruntime.dll` が必要です。`test/prepare-assets.sh` は `onnxruntime.windows.x86_64.dll` しか無い場合でも plain 名へ複製します
 - 2026-03-23 時点で `openjtalk-native` 無効パス時の builtin fallback と `gpu_device_id` の GDScript test を追加済みです。compiled `naist-jdic` が無い環境では builtin fallback の日本語 test は skip されます
-- Linux の headless CI はありますが、現状は all-skip でも green になり得るため、package/load 失敗を完全には検出できません
+- `test/project/main.gd` と `test/run-tests.sh` は all-skip / pass 0 / `PiperTTS class is unavailable` / model bundle 欠落を CI failure として扱うように更新済みです
+- GitHub Actions には Windows / macOS packaged addon smoke test job を追加しました。macOS 側は CI 実行結果の確認がまだ残っています
 
 ## サポートプラットフォーム
 
 | プラットフォーム | アーキテクチャ | 状態 | 備考 |
 |----------------|-------------|------|------|
-| Windows | x86_64 | source build で動作確認済み | packaged addon は debug binary / dependency package が未解決 |
-| Linux | x86_64 | CI build と headless integration あり | all-skip でも green になり得る |
-| macOS | arm64 (Apple Silicon) | CI build と C++ test のみ | Godot runtime / packaged addon は未検証 |
-| Android | arm64-v8a | CI build のみ | Godot runtime / export は未検証 |
-| iOS | arm64 | CI build のみ | Godot runtime / export は未検証 |
+| Windows | x86_64 | source build と local packaged smoke で動作確認済み | packaged addon smoke の CI job も追加済み |
+| Linux | x86_64 | CI build と headless integration あり | all-skip / pass 0 を failure 扱いに更新済み |
+| macOS | arm64 (Apple Silicon) | CI build と C++ test 済み | packaged addon smoke の CI job を追加済み。初回実行結果は未確認 |
+| Android | arm64-v8a | CI build と package completeness gate あり | debug / release binary は validator 対象。Godot export / runtime は未検証 |
+| iOS | arm64 | CI build と package completeness gate あり | debug / release binary は validator 対象。Godot export / link は未検証 |
 | Web | - | 未対応 | `web.*` GDExtension entry と build/export 導線がありません |
 
-release package をそのまま「全 platform で使える addon」とみなせる状態ではまだありません。現状の最優先は package と platform verification の是正です。
+release package をそのまま「全 platform で使える addon」と言い切るにはまだ早く、残っている主作業は macOS packaged runtime の確認と Android/iOS export/runtime 検証です。
 
 ## 対応モデル
 

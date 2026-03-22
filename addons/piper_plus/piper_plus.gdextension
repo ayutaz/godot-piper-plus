@@ -16,8 +16,8 @@ ios.debug = "res://addons/piper_plus/bin/libpiper_plus.ios.template_debug.arm64.
 ios.release = "res://addons/piper_plus/bin/libpiper_plus.ios.template_release.arm64.a"
 
 [dependencies]
-windows.debug.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": ""}
-windows.release.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": ""}
+windows.debug.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": "", "res://addons/piper_plus/bin/onnxruntime_providers_shared.dll": ""}
+windows.release.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": "", "res://addons/piper_plus/bin/onnxruntime_providers_shared.dll": ""}
 linux.debug.x86_64 = {"res://addons/piper_plus/bin/libonnxruntime.linux.x86_64.so": ""}
 linux.release.x86_64 = {"res://addons/piper_plus/bin/libonnxruntime.linux.x86_64.so": ""}
 macos.debug = {"res://addons/piper_plus/bin/libonnxruntime.macos.arm64.dylib": ""}
