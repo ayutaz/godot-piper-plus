@@ -6,6 +6,10 @@
 
 godot-piper-plusは、[piper-plus](https://github.com/ayutaz/piper-plus)（VITS ニューラルTTSエンジン）をGodotエンジン向けにGDExtensionとして移植するプロジェクトです。ローカルで動作する高品質な音声合成をGodotゲームに組み込むことができます。
 
+## Godotでの開き方
+
+Godotプロジェクトとして開く場合は、このリポジトリのルートディレクトリを指定してください。デモシーンは `res://demo/main.tscn` です。
+
 ## 機能
 
 - 高品質なニューラル音声合成（VITS / piper-plusベース）
