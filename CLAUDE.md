@@ -12,16 +12,20 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 
 - `P0` は完了扱いです。
 - `P1` は実装と検証まで完了しており、残りは外部作業としての Asset Library 登録です。
+- `P2` は repo 内実装まで完了しています。
 - text input 合成は、日本語 OpenJTalk、英語 CMU 辞書ベース G2P、`ja/en` 最小 multilingual runtime が入っています。
 - `custom_dictionary_path` は runtime 接続済みです。
 - `language_id` / `language_code` は `PiperTTS` から公開済みです。
 - `model_path` は実ファイル指定に加えて、登録済みモデル名やエイリアス解決に対応しています。
 - `config_path` は省略可能で、`<model>.json` と同一ディレクトリの `config.json` を順に探索します。
 - `synthesize_request` / `inspect_request`、raw phoneme 入力、timing 出力、silence override が使えます。
+- `openjtalk-native` は `openjtalk_wrapper.*` を境界に optional backend として読み込めます。無効 path 時は builtin OpenJTalk に fallback します。
+- `execution_provider = EP_CUDA` と `gpu_device_id` による GPU device 指定が使えます。CUDA 対応 ONNX Runtime が無い場合は CPU fallback します。
 - editor には downloader、dictionary editor、Inspector 拡張、test speech UI があります。
 - 英語 text input では `cmudict_data.json` が必要で、モデル同梱、config 同階層、`addons/piper_plus/dictionaries` を探索します。
 - C++ テストは `123/123` pass です。
 - Godot headless の `test/project` は、addon bin と `test/models` を同期した状態で GDScript テストを完走できます。
+- builtin OpenJTalk fallback の日本語テストは compiled `naist-jdic` が無い環境では skip されます。
 
 ## 設計方針
 
@@ -31,7 +35,7 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 - GDExtension が C++ なので、日本語 G2P は OpenJTalk 静的リンクを前提にする
 - GPL 系依存は持ち込まない
 - 英語 G2P は CMU 辞書ベースの自前 C++ 実装で扱う
-- multilingual はまず `ja/en` 最小構成で維持し、上流 parity 拡張は `P2` 以降で進める
+- multilingual は `ja/en` 最小構成を維持し、追加 parity 拡張は別タスクとして扱う
 - `openjtalk-native` を使う場合も `openjtalk_wrapper.*` を安定境界として backend 側で吸収する
 
 ### 現行データフロー
@@ -44,7 +48,7 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 [[ phonemes ]] 直入力のパース
     ↓
 Phonemizer
-    • 日本語: OpenJTalk
+    • 日本語: builtin OpenJTalk または openjtalk-native
     • 英語: CMU 辞書ベース英語 G2P
     • bilingual / multilingual: Unicode ベースの ja/en 分割
     ↓
@@ -53,6 +57,7 @@ Phonemizer
 [必要時] speaker_id / language_id / prosody を付与
     ↓
 ONNX Runtime で VITS 推論
+    • CPU / CoreML / DirectML / NNAPI / CUDA
     ↓
 AudioStreamWAV / AudioStreamGenerator 出力
 ```
@@ -112,20 +117,21 @@ ctest --test-dir build-test --output-on-failure
 ### Godot headless
 
 ```bash
-godot --path test/project --headless
+godot --headless --path test/project
 ```
 
 注記:
 - `test/prepare-assets.sh` か同等の手順で、`addons/piper_plus/bin/` と `test/models/` を `test/project` 側へ同期してから実行する
-- 2026-03-22 時点では `multilingual-test-medium.onnx` を使って `test_piper_tts.gd` が完走する
+- 2026-03-23 時点では `multilingual-test-medium.onnx` を使って `test_piper_tts.gd` が完走する
+- builtin OpenJTalk fallback の日本語ケースは compiled `naist-jdic` が無い場合 skip される
 
 ## 現在の優先タスク
 
 優先順位は [docs/milestones.md](C:/Users/yuta/Desktop/Private/godot-piper-plus/docs/milestones.md) を基準にする。
 
 - `P1-8` Asset Library 登録
-- `P2-1` `openjtalk_optimized` / `openjtalk-native` 方針整理
-- `P2-2` CUDA 固有制御対応
+- package / icon / README / changelog の公開向け整形
+- Asset Library 申請文面とスクリーンショット準備
 
 ## 参照プロジェクト
 
