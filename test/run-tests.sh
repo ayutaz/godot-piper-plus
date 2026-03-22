@@ -23,7 +23,7 @@ fi
 "$PREPARE_SCRIPT"
 
 set +e
-OUTPUT="$("$GODOT_BIN" --path "$PROJECT_DIR" --headless --quit 2>&1)"
+OUTPUT="$("$GODOT_BIN" --path "$PROJECT_DIR" --headless 2>&1)"
 ERRCODE=$?
 set -e
 
