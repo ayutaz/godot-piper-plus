@@ -18,7 +18,7 @@ godot-piper-plus は、[piper-plus](https://github.com/ayutaz/piper-plus) を Go
 - `config_path` は省略可能で、`<model>.json` と同一ディレクトリの `config.json` を順に探索します。
 - 英語 text input では `cmudict_data.json` が必要で、モデル同梱、config 同階層、`addons/piper_plus/dictionaries` を探索します。
 - C++ テストは `123/123` pass です。
-- Godot headless の `test/project` は起動しますが、現状は `PiperTTS class is unavailable` で GDScript 側が skip します。
+- Godot headless の `test/project` は、addon bin と `test/models` を同期した状態で GDScript テストを完走できます。
 
 ## 設計方針
 
@@ -108,12 +108,12 @@ ctest --test-dir build-test --output-on-failure
 ### Godot headless
 
 ```bash
-godot --path test/project --headless --quit
+godot --path test/project --headless
 ```
 
 注記:
-- 現状の `test/project` は起動できるが、`PiperTTS` 未登録のため GDScript テストは skip になる
-- これは実装差分ではなく、GDExtension 読み込み条件の確認が別途必要という意味
+- `test/prepare-assets.sh` か同等の手順で、`addons/piper_plus/bin/` と `test/models/` を `test/project` 側へ同期してから実行する
+- 2026-03-22 時点では `multilingual-test-medium.onnx` を使って `test_piper_tts.gd` が完走する
 
 ## 現在の優先タスク
 

@@ -46,7 +46,7 @@ const DOWNLOAD_ITEMS: Dictionary = {
 	},
 	"en_US-ljspeech-medium": {
 		"type": "model",
-		"description": "English LJSpeech model (medium quality, ~60 MB) [NOT YET FUNCTIONAL - English G2P unimplemented]",
+		"description": "English LJSpeech model (medium quality, ~60 MB)",
 		"dest": "res://addons/piper_plus/models/en_US-ljspeech-medium/",
 		"files": [
 			{
