@@ -1,8 +1,11 @@
 #include "piper_tts.h"
 
+#include <filesystem>
+
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
+#include "piper_core/custom_dictionary.hpp"
 #include "piper_core/piper.hpp"
 
 extern "C" {
@@ -14,6 +17,18 @@ extern "C" {
 #include <optional>
 
 namespace godot {
+
+namespace {
+
+bool path_exists(const String &path) {
+	if (path.is_empty()) {
+		return false;
+	}
+
+	return std::filesystem::exists(std::filesystem::path(path.utf8().get_data()));
+}
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Constructor / Destructor
@@ -63,6 +78,12 @@ void PiperTTS::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_dictionary_path"), &PiperTTS::get_dictionary_path);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "dictionary_path", PROPERTY_HINT_DIR),
 			"set_dictionary_path", "get_dictionary_path");
+
+	// --- Property: custom_dictionary_path ---
+	ClassDB::bind_method(D_METHOD("set_custom_dictionary_path", "path"), &PiperTTS::set_custom_dictionary_path);
+	ClassDB::bind_method(D_METHOD("get_custom_dictionary_path"), &PiperTTS::get_custom_dictionary_path);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "custom_dictionary_path", PROPERTY_HINT_FILE, "*.json"),
+			"set_custom_dictionary_path", "get_custom_dictionary_path");
 
 	// --- Property: speaker_id ---
 	ClassDB::bind_method(D_METHOD("set_speaker_id", "id"), &PiperTTS::set_speaker_id);
@@ -157,6 +178,14 @@ String PiperTTS::get_dictionary_path() const {
 	return dictionary_path;
 }
 
+void PiperTTS::set_custom_dictionary_path(const String &p_path) {
+	custom_dictionary_path = p_path;
+}
+
+String PiperTTS::get_custom_dictionary_path() const {
+	return custom_dictionary_path;
+}
+
 void PiperTTS::set_speaker_id(int p_id) {
 	speaker_id = p_id < 0 ? 0 : p_id;
 }
@@ -208,6 +237,24 @@ String PiperTTS::resolve_path(const String &path) const {
 	return path;
 }
 
+String PiperTTS::resolve_config_path(const String &resolved_model_path) const {
+	if (!config_path.is_empty()) {
+		return resolve_path(config_path);
+	}
+
+	String model_config_path = resolved_model_path + ".json";
+	if (path_exists(model_config_path)) {
+		return model_config_path;
+	}
+
+	String directory_config_path = resolved_model_path.get_base_dir().path_join("config.json");
+	if (path_exists(directory_config_path)) {
+		return directory_config_path;
+	}
+
+	return String();
+}
+
 Ref<AudioStreamWAV> PiperTTS::create_audio_stream(
 		const std::vector<int16_t> &audio_buffer, int sample_rate) const {
 	Ref<AudioStreamWAV> stream;
@@ -229,10 +276,17 @@ Ref<AudioStreamWAV> PiperTTS::create_audio_stream(
 // ---------------------------------------------------------------------------
 
 Error PiperTTS::initialize() {
+	if (processing.load() || streaming_active_.load()) {
+		UtilityFunctions::push_error("PiperTTS: Cannot initialize while synthesis is in progress.");
+		emit_signal("initialized", false);
+		return ERR_BUSY;
+	}
+
 	if (ready) {
 		piper::terminate(*piper_config);
 		ready = false;
 	}
+	voice->customDictionary.reset();
 
 	if (model_path.is_empty()) {
 		UtilityFunctions::push_error("PiperTTS: model_path is not set.");
@@ -240,15 +294,16 @@ Error PiperTTS::initialize() {
 		return ERR_UNCONFIGURED;
 	}
 
-	if (config_path.is_empty()) {
-		UtilityFunctions::push_error("PiperTTS: config_path is not set.");
+	// Resolve Godot resource paths to absolute OS paths
+	String abs_model = resolve_path(model_path);
+	String abs_config = resolve_config_path(abs_model);
+
+	if (abs_config.is_empty()) {
+		UtilityFunctions::push_error(
+				"PiperTTS: config_path is not set and no fallback config was found next to the model.");
 		emit_signal("initialized", false);
 		return ERR_UNCONFIGURED;
 	}
-
-	// Resolve Godot resource paths to absolute OS paths
-	String abs_model = resolve_path(model_path);
-	String abs_config = resolve_path(config_path);
 
 	// Set OpenJTalk dictionary path if configured
 	if (!dictionary_path.is_empty()) {
@@ -263,6 +318,14 @@ Error PiperTTS::initialize() {
 
 	try {
 		piper::initialize(*piper_config);
+
+		voice->customDictionary.reset();
+		if (!custom_dictionary_path.is_empty()) {
+			String abs_custom_dictionary = resolve_path(custom_dictionary_path);
+			std::string custom_dict_str = abs_custom_dictionary.utf8().get_data();
+			voice->customDictionary = std::make_shared<piper::CustomDictionary>(custom_dict_str);
+			UtilityFunctions::print(String("PiperTTS: Custom dictionary loaded: ") + abs_custom_dictionary);
+		}
 
 		// Load voice model
 		std::optional<piper::SpeakerId> sid;
@@ -288,6 +351,9 @@ Error PiperTTS::initialize() {
 				*voice, sid, ep);
 
 		ready = true;
+		if (config_path.is_empty()) {
+			UtilityFunctions::print(String("PiperTTS: Config auto-resolved to: ") + abs_config);
+		}
 		UtilityFunctions::print("PiperTTS: Voice loaded successfully.");
 		emit_signal("initialized", true);
 		return OK;
@@ -296,6 +362,7 @@ Error PiperTTS::initialize() {
 		UtilityFunctions::push_error(
 				String("PiperTTS: Failed to initialize -- ") + String(e.what()));
 		ready = false;
+		voice->customDictionary.reset();
 		emit_signal("initialized", false);
 		return ERR_CANT_OPEN;
 	}
@@ -368,7 +435,7 @@ Error PiperTTS::synthesize_async(const String &text) {
 		return ERR_INVALID_PARAMETER;
 	}
 
-	if (processing.load()) {
+	if (processing.load() || streaming_active_.load()) {
 		UtilityFunctions::push_error("PiperTTS: Already processing. Call stop() first or wait for completion.");
 		return ERR_BUSY;
 	}
@@ -423,7 +490,7 @@ void PiperTTS::stop() {
 }
 
 bool PiperTTS::is_processing() const {
-	return processing.load();
+	return processing.load() || streaming_active_.load();
 }
 
 // ---------------------------------------------------------------------------

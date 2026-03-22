@@ -41,6 +41,7 @@ private:
 	String model_path;
 	String config_path;
 	String dictionary_path; // OpenJTalk dictionary directory
+	String custom_dictionary_path; // Runtime custom dictionary JSON
 	int speaker_id = 0;
 	float speech_rate = 1.0f;   // = lengthScale
 	float noise_scale = 0.667f;
@@ -67,6 +68,7 @@ private:
 
 	// Helpers
 	String resolve_path(const String &path) const;
+	String resolve_config_path(const String &resolved_model_path) const;
 	Ref<AudioStreamWAV> create_audio_stream(const std::vector<int16_t> &audio_buffer, int sample_rate) const;
 
 	// Async internal methods (called via call_deferred from worker thread)
@@ -95,6 +97,9 @@ public:
 
 	void set_dictionary_path(const String &p_path);
 	String get_dictionary_path() const;
+
+	void set_custom_dictionary_path(const String &p_path);
+	String get_custom_dictionary_path() const;
 
 	void set_speaker_id(int p_id);
 	int get_speaker_id() const;

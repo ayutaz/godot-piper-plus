@@ -13,47 +13,53 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 ## 機能
 
 - 高品質なニューラル音声合成（VITS / piper-plusベース）
-- 多言語対応（日本語、英語）
+- 日本語テキスト音声合成（OpenJTalk）
 - GDExtension（C++）によるネイティブパフォーマンス
-- OpenJTalkによる高精度な日本語音素化
+- OpenJTalk による日本語音素化
 - Prosody（韻律）サポート：より自然なイントネーション（A1/A2/A3）
-- カスタム辞書：技術用語・固有名詞の読み変換
+- 同期 / 非同期 / streaming 合成
+- カスタム辞書エディタと runtime 適用（`custom_dictionary_path`）
 - オフライン動作（クラウド不要）
+- 英語モデル配布の準備中（英語 G2P は未実装）
 
 ## サポートプラットフォーム
 
 | プラットフォーム | アーキテクチャ | 状態 |
 |----------------|-------------|------|
-| Windows | x86_64 | ビルド済 |
-| Android | arm64-v8a | ビルド済 |
-| iOS | arm64 | ビルド済 |
-| Linux | x86_64 | ビルド済 |
-| macOS | arm64 (Apple Silicon) | ビルド済 |
+| Windows | x86_64 | CI ビルド対象 |
+| Android | arm64-v8a | CI ビルド対象 |
+| iOS | arm64 | CI ビルド対象 |
+| Linux | x86_64 | CI ビルド対象 |
+| macOS | arm64 (Apple Silicon) | CI ビルド対象 |
 
 ## 対応モデル
 
+モデルは `addons/piper_plus/models/` へ手動配置するか、エディタの downloader から取得する前提です。`config_path` を省略した場合は `<model>.json`、次に同じディレクトリの `config.json` を探索します。
+
 | モデル名 | 言語 | Prosody対応 | 説明 |
 |---------|------|------------|------|
-| ja_JP-test-medium | 日本語 | No | 標準日本語モデル |
-| en_US-ljspeech-medium | 英語 | No | 標準英語モデル（英語G2P未実装） |
-| tsukuyomi-chan | 日本語 | Yes | Prosody対応日本語モデル（より自然なイントネーション） |
+| ja_JP-test-medium | 日本語 | なし | 標準日本語モデル |
+| en_US-ljspeech-medium | 英語 | なし | モデル配布対象。英語 G2P 未実装のため text input 合成は未対応 |
+| tsukuyomi-chan | 日本語 | あり | Prosody対応日本語モデル（より自然なイントネーション） |
 
 ## アーキテクチャ
 
 ```
 テキスト入力
     ↓
-カスタム辞書による前処理
+[任意] `custom_dictionary_path` による前処理
+    ↓
+`[[ phonemes ]]` 直入力のパース
     ↓
 Phonemizer（音素変換）
-    • 日本語: OpenJTalk（静的リンク）
+    • 日本語: OpenJTalk
     • 英語: 未実装（Flite LTS + CMU辞書で実装予定）
     ↓
 音素エンコーディング（PUA マッピング）
     ↓
 VITS推論（ONNX Runtime）
     ↓
-AudioStreamWAV出力（22050Hz, 16bit PCM）
+AudioStreamWAV / AudioStreamGenerator 出力（22050Hz, 16bit PCM）
 ```
 
 ## 依存ライブラリ

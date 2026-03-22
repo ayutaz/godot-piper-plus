@@ -13,6 +13,7 @@
 
 #include "json.hpp"
 #include "piper.hpp"
+#include "custom_dictionary.hpp"
 #include "phoneme_ids.hpp"
 #include "piper_test_utils.hpp"
 #include "utf8.h"
@@ -368,6 +369,9 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,
                  std::vector<int16_t> &audioBuffer, SynthesisResult &result,
                  const std::function<void()> &audioCallback) {
+  if (voice.customDictionary) {
+    text = applyCustomDictionaryToTextSegments(text, voice.customDictionary.get());
+  }
 
   std::size_t sentenceSilenceSamples = 0;
   if (voice.synthesisConfig.sentenceSilenceSeconds > 0) {

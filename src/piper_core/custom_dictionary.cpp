@@ -1,153 +1,140 @@
 #include "custom_dictionary.hpp"
 
-#include <fstream>
 #include <algorithm>
 #include <cctype>
-#include <sstream>
-#include <regex>
-
-// JSON parsing - we'll use a simple approach for now
-// In production, consider using nlohmann/json or rapidjson
+#include <fstream>
 #include <iostream>
+#include <sstream>
+
+#include "json.hpp"
+#include "phoneme_parser.hpp"
+
+using json = nlohmann::json;
 
 namespace piper {
 
-// シンプルなJSON解析（実装の簡略化のため）
-// 実際のプロダクションでは適切なJSONライブラリを使用してください
 namespace {
 
 bool isReservedV2Key(const std::string& word) {
     return word == "version" || word == "description" || word == "metadata" || word == "entries";
 }
 
-std::string extractEntriesObject(const std::string& content) {
-    const std::string marker = "\"entries\"";
-    size_t markerPos = content.find(marker);
-    if (markerPos == std::string::npos) {
-        return content;
+int parsePriority(const json& value, int defaultPriority = 5) {
+    if (value.is_number_integer()) {
+        return value.get<int>();
     }
 
-    size_t braceStart = content.find('{', markerPos + marker.size());
-    if (braceStart == std::string::npos) {
-        return content;
+    if (value.is_number()) {
+        return static_cast<int>(value.get<double>());
     }
 
-    size_t depth = 0;
-    bool inString = false;
-    bool escape = false;
-
-    for (size_t i = braceStart; i < content.size(); ++i) {
-        char ch = content[i];
-
-        if (escape) {
-            escape = false;
-            continue;
-        }
-
-        if (ch == '\\') {
-            escape = true;
-            continue;
-        }
-
-        if (ch == '"') {
-            inString = !inString;
-            continue;
-        }
-
-        if (inString) {
-            continue;
-        }
-
-        if (ch == '{') {
-            ++depth;
-        } else if (ch == '}') {
-            if (depth == 0) {
-                break;
-            }
-
-            --depth;
-            if (depth == 0) {
-                return content.substr(braceStart + 1, i - braceStart - 1);
-            }
-        }
-    }
-
-    return content;
-}
-    
-std::unordered_map<std::string, std::string> parseSimpleJsonDict(const std::string& content) {
-    std::unordered_map<std::string, std::string> result;
-    
-    // 非常に簡略化された解析 - "key": "value" のパターンを探す
-    std::regex pattern("\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\"");
-    std::sregex_iterator it(content.begin(), content.end(), pattern);
-    std::sregex_iterator end;
-    
-    for (; it != end; ++it) {
-        result[(*it)[1]] = (*it)[2];
-    }
-    
-    return result;
+    return defaultPriority;
 }
 
-std::unordered_map<std::string, DictionaryEntry> parseJsonDictV2(const std::string& content) {
+void appendV2Entries(const json& entries,
+                     std::unordered_map<std::string, DictionaryEntry>& result) {
+    for (auto it = entries.begin(); it != entries.end(); ++it) {
+        const std::string word = it.key();
+        const json& value = it.value();
+
+        if (word.empty() || isReservedV2Key(word)) {
+            continue;
+        }
+
+        if (value.is_object()) {
+            auto pronIt = value.find("pronunciation");
+            if (pronIt == value.end() || !pronIt->is_string()) {
+                continue;
+            }
+
+            std::string pronunciation = pronIt->get<std::string>();
+            if (pronunciation.empty()) {
+                continue;
+            }
+
+            int priority = 5;
+            auto priorityIt = value.find("priority");
+            if (priorityIt != value.end()) {
+                priority = parsePriority(*priorityIt);
+            }
+
+            result[word] = DictionaryEntry(pronunciation, priority);
+            continue;
+        }
+
+        if (value.is_string()) {
+            std::string pronunciation = value.get<std::string>();
+            if (!pronunciation.empty()) {
+                result[word] = DictionaryEntry(pronunciation, 5);
+            }
+        }
+    }
+}
+
+void appendLegacyEditorEntries(const json& entries,
+                               std::unordered_map<std::string, DictionaryEntry>& result) {
+    for (const auto& value : entries) {
+        if (!value.is_object()) {
+            continue;
+        }
+
+        auto patternIt = value.find("pattern");
+        auto replacementIt = value.find("replacement");
+        if (patternIt == value.end() || replacementIt == value.end() ||
+            !patternIt->is_string() || !replacementIt->is_string()) {
+            continue;
+        }
+
+        int priority = 5;
+        auto priorityIt = value.find("priority");
+        if (priorityIt != value.end()) {
+            priority = parsePriority(*priorityIt);
+        }
+
+        const std::string pattern = patternIt->get<std::string>();
+        const std::string replacement = replacementIt->get<std::string>();
+        if (pattern.empty() || replacement.empty()) {
+            continue;
+        }
+
+        result[pattern] = DictionaryEntry(replacement, priority);
+    }
+}
+
+std::unordered_map<std::string, DictionaryEntry> parseJsonDictionary(const std::string& content) {
     std::unordered_map<std::string, DictionaryEntry> result;
-    std::string entriesContent = extractEntriesObject(content);
-    
-    // "word": {"pronunciation": "...", "priority": N} のパターンを探す
-    std::regex wordPattern("\"([^\"]+)\"\\s*:\\s*\\{([^}]+)\\}");
-    std::regex pronPattern("\"pronunciation\"\\s*:\\s*\"([^\"]+)\"");
-    std::regex prioPattern("\"priority\"\\s*:\\s*(\\d+)");
-    
-    std::sregex_iterator it(entriesContent.begin(), entriesContent.end(), wordPattern);
-    std::sregex_iterator end;
-    
-    for (; it != end; ++it) {
-        std::string word = (*it)[1];
-        std::string entryContent = (*it)[2];
-        
-        // コメント行とメタデータをスキップ
-        if ((word.size() >= 2 && word.substr(0, 2) == "//") || isReservedV2Key(word)) {
+    json root = json::parse(content);
+
+    if (!root.is_object()) {
+        throw std::runtime_error("Dictionary root must be a JSON object.");
+    }
+
+    auto entriesIt = root.find("entries");
+    if (entriesIt != root.end()) {
+        if (entriesIt->is_object()) {
+            appendV2Entries(*entriesIt, result);
+            return result;
+        }
+
+        if (entriesIt->is_array()) {
+            appendLegacyEditorEntries(*entriesIt, result);
+            return result;
+        }
+
+        throw std::runtime_error("Dictionary entries must be an object or array.");
+    }
+
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        if (isReservedV2Key(it.key()) || !it.value().is_string()) {
             continue;
         }
-        
-        DictionaryEntry entry;
-        
-        // pronunciation を探す
-        std::smatch pronMatch;
-        if (std::regex_search(entryContent, pronMatch, pronPattern)) {
-            entry.pronunciation = pronMatch[1];
-        }
-        
-        // priority を探す
-        std::smatch prioMatch;
-        if (std::regex_search(entryContent, prioMatch, prioPattern)) {
-            entry.priority = std::stoi(prioMatch[1]);
-        } else {
-            entry.priority = 5; // デフォルト値
-        }
-        
-        if (!entry.pronunciation.empty()) {
-            result[word] = entry;
+
+        std::string pronunciation = it.value().get<std::string>();
+        if (!pronunciation.empty()) {
+            result[it.key()] = DictionaryEntry(pronunciation, 5);
         }
     }
-    
-    // 簡易的な文字列値も処理（後方互換性のため）
-    std::regex simplePattern("\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\"");
-    std::sregex_iterator simpleIt(entriesContent.begin(), entriesContent.end(), simplePattern);
-    
-    for (; simpleIt != end; ++simpleIt) {
-        std::string word = (*simpleIt)[1];
-        std::string pronunciation = (*simpleIt)[2];
-        
-        // まだ登録されていない場合のみ追加
-        if (result.find(word) == result.end() &&
-            !(word.size() >= 2 && word.substr(0, 2) == "//") &&
-            !isReservedV2Key(word)) {
-            result[word] = DictionaryEntry(pronunciation, 5);
-        }
-    }
-    
+
     return result;
 }
 
@@ -205,22 +192,10 @@ void CustomDictionary::loadDictionary(const std::string& dictPath) {
     
     std::string content((std::istreambuf_iterator<char>(file)),
                        std::istreambuf_iterator<char>());
-    
-    // バージョンチェック（簡易的）
-    bool isV2 = content.find("\"version\": \"2.0\"") != std::string::npos ||
-                content.find("\"version\":\"2.0\"") != std::string::npos;
-    
-    if (isV2) {
-        auto entries = parseJsonDictV2(content);
-        for (const auto& [word, entry] : entries) {
-            addEntry(word, entry);
-        }
-    } else {
-        // V1形式として処理
-        auto entries = parseSimpleJsonDict(content);
-        for (const auto& [word, pronunciation] : entries) {
-            addEntry(word, DictionaryEntry(pronunciation, 5));
-        }
+
+    auto entries = parseJsonDictionary(content);
+    for (const auto& [word, entry] : entries) {
+        addEntry(word, entry);
     }
 }
 
@@ -319,38 +294,32 @@ void CustomDictionary::saveDictionary(const std::string& outputPath) const {
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open output file: " + outputPath);
     }
-    
-    file << "{\n";
-    file << "  \"version\": \"2.0\",\n";
-    file << "  \"description\": \"Custom dictionary exported from Piper\",\n";
-    file << "  \"metadata\": {\n";
-    file << "    \"created\": \"auto-generated\",\n";
-    file << "    \"author\": \"Piper\",\n";
-    file << "    \"license\": \"MIT\"\n";
-    file << "  },\n";
-    file << "  \"entries\": {\n";
-    
-    bool first = true;
-    
-    // すべてのエントリを出力
+
+    json root;
+    root["version"] = "2.0";
+    root["description"] = "Custom dictionary exported from Piper";
+    root["metadata"] = {
+        {"created", "auto-generated"},
+        {"author", "Piper"},
+        {"license", "MIT"},
+    };
+    root["entries"] = json::object();
+
     for (const auto& [word, entry] : entries_) {
-        if (!first) file << ",\n";
-        file << "    \"" << word << "\": {";
-        file << "\"pronunciation\": \"" << entry.pronunciation << "\", ";
-        file << "\"priority\": " << entry.priority << "}";
-        first = false;
+        root["entries"][word] = {
+            {"pronunciation", entry.pronunciation},
+            {"priority", entry.priority},
+        };
     }
-    
+
     for (const auto& [word, entry] : caseSensitiveEntries_) {
-        if (!first) file << ",\n";
-        file << "    \"" << word << "\": {";
-        file << "\"pronunciation\": \"" << entry.pronunciation << "\", ";
-        file << "\"priority\": " << entry.priority << "}";
-        first = false;
+        root["entries"][word] = {
+            {"pronunciation", entry.pronunciation},
+            {"priority", entry.priority},
+        };
     }
-    
-    file << "\n  }\n";
-    file << "}\n";
+
+    file << root.dump(2) << '\n';
 }
 
 CustomDictionary::Stats CustomDictionary::getStats() const {
@@ -427,10 +396,35 @@ std::unique_ptr<CustomDictionary> createDefaultDictionary() {
     return std::make_unique<CustomDictionary>();
 }
 
+std::string applyCustomDictionaryToTextSegments(const std::string& text,
+                                                const CustomDictionary* dictionary) {
+    if (dictionary == nullptr || text.empty()) {
+        return text;
+    }
+
+    auto segments = parsePhonemeNotation(text);
+    if (segments.empty()) {
+        return dictionary->applyToText(text);
+    }
+
+    std::string result;
+    for (const auto& segment : segments) {
+        if (segment.isPhonemes) {
+            result += "[[ ";
+            result += segment.text;
+            result += " ]]";
+        } else {
+            result += dictionary->applyToText(segment.text);
+        }
+    }
+
+    return result;
+}
+
 std::string applyCustomDictionary(const std::string& text, 
                                  const std::vector<std::string>& dictPaths) {
     CustomDictionary dict(dictPaths);
-    return dict.applyToText(text);
+    return applyCustomDictionaryToTextSegments(text, &dict);
 }
 
 } // namespace piper

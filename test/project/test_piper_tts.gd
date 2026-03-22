@@ -41,14 +41,30 @@ func _model_bundle() -> Dictionary:
     if model_path.is_empty():
         return {}
 
-    if config_path.is_empty():
-        config_path = "%s.json" % model_path
-
     return {
         "model_path": model_path,
         "config_path": config_path,
         "dictionary_path": dict_path,
     }
+
+func _resolve_bundle_config_path(bundle: Dictionary) -> String:
+    var explicit_config := String(bundle.get("config_path", ""))
+    if not explicit_config.is_empty():
+        return explicit_config
+
+    var model_path := String(bundle.get("model_path", ""))
+    if model_path.is_empty():
+        return ""
+
+    var sibling_config := "%s.json" % model_path
+    if FileAccess.file_exists(sibling_config):
+        return sibling_config
+
+    var directory_config := model_path.get_base_dir().path_join("config.json")
+    if FileAccess.file_exists(directory_config):
+        return directory_config
+
+    return ""
 
 func _configure_test_model(tts) -> bool:
     var bundle = _model_bundle()
@@ -58,18 +74,24 @@ func _configure_test_model(tts) -> bool:
     if not FileAccess.file_exists(bundle["model_path"]):
         return false
 
-    if not FileAccess.file_exists(bundle["config_path"]):
+    var resolved_config := _resolve_bundle_config_path(bundle)
+    if resolved_config.is_empty():
         return false
 
     tts.model_path = bundle["model_path"]
-    tts.config_path = bundle["config_path"]
+    if not String(bundle["config_path"]).is_empty():
+        tts.config_path = bundle["config_path"]
     if not String(bundle["dictionary_path"]).is_empty():
         tts.dictionary_path = bundle["dictionary_path"]
 
     return true
 
 func _expected_sample_rate(bundle: Dictionary) -> int:
-    var text = FileAccess.get_file_as_string(bundle["config_path"])
+    var config_path := _resolve_bundle_config_path(bundle)
+    if config_path.is_empty():
+        return 22050
+
+    var text = FileAccess.get_file_as_string(config_path)
     if text.is_empty():
         return 22050
 
@@ -99,6 +121,7 @@ func test_properties() -> void:
     tts.model_path = "res://voice.onnx"
     tts.config_path = "res://voice.onnx.json"
     tts.dictionary_path = "res://dict"
+    tts.custom_dictionary_path = "res://custom_dictionary.json"
     tts.speaker_id = 3
     tts.noise_scale = 1.2
     tts.noise_w = 0.6
@@ -106,6 +129,7 @@ func test_properties() -> void:
     assert_equal(tts.model_path, "res://voice.onnx", "model_path should round-trip")
     assert_equal(tts.config_path, "res://voice.onnx.json", "config_path should round-trip")
     assert_equal(tts.dictionary_path, "res://dict", "dictionary_path should round-trip")
+    assert_equal(tts.custom_dictionary_path, "res://custom_dictionary.json", "custom_dictionary_path should round-trip")
     assert_equal(tts.speaker_id, 3, "speaker_id should round-trip")
     assert_equal(tts.noise_scale, 1.2, "noise_scale should round-trip")
     assert_equal(tts.noise_w, 0.6, "noise_w should round-trip")
@@ -185,6 +209,21 @@ func test_initialize_with_model() -> void:
 
     assert_equal(tts.initialize(), OK, "initialize() should succeed with a valid model bundle")
     assert_true(tts.is_ready(), "PiperTTS should be ready after initialize()")
+    await _cleanup_tts(tts)
+
+func test_initialize_with_config_fallback() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        await _cleanup_tts(tts)
+        return
+
+    tts.config_path = ""
+    assert_equal(tts.initialize(), OK, "initialize() should resolve config_path from the model path")
+    assert_true(tts.is_ready(), "PiperTTS should be ready after fallback config resolution")
     await _cleanup_tts(tts)
 
 func test_synthesize_basic() -> void:

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -17,6 +18,8 @@
 using json = nlohmann::json;
 
 namespace piper {
+
+class CustomDictionary;
 
 enum ExecutionProvider {
     EP_CPU = 0,
@@ -108,6 +111,7 @@ struct Voice {
   SynthesisConfig synthesisConfig;
   ModelConfig modelConfig;
   ModelSession session;
+  std::shared_ptr<CustomDictionary> customDictionary;
 };
 
 // True if the string is a single UTF-8 codepoint
