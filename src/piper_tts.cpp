@@ -15,6 +15,7 @@
 
 extern "C" {
 	void openjtalk_set_dictionary_path(const char* path);
+	void openjtalk_set_library_path(const char* path);
 }
 
 #include <cstring>
@@ -455,6 +456,12 @@ void PiperTTS::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "dictionary_path", PROPERTY_HINT_DIR),
 			"set_dictionary_path", "get_dictionary_path");
 
+	// --- Property: openjtalk_library_path ---
+	ClassDB::bind_method(D_METHOD("set_openjtalk_library_path", "path"), &PiperTTS::set_openjtalk_library_path);
+	ClassDB::bind_method(D_METHOD("get_openjtalk_library_path"), &PiperTTS::get_openjtalk_library_path);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "openjtalk_library_path", PROPERTY_HINT_FILE, "*.dll,*.so,*.dylib"),
+			"set_openjtalk_library_path", "get_openjtalk_library_path");
+
 	// --- Property: custom_dictionary_path ---
 	ClassDB::bind_method(D_METHOD("set_custom_dictionary_path", "path"), &PiperTTS::set_custom_dictionary_path);
 	ClassDB::bind_method(D_METHOD("get_custom_dictionary_path"), &PiperTTS::get_custom_dictionary_path);
@@ -512,8 +519,14 @@ void PiperTTS::_bind_methods() {
 	// --- Property: execution_provider ---
 	ClassDB::bind_method(D_METHOD("set_execution_provider", "provider"), &PiperTTS::set_execution_provider);
 	ClassDB::bind_method(D_METHOD("get_execution_provider"), &PiperTTS::get_execution_provider);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "execution_provider", PROPERTY_HINT_ENUM, "CPU:0,CoreML:1,DirectML:2,NNAPI:3,Auto:4"),
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "execution_provider", PROPERTY_HINT_ENUM, "CPU:0,CoreML:1,DirectML:2,NNAPI:3,Auto:4,CUDA:5"),
 			"set_execution_provider", "get_execution_provider");
+
+	// --- Property: gpu_device_id ---
+	ClassDB::bind_method(D_METHOD("set_gpu_device_id", "device_id"), &PiperTTS::set_gpu_device_id);
+	ClassDB::bind_method(D_METHOD("get_gpu_device_id"), &PiperTTS::get_gpu_device_id);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "gpu_device_id", PROPERTY_HINT_RANGE, "0,255,1"),
+			"set_gpu_device_id", "get_gpu_device_id");
 
 	// --- Enum constants: ExecutionProviderGD ---
 	BIND_ENUM_CONSTANT(EP_CPU);
@@ -521,6 +534,7 @@ void PiperTTS::_bind_methods() {
 	BIND_ENUM_CONSTANT(EP_DIRECTML);
 	BIND_ENUM_CONSTANT(EP_NNAPI);
 	BIND_ENUM_CONSTANT(EP_AUTO);
+	BIND_ENUM_CONSTANT(EP_CUDA);
 
 	// --- Methods (M2: sync) ---
 	ClassDB::bind_method(D_METHOD("initialize"), &PiperTTS::initialize);
@@ -583,6 +597,14 @@ void PiperTTS::set_dictionary_path(const String &p_path) {
 
 String PiperTTS::get_dictionary_path() const {
 	return dictionary_path;
+}
+
+void PiperTTS::set_openjtalk_library_path(const String &p_path) {
+	openjtalk_library_path = p_path;
+}
+
+String PiperTTS::get_openjtalk_library_path() const {
+	return openjtalk_library_path;
 }
 
 void PiperTTS::set_custom_dictionary_path(const String &p_path) {
@@ -658,11 +680,19 @@ Dictionary PiperTTS::get_phoneme_silence_seconds() const {
 }
 
 void PiperTTS::set_execution_provider(int p_ep) {
-	execution_provider = CLAMP(p_ep, 0, 4);
+	execution_provider = CLAMP(p_ep, 0, 5);
 }
 
 int PiperTTS::get_execution_provider() const {
 	return execution_provider;
+}
+
+void PiperTTS::set_gpu_device_id(int p_id) {
+	gpu_device_id = MAX(p_id, 0);
+}
+
+int PiperTTS::get_gpu_device_id() const {
+	return gpu_device_id;
 }
 
 // ---------------------------------------------------------------------------
@@ -893,12 +923,25 @@ Error PiperTTS::initialize() {
 		return ERR_UNCONFIGURED;
 	}
 
+	// Configure optional openjtalk-native backend path before dictionary setup.
+	if (!openjtalk_library_path.is_empty()) {
+		String abs_openjtalk_library = resolve_path(openjtalk_library_path);
+		std::string library_str = abs_openjtalk_library.utf8().get_data();
+		openjtalk_set_library_path(library_str.c_str());
+		UtilityFunctions::print(String("PiperTTS: OpenJTalk native library path set to: ") +
+				abs_openjtalk_library);
+	} else {
+		openjtalk_set_library_path(nullptr);
+	}
+
 	// Set OpenJTalk dictionary path if configured
 	if (!dictionary_path.is_empty()) {
 		String abs_dict = resolve_path(dictionary_path);
 		std::string dict_str = abs_dict.utf8().get_data();
 		openjtalk_set_dictionary_path(dict_str.c_str());
 		UtilityFunctions::print(String("PiperTTS: OpenJTalk dictionary path set to: ") + abs_dict);
+	} else {
+		openjtalk_set_dictionary_path(nullptr);
 	}
 
 	std::string model_str = abs_model.utf8().get_data();
@@ -940,7 +983,7 @@ Error PiperTTS::initialize() {
 		}
 
 		piper::loadVoice(*piper_config, model_str, config_str,
-				*voice, sid, ep);
+				*voice, sid, ep, gpu_device_id);
 
 		String language_error;
 		if (apply_requested_language(*voice, language_id, language_code, language_error) != OK) {

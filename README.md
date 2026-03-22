@@ -18,15 +18,17 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 - ja/en 混在テキストの最小 multilingual ルーティング
 - GDExtension（C++）によるネイティブパフォーマンス
 - OpenJTalk による日本語音素化
+- `openjtalk-native` DLL の任意利用と builtin OpenJTalk fallback
 - `language_id` / `language_code` 指定とモデル名/エイリアス解決
 - Prosody（韻律）サポート：より自然なイントネーション（A1/A2/A3）
 - 同期 / 非同期 / streaming 合成
 - カスタム辞書エディタと runtime 適用（`custom_dictionary_path`）
+- CUDA 実行プロバイダと `gpu_device_id` 指定
 - オフライン動作（クラウド不要）
 
 ## 現在の対応状況
 
-現時点で `P0` は完了、`P1` は実装と検証まで完了しています。残っているのは外部作業としての Godot Asset Library 登録です。現実装のスコープは次のとおりです。
+現時点で repo 内の `P0` `P1` `P2` 実装は完了しています。残っているのは外部作業としての Godot Asset Library 登録です。現実装のスコープは次のとおりです。
 
 - 日本語 OpenJTalk と英語 CMU 辞書ベース G2P を使った text input 合成
 - bilingual / multilingual モデルに対する `ja/en` 最小ルーティング
@@ -37,14 +39,18 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 - `sentence_silence_seconds` / `phoneme_silence_seconds` の制御
 - `inspect_*` と `get_last_synthesis_result()` による dry-run / timing / 結果取得
 - `custom_dictionary_path` による辞書前処理と `[[ phonemes ]]` 直入力
+- `openjtalk_library_path` による `openjtalk-native` shared library 指定と builtin OpenJTalk fallback
+- `execution_provider = EP_CUDA` と `gpu_device_id` による GPU device 指定
 - Inspector 拡張、preset 適用、テスト発話 UI、モデル downloader、辞書 editor
 - 英語 text input では `cmudict_data.json` が必要です。`addons/piper_plus/dictionaries/`、モデル同梱ディレクトリ、または config 同階層を探索します。
+- CUDA を使う場合は CUDA 対応 ONNX Runtime binary を別途用意してください。既定の CPU 向け binary では自動的に CPU fallback します。
 
 ## 検証状況
 
 - 2026-03-22 時点で `ctest --test-dir build-p1-debug -C Debug --output-on-failure` は `123/123` pass
 - 2026-03-22 時点で Godot headless の `test/project` は `test/models/multilingual-test-medium.onnx` を使って parity テストを含む GDScript テストを完走できます
 - Windows の headless 実行では `addons/piper_plus/bin/onnxruntime.dll` が必要です。`test/prepare-assets.sh` は `onnxruntime.windows.x86_64.dll` しか無い場合でも plain 名へ複製します
+- 2026-03-23 時点で `openjtalk-native` 無効パス時の builtin fallback と `gpu_device_id` の GDScript test を追加済みです。compiled `naist-jdic` が無い環境では builtin fallback の日本語 test は skip されます
 
 ## サポートプラットフォーム
 
@@ -76,13 +82,13 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 `[[ phonemes ]]` 直入力のパース
     ↓
 Phonemizer（音素変換）
-    • 日本語: OpenJTalk
+    • 日本語: builtin OpenJTalk または `openjtalk-native`
     • 英語: CMU辞書ベースの英語 G2P
     • bilingual / multilingual: Unicode ベースの ja/en 分割
     ↓
 音素エンコーディング（PUA マッピング）
     ↓
-VITS推論（ONNX Runtime）
+VITS推論（ONNX Runtime / CPU, DirectML, CoreML, NNAPI, CUDA）
     ↓
 AudioStreamWAV / AudioStreamGenerator 出力（22050Hz, 16bit PCM）
 ```
@@ -94,6 +100,7 @@ AudioStreamWAV / AudioStreamGenerator 出力（22050Hz, 16bit PCM）
 | [godot-cpp](https://github.com/godotengine/godot-cpp) | GDExtension C++バインディング | サブモジュール |
 | [ONNX Runtime](https://onnxruntime.ai/) | VITS推論エンジン | 動的リンク |
 | [OpenJTalk](https://open-jtalk.sourceforge.net/) | 日本語音素化 | 静的リンク |
+| `openjtalk-native` | 日本語音素化 backend（任意） | 動的ロード |
 
 ## 関連プロジェクト
 

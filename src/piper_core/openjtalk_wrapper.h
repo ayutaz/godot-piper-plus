@@ -27,6 +27,10 @@ int openjtalk_ensure_dictionary(void);
 // Pass NULL to revert to default behavior.
 void openjtalk_set_dictionary_path(const char* path);
 
+// Set an optional openjtalk-native shared library path.
+// Pass NULL to use environment/default search and fall back to the builtin backend.
+void openjtalk_set_library_path(const char* path);
+
 // Convert text to phonemes using OpenJTalk C API (direct, no external binary)
 char* openjtalk_text_to_phonemes(const char* text);
 

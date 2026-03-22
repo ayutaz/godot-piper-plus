@@ -28,6 +28,7 @@ enum ExecutionProvider {
     EP_DIRECTML = 2,
     EP_NNAPI = 3,
     EP_AUTO = 4,
+    EP_CUDA = 5,
 };
 
 typedef int64_t SpeakerId;
@@ -181,7 +182,8 @@ void terminate(PiperConfig &config);
 // Load Onnx model and JSON config file
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
-               std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU);
+               std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU,
+               int executionDeviceId = 0);
 
 // Phonemize text and synthesize audio
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,

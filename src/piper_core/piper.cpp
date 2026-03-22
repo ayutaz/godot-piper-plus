@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <sstream>
@@ -180,8 +181,32 @@ void terminate(PiperConfig &config) {
   spdlog::info("Terminated piper");
 }
 
-void loadModel(std::string modelPath, ModelSession &session, int executionProvider = EP_CPU) {
-  spdlog::debug("loadModel called with path: {}, EP: {}", modelPath, executionProvider);
+static int resolveExecutionDeviceId(int executionProvider, int requestedDeviceId) {
+  if (requestedDeviceId > 0) {
+    return requestedDeviceId;
+  }
+
+  if (executionProvider == EP_CUDA) {
+    const char *envValue = std::getenv("PIPER_GPU_DEVICE_ID");
+    if (envValue && envValue[0] != '\0') {
+      try {
+        int envDeviceId = std::stoi(envValue);
+        if (envDeviceId >= 0) {
+          return envDeviceId;
+        }
+      } catch (const std::exception &) {
+        spdlog::warn("Ignoring invalid PIPER_GPU_DEVICE_ID='{}'", envValue);
+      }
+    }
+  }
+
+  return std::max(0, requestedDeviceId);
+}
+
+void loadModel(std::string modelPath, ModelSession &session,
+               int executionProvider = EP_CPU, int executionDeviceId = 0) {
+  spdlog::debug("loadModel called with path: {}, EP: {}, device_id: {}",
+                modelPath, executionProvider, executionDeviceId);
 
   // Create env
   try {
@@ -197,18 +222,38 @@ void loadModel(std::string modelPath, ModelSession &session, int executionProvid
   bool using_gpu_ep = false;
   if (executionProvider != EP_CPU) {
     std::string ep_name;
+    std::unordered_map<std::string, std::string> ep_options;
+    const int resolvedDeviceId =
+        resolveExecutionDeviceId(executionProvider, executionDeviceId);
     switch (executionProvider) {
       case EP_COREML: ep_name = "CoreML"; break;
       case EP_DIRECTML: ep_name = "DML"; break;
       case EP_NNAPI: ep_name = "NNAPI"; break;
+      case EP_CUDA:
+        ep_name = "CUDA";
+        break;
       default: break;
     }
     if (!ep_name.empty()) {
       try {
-        std::unordered_map<std::string, std::string> ep_options;
-        session.options.AppendExecutionProvider(ep_name, ep_options);
+        if (executionProvider == EP_CUDA) {
+          OrtCUDAProviderOptions cudaOptions;
+          cudaOptions.device_id = resolvedDeviceId;
+          cudaOptions.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
+          session.options.AppendExecutionProvider_CUDA(cudaOptions);
+        } else {
+          if (executionProvider == EP_DIRECTML && resolvedDeviceId > 0) {
+            ep_options["device_id"] = std::to_string(resolvedDeviceId);
+          }
+          session.options.AppendExecutionProvider(ep_name, ep_options);
+        }
         using_gpu_ep = true;
-        spdlog::info("Using {} execution provider", ep_name);
+        if (executionProvider == EP_CUDA || executionProvider == EP_DIRECTML) {
+          spdlog::info("Using {} execution provider (device_id={})", ep_name,
+                       resolvedDeviceId);
+        } else {
+          spdlog::info("Using {} execution provider", ep_name);
+        }
       } catch (const Ort::Exception& e) {
         spdlog::warn("{} EP not available, falling back to CPU: {}", ep_name, e.what());
         // Reset options since they might be in an inconsistent state
@@ -294,7 +339,8 @@ void loadModel(std::string modelPath, ModelSession &session, int executionProvid
 // Load Onnx model and JSON config file
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
-               std::optional<SpeakerId> &speakerId, int executionProvider) {
+               std::optional<SpeakerId> &speakerId, int executionProvider,
+               int executionDeviceId) {
   spdlog::debug("loadVoice called with modelPath={}, configPath={}", modelPath, modelConfigPath);
   spdlog::debug("Parsing voice config at {}", modelConfigPath);
   std::ifstream modelConfigFile(modelConfigPath);
@@ -338,7 +384,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
     }
   }
 
-  loadModel(modelPath, voice.session, executionProvider);
+  loadModel(modelPath, voice.session, executionProvider, executionDeviceId);
 
 } /* loadVoice */
 

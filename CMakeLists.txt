@@ -186,7 +186,7 @@ elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
     INSTALL_RPATH "$ORIGIN"
     BUILD_WITH_INSTALL_RPATH TRUE
   )
-  target_link_libraries(piper_plus PRIVATE pthread)
+  target_link_libraries(piper_plus PRIVATE pthread dl)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
   # Android: RPATH not applicable, pthread linked automatically by NDK
 endif()
@@ -224,19 +224,24 @@ set_target_properties(piper_plus PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin>"
 )
 
-set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "")
-set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "")
+set(_PIPER_PLUS_RUNTIME_DEPENDENCY_FILES "")
 set(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST "")
 if(WIN32 AND ONNXRUNTIME_DLL)
-  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "${ONNXRUNTIME_DLL}")
-  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "onnxruntime.dll")
+  get_filename_component(_PIPER_PLUS_ORT_LIB_DIR "${ONNXRUNTIME_DLL}" DIRECTORY)
+  file(GLOB _PIPER_PLUS_RUNTIME_DEPENDENCY_FILES
+    "${_PIPER_PLUS_ORT_LIB_DIR}/onnxruntime*.dll"
+  )
   set(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST "onnxruntime.windows.x86_64.dll")
 elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "${ONNXRUNTIME_LIB}")
-  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "libonnxruntime.macos.arm64.dylib")
+  get_filename_component(_PIPER_PLUS_ORT_LIB_DIR "${ONNXRUNTIME_LIB}" DIRECTORY)
+  file(GLOB _PIPER_PLUS_RUNTIME_DEPENDENCY_FILES
+    "${_PIPER_PLUS_ORT_LIB_DIR}/libonnxruntime*.dylib"
+  )
 elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
-  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "${ONNXRUNTIME_LIB}")
-  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "libonnxruntime.linux.x86_64.so")
+  get_filename_component(_PIPER_PLUS_ORT_LIB_DIR "${ONNXRUNTIME_LIB}" DIRECTORY)
+  file(GLOB _PIPER_PLUS_RUNTIME_DEPENDENCY_FILES
+    "${_PIPER_PLUS_ORT_LIB_DIR}/libonnxruntime*.so*"
+  )
 endif()
 
 set(_PIPER_PLUS_TEST_PROJECT_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test/project/addons/piper_plus/bin")
@@ -263,29 +268,34 @@ if(MSVC)
   )
 endif()
 
-if(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC AND EXISTS "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}")
-  add_custom_command(TARGET piper_plus POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
-      "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_RUNTIME_DEPENDENCY_DST}"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
-      "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_RUNTIME_DEPENDENCY_DST}"
-    VERBATIM
-  )
-
-  if(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST)
+foreach(_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE IN LISTS _PIPER_PLUS_RUNTIME_DEPENDENCY_FILES)
+  if(EXISTS "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}")
+    get_filename_component(_PIPER_PLUS_RUNTIME_DEPENDENCY_NAME
+      "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}" NAME)
     add_custom_command(TARGET piper_plus POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
-        "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST}"
+        "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}"
+        "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_RUNTIME_DEPENDENCY_NAME}"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
-        "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST}"
+        "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}"
+        "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_RUNTIME_DEPENDENCY_NAME}"
       VERBATIM
     )
+
+    if(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST AND
+       _PIPER_PLUS_RUNTIME_DEPENDENCY_NAME STREQUAL "onnxruntime.dll")
+      add_custom_command(TARGET piper_plus POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}"
+          "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}"
+          "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST}"
+        VERBATIM
+      )
+    endif()
   endif()
-endif()
+endforeach()
 
 # ---- Documentation ----
 # Python3 is required by godot-cpp's target_doc_sources() to generate doc_source.cpp.

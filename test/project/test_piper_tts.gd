@@ -152,6 +152,26 @@ func _configure_test_model(tts) -> bool:
 
     return true
 
+func _absolute_test_path(path: String) -> String:
+    if path.begins_with("res://") or path.begins_with("user://"):
+        return ProjectSettings.globalize_path(path)
+    return path
+
+func _has_compiled_openjtalk_dictionary(bundle: Dictionary) -> bool:
+    var dictionary_path := String(bundle.get("dictionary_path", ""))
+    if dictionary_path.is_empty():
+        return false
+
+    var absolute_path := _absolute_test_path(dictionary_path)
+    if not DirAccess.dir_exists_absolute(absolute_path):
+        return false
+
+    for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin", "dicrc"]:
+        if not FileAccess.file_exists(absolute_path.path_join(required_file)):
+            return false
+
+    return true
+
 func _expected_sample_rate(bundle: Dictionary) -> int:
     var config_path := _resolve_bundle_config_path(bundle)
     if config_path.is_empty():
@@ -185,6 +205,8 @@ func list_test_names() -> Array[String]:
         "test_initialize_with_model",
         "test_directory_model_path_resolution",
         "test_language_code_normalization",
+        "test_gpu_device_id_clamp",
+        "test_invalid_openjtalk_library_path_falls_back",
         "test_initialize_with_config_fallback",
         "test_inspect_text",
         "test_inspect_request_with_phonemes",
@@ -229,6 +251,7 @@ func test_properties() -> void:
     tts.model_path = "res://voice.onnx"
     tts.config_path = "res://voice.onnx.json"
     tts.dictionary_path = "res://dict"
+    tts.openjtalk_library_path = "res://bin/openjtalk_native.dll"
     tts.custom_dictionary_path = "res://custom_dictionary.json"
     tts.speaker_id = 3
     tts.language_id = 1
@@ -237,10 +260,12 @@ func test_properties() -> void:
     tts.noise_w = 0.6
     tts.sentence_silence_seconds = 0.35
     tts.phoneme_silence_seconds = {"a": 0.05, "?!": 0.1}
+    tts.gpu_device_id = 2
 
     assert_equal(tts.model_path, "res://voice.onnx", "model_path should round-trip")
     assert_equal(tts.config_path, "res://voice.onnx.json", "config_path should round-trip")
     assert_equal(tts.dictionary_path, "res://dict", "dictionary_path should round-trip")
+    assert_equal(tts.openjtalk_library_path, "res://bin/openjtalk_native.dll", "openjtalk_library_path should round-trip")
     assert_equal(tts.custom_dictionary_path, "res://custom_dictionary.json", "custom_dictionary_path should round-trip")
     assert_equal(tts.speaker_id, 3, "speaker_id should round-trip")
     assert_equal(tts.language_id, 1, "language_id should round-trip")
@@ -249,6 +274,7 @@ func test_properties() -> void:
     assert_equal(tts.noise_w, 0.6, "noise_w should round-trip")
     assert_equal(tts.sentence_silence_seconds, 0.35, "sentence_silence_seconds should round-trip")
     assert_equal(tts.phoneme_silence_seconds, {"a": 0.05, "?!": 0.1}, "phoneme_silence_seconds should round-trip")
+    assert_equal(tts.gpu_device_id, 2, "gpu_device_id should round-trip")
     _cleanup_tts(tts)
 
 func test_speech_rate_range() -> void:
@@ -271,6 +297,7 @@ func test_execution_provider_enum() -> void:
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_DIRECTML"), 2, "EP_DIRECTML should match the bound enum")
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_NNAPI"), 3, "EP_NNAPI should match the bound enum")
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_AUTO"), 4, "EP_AUTO should match the bound enum")
+    assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_CUDA"), 5, "EP_CUDA should match the bound enum")
     await Engine.get_main_loop().process_frame
 
 func test_initialize_without_model() -> void:
@@ -382,6 +409,55 @@ func test_language_code_normalization() -> void:
     var inspected: Dictionary = tts.inspect_text(DEFAULT_EN_TEST_TEXT)
     assert_equal(String(inspected.get("resolved_language_code", "")), "en", "inspect_text() should resolve language_code aliases to the canonical code")
     assert_equal(int(inspected.get("resolved_language_id", -1)), 1, "inspect_text() should resolve EN_us to language_id=1 for the bundled multilingual model")
+    _cleanup_tts(tts)
+
+func test_gpu_device_id_clamp() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _require_property(tts, "gpu_device_id"):
+        _cleanup_tts(tts)
+        return
+    tts.gpu_device_id = -4
+    assert_equal(tts.gpu_device_id, 0, "gpu_device_id should clamp negative values to 0")
+    tts.gpu_device_id = 3
+    assert_equal(tts.gpu_device_id, 3, "gpu_device_id should store positive values")
+    _cleanup_tts(tts)
+
+func test_invalid_openjtalk_library_path_falls_back() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if String(bundle.get("dictionary_path", "")).is_empty():
+        skip("OpenJTalk dictionary is not available in the bundled test assets")
+        _cleanup_tts(tts)
+        return
+    if not _has_compiled_openjtalk_dictionary(bundle):
+        skip("compiled OpenJTalk dictionary is not available for builtin backend fallback test")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    tts.language_code = "ja"
+    tts.openjtalk_library_path = "res://missing/openjtalk_native.dll"
+    assert_equal(tts.initialize(), OK, "initialize() should fall back to the builtin OpenJTalk backend when the native library path is invalid")
+
+    var inspected: Dictionary = tts.inspect_text(DEFAULT_JA_TEST_TEXT)
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_true(phoneme_sentences.size() > 0, "inspect_text() should still resolve Japanese phonemes after native backend fallback")
+
+    var audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
+    assert_not_null(audio, "synthesize() should still work after native backend fallback")
     _cleanup_tts(tts)
 
 func test_initialize_with_config_fallback() -> void:

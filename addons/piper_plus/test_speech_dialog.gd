@@ -94,6 +94,7 @@ static func _copy_target_properties(preview_tts: Object, target: Object) -> void
 		"model_path",
 		"config_path",
 		"dictionary_path",
+		"openjtalk_library_path",
 		"custom_dictionary_path",
 		"speaker_id",
 		"language_id",
@@ -104,6 +105,7 @@ static func _copy_target_properties(preview_tts: Object, target: Object) -> void
 		"sentence_silence_seconds",
 		"phoneme_silence_seconds",
 		"execution_provider",
+		"gpu_device_id",
 	]:
 		preview_tts.set(property_name, target.get(property_name))
 

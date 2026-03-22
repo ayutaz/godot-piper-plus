@@ -12,11 +12,14 @@
 - カスタム辞書 editor
 - Inspector 拡張とテスト発話 UI
 - `res://addons/piper_plus/dictionaries/cmudict_data.json` の英語 CMU 辞書データ
+- `openjtalk-native` を任意で使うための `openjtalk_library_path` 導線
+- CUDA / `gpu_device_id` を指定するための runtime property
 
 この package には次は含まれません。
 
 - 音声モデル本体 (`.onnx` / `.onnx.json`)
 - 日本語 OpenJTalk 用の `naist-jdic`
+- `openjtalk-native` 本体 DLL / `.so` / `.dylib`
 
 plugin を有効化したあと、editor の downloader から必要な asset を追加してください。
 
@@ -44,6 +47,11 @@ func _ready() -> void:
     tts.model_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx"
     tts.config_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx.json"
     tts.dictionary_path = "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
+    # 任意: openjtalk-native を使う場合
+    # tts.openjtalk_library_path = "res://addons/piper_plus/bin/openjtalk_native.dll"
+    # 任意: CUDA 対応 ONNX Runtime を配置している場合
+    # tts.execution_provider = PiperTTS.EP_CUDA
+    # tts.gpu_device_id = 0
 
     tts.synthesis_completed.connect(func(audio: AudioStreamWAV) -> void:
         player.stream = audio
@@ -91,6 +99,8 @@ downloader は `res://addons/piper_plus/models/<model-name>/` と `res://addons/
 - 日本語 text input には `res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11` が必要です。
 - 英語 text input は同梱の `cmudict_data.json` を使います。
 - モデル file 自体は release archive に同梱せず、project 側で必要なものだけ配置する前提です。
+- `openjtalk_library_path` を空にするか無効な path を指定した場合は builtin OpenJTalk backend へ戻ります。
+- `EP_CUDA` は CUDA 対応 ONNX Runtime binary がある環境でのみ有効で、使えない場合は CPU fallback します。
 
 ## Package メモ
 

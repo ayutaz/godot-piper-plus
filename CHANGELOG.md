@@ -8,6 +8,14 @@
 
 - リポジトリ内で release 差分を追跡するための `CHANGELOG.md` を追加
 - `addons/piper_plus` 単体で配布しやすいように package 用 README / license / third-party notice を追加
+- `openjtalk_library_path` による `openjtalk-native` shared library の optional backend 切替
+- `execution_provider = EP_CUDA` と `gpu_device_id` による CUDA 実行プロバイダ指定
+
+### 変更
+
+- Windows / Linux / macOS で ONNX Runtime の追加 provider runtime も addon bin へ複製するように調整
+- `openjtalk-native` の読み込み失敗時に builtin OpenJTalk backend へ fallback するように調整
+- GDScript parity test に `gpu_device_id` と `openjtalk-native` fallback の確認を追加
 
 ## [0.1.0] - 2026-03-22
 

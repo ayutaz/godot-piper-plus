@@ -17,6 +17,15 @@
 
 // Dictionary directory name
 #define DICTIONARY_DIR "open_jtalk_dic_utf_8-1.11"
+#define OPENJTALK_REQUIRED_FILE_COUNT 5
+
+static const char* OPENJTALK_REQUIRED_FILES[OPENJTALK_REQUIRED_FILE_COUNT] = {
+    "dicrc",
+    "sys.dic",
+    "unk.dic",
+    "matrix.bin",
+    "char.bin",
+};
 
 // Helper function to create directory with parents
 static int mkdir_p(const char* path) {
@@ -38,6 +47,32 @@ static int mkdir_p(const char* path) {
     }
     mkdir(tmp, 0755);
     return 0;
+}
+
+static int path_exists(const char* path) {
+    return path && access(path, F_OK) == 0;
+}
+
+static int dictionary_has_required_files(const char* dict_path) {
+    char file_path[1024];
+    size_t base_length;
+
+    if (!path_exists(dict_path)) {
+        return 0;
+    }
+
+    base_length = strlen(dict_path);
+    for (int i = 0; i < OPENJTALK_REQUIRED_FILE_COUNT; ++i) {
+        snprintf(file_path, sizeof(file_path), "%s%s%s",
+            dict_path,
+            (base_length > 0 && dict_path[base_length - 1] != '/' && dict_path[base_length - 1] != '\\') ? "/" : "",
+            OPENJTALK_REQUIRED_FILES[i]);
+        if (access(file_path, F_OK) != 0) {
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 // Get the base directory for data files
@@ -132,6 +167,10 @@ const char* get_openjtalk_dictionary_path(void) {
     return dict_path;
 }
 
+int openjtalk_dictionary_path_is_ready(const char* dict_path) {
+    return dictionary_has_required_files(dict_path);
+}
+
 // Ensure the OpenJTalk dictionary is available
 // NOTE: Dictionary downloading is handled by the Godot editor plugin
 // (model_downloader.gd). This function only checks if the dictionary
@@ -139,18 +178,17 @@ const char* get_openjtalk_dictionary_path(void) {
 int ensure_openjtalk_dictionary(void) {
     const char* dict_path = get_openjtalk_dictionary_path();
 
-    // Check if dictionary already exists
-    if (access(dict_path, F_OK) == 0) {
+    if (openjtalk_dictionary_path_is_ready(dict_path)) {
         return 0;
     }
 
-    // Dictionary not found - log guidance message
     fprintf(stderr,
-        "OpenJTalk dictionary not found at: %s\n"
+        "OpenJTalk dictionary is not ready at: %s\n"
+        "Expected compiled dictionary files: dicrc, sys.dic, unk.dic, matrix.bin, char.bin\n"
         "Please use the Godot editor plugin (PiperTTS > Model Downloader) to download it,\n"
         "or set the OPENJTALK_DICTIONARY_PATH environment variable,\n"
         "or set the dictionary_path property on PiperTTS node.\n",
-        dict_path);
+        dict_path ? dict_path : "(null)");
     return -1;
 }
 
