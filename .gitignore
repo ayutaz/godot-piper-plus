@@ -1,5 +1,6 @@
 # Build
 build/
+build-*/
 build-test/
 cmake-build-*/
 
@@ -33,3 +34,5 @@ onnxruntime/
 # Godot generated cache and editor state
 /.godot/
 /test/project/.godot/
+/test/project/*.uid
+/test/project/addons/piper_plus/*.uid

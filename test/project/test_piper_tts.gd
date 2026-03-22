@@ -11,17 +11,12 @@ func _addon_available() -> bool:
 func _create_tts():
     if not _addon_available():
         return null
-    var tts = ClassDB.instantiate("PiperTTS")
-    if tts == null:
-        return null
-    Engine.get_main_loop().root.add_child(tts)
-    return tts
+    return ClassDB.instantiate("PiperTTS")
 
 func _cleanup_tts(tts) -> void:
     if is_instance_valid(tts):
         tts.stop()
-        tts.queue_free()
-        await Engine.get_main_loop().process_frame
+        tts.free()
 
 func _model_bundle() -> Dictionary:
     if FileAccess.file_exists(BUNDLED_MODEL_PATH) and FileAccess.file_exists(BUNDLED_CONFIG_PATH):
@@ -105,13 +100,64 @@ func _expected_sample_rate(bundle: Dictionary) -> int:
 
     return 22050
 
+func list_test_names() -> Array[String]:
+    return [
+        "test_node_creation",
+        "test_properties",
+        "test_speech_rate_range",
+        "test_execution_provider_enum",
+        "test_initialize_without_model",
+        "test_synthesize_without_init",
+        "test_synthesize_async_without_init",
+        "test_is_ready_default",
+        "test_is_processing_default",
+        "test_initialize_with_model",
+        "test_initialize_with_config_fallback",
+        "test_synthesize_basic",
+        "test_synthesize_async",
+        "test_audio_stream_format",
+    ]
+
+func run_test(method_name: String) -> void:
+    match method_name:
+        "test_node_creation":
+            await test_node_creation()
+        "test_properties":
+            await test_properties()
+        "test_speech_rate_range":
+            await test_speech_rate_range()
+        "test_execution_provider_enum":
+            await test_execution_provider_enum()
+        "test_initialize_without_model":
+            await test_initialize_without_model()
+        "test_synthesize_without_init":
+            await test_synthesize_without_init()
+        "test_synthesize_async_without_init":
+            await test_synthesize_async_without_init()
+        "test_is_ready_default":
+            await test_is_ready_default()
+        "test_is_processing_default":
+            await test_is_processing_default()
+        "test_initialize_with_model":
+            await test_initialize_with_model()
+        "test_initialize_with_config_fallback":
+            await test_initialize_with_config_fallback()
+        "test_synthesize_basic":
+            await test_synthesize_basic()
+        "test_synthesize_async":
+            await test_synthesize_async()
+        "test_audio_stream_format":
+            await test_audio_stream_format()
+        _:
+            failures.append("Unknown test: %s" % method_name)
+
 func test_node_creation() -> void:
     var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
     assert_not_null(tts, "PiperTTS node should be creatable")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_properties() -> void:
     var tts = _create_tts()
@@ -137,7 +183,7 @@ func test_properties() -> void:
     assert_equal(tts.language_code, "en", "language_code should round-trip")
     assert_equal(tts.noise_scale, 1.2, "noise_scale should round-trip")
     assert_equal(tts.noise_w, 0.6, "noise_w should round-trip")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_speech_rate_range() -> void:
     var tts = _create_tts()
@@ -148,7 +194,7 @@ func test_speech_rate_range() -> void:
     assert_equal(tts.speech_rate, 0.1, "speech_rate should clamp to the minimum")
     tts.speech_rate = 9.0
     assert_equal(tts.speech_rate, 5.0, "speech_rate should clamp to the maximum")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_execution_provider_enum() -> void:
     if not _addon_available():
@@ -159,6 +205,7 @@ func test_execution_provider_enum() -> void:
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_DIRECTML"), 2, "EP_DIRECTML should match the bound enum")
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_NNAPI"), 3, "EP_NNAPI should match the bound enum")
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_AUTO"), 4, "EP_AUTO should match the bound enum")
+    await Engine.get_main_loop().process_frame
 
 func test_initialize_without_model() -> void:
     var tts = _create_tts()
@@ -166,7 +213,7 @@ func test_initialize_without_model() -> void:
         skip("PiperTTS class is unavailable")
         return
     assert_equal(tts.initialize(), ERR_UNCONFIGURED, "initialize() should reject missing model_path")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_synthesize_without_init() -> void:
     var tts = _create_tts()
@@ -175,7 +222,7 @@ func test_synthesize_without_init() -> void:
         return
     var audio = tts.synthesize(DEFAULT_TEST_TEXT)
     assert_true(audio == null, "synthesize() should fail before initialize()")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_synthesize_async_without_init() -> void:
     var tts = _create_tts()
@@ -183,7 +230,7 @@ func test_synthesize_async_without_init() -> void:
         skip("PiperTTS class is unavailable")
         return
     assert_equal(tts.synthesize_async(DEFAULT_TEST_TEXT), ERR_UNCONFIGURED, "synthesize_async() should fail before initialize()")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_is_ready_default() -> void:
     var tts = _create_tts()
@@ -191,7 +238,7 @@ func test_is_ready_default() -> void:
         skip("PiperTTS class is unavailable")
         return
     assert_false(tts.is_ready(), "PiperTTS should start in a not-ready state")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_is_processing_default() -> void:
     var tts = _create_tts()
@@ -199,7 +246,7 @@ func test_is_processing_default() -> void:
         skip("PiperTTS class is unavailable")
         return
     assert_false(tts.is_processing(), "PiperTTS should start in an idle state")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_initialize_with_model() -> void:
     var tts = _create_tts()
@@ -208,12 +255,12 @@ func test_initialize_with_model() -> void:
         return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     assert_equal(tts.initialize(), OK, "initialize() should succeed with a valid model bundle")
     assert_true(tts.is_ready(), "PiperTTS should be ready after initialize()")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_initialize_with_config_fallback() -> void:
     var tts = _create_tts()
@@ -222,13 +269,13 @@ func test_initialize_with_config_fallback() -> void:
         return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     tts.config_path = ""
     assert_equal(tts.initialize(), OK, "initialize() should resolve config_path from the model path")
     assert_true(tts.is_ready(), "PiperTTS should be ready after fallback config resolution")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_synthesize_basic() -> void:
     var tts = _create_tts()
@@ -237,19 +284,19 @@ func test_synthesize_basic() -> void:
         return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     if tts.initialize() != OK:
         failures.append("initialize() failed for synthesize_basic")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     var audio = tts.synthesize(DEFAULT_TEST_TEXT)
     assert_not_null(audio, "synthesize() should return AudioStreamWAV")
     if audio != null:
         assert_true(audio.data.size() > 0, "AudioStreamWAV should contain PCM data")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_synthesize_async() -> void:
     var tts = _create_tts()
@@ -258,12 +305,12 @@ func test_synthesize_async() -> void:
         return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     if tts.initialize() != OK:
         failures.append("initialize() failed for synthesize_async")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     var completed_audio = null
@@ -279,7 +326,7 @@ func test_synthesize_async() -> void:
 
     assert_true(failed_error.is_empty(), "synthesize_async() should not emit synthesis_failed")
     assert_not_null(completed_audio, "synthesize_async() should emit synthesis_completed")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)
 
 func test_audio_stream_format() -> void:
     var tts = _create_tts()
@@ -288,14 +335,14 @@ func test_audio_stream_format() -> void:
         return
     if not _configure_test_model(tts):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     var bundle = _model_bundle()
     var expected_rate = _expected_sample_rate(bundle)
     if tts.initialize() != OK:
         failures.append("initialize() failed for audio_stream_format")
-        await _cleanup_tts(tts)
+        _cleanup_tts(tts)
         return
 
     var audio = tts.synthesize(DEFAULT_TEST_TEXT)
@@ -305,4 +352,4 @@ func test_audio_stream_format() -> void:
         assert_equal(audio.mix_rate, expected_rate, "Audio mix rate should match the model config")
         assert_false(audio.stereo, "Audio should be mono")
         assert_true(audio.data.size() > 0, "Audio data should not be empty")
-    await _cleanup_tts(tts)
+    _cleanup_tts(tts)

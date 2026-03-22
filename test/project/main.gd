@@ -18,16 +18,10 @@ func _run_all() -> void:
         var suite_name: String = str(suite.get_suite_name())
         print("-- Running %s --" % suite_name)
 
-        for method_info in suite.get_method_list():
-            var method_name: String = method_info.name
-            if not method_name.begins_with("test_"):
-                continue
-
+        for method_name in suite.list_test_names():
             print("  RUN  %s.%s" % [suite_name, method_name])
             suite.reset_results()
-            var result = suite.call(method_name)
-            if typeof(result) == TYPE_OBJECT and result != null and result.get_class() == "GDScriptFunctionState":
-                await result
+            await suite.run_test(method_name)
 
             for message in suite.skips:
                 print("  SKIP %s.%s: %s" % [suite_name, method_name, message])

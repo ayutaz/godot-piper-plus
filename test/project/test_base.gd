@@ -20,6 +20,10 @@ func assert_false(value: bool, message: String) -> void:
         failures.append(message)
 
 func assert_equal(actual, expected, message: String) -> void:
+    if typeof(actual) == TYPE_FLOAT or typeof(expected) == TYPE_FLOAT:
+        if not is_equal_approx(float(actual), float(expected)):
+            failures.append("%s (expected=%s actual=%s)" % [message, str(expected), str(actual)])
+        return
     if actual != expected:
         failures.append("%s (expected=%s actual=%s)" % [message, str(expected), str(actual)])
 

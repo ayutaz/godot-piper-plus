@@ -189,8 +189,6 @@ Error apply_requested_language(
 // ---------------------------------------------------------------------------
 
 PiperTTS::PiperTTS() {
-	piper_config = std::make_unique<piper::PiperConfig>();
-	voice = std::make_unique<piper::Voice>();
 	set_process(false);
 }
 
@@ -204,7 +202,7 @@ PiperTTS::~PiperTTS() {
 	pending_samples_.clear();
 	pending_sample_offset_ = 0;
 
-	if (ready) {
+	if (ready && piper_config) {
 		piper::terminate(*piper_config);
 		ready = false;
 	}
@@ -535,7 +533,6 @@ Error PiperTTS::initialize() {
 		piper::terminate(*piper_config);
 		ready = false;
 	}
-	voice->customDictionary.reset();
 
 	if (model_path.is_empty()) {
 		UtilityFunctions::push_error("PiperTTS: model_path is not set.");
@@ -571,8 +568,12 @@ Error PiperTTS::initialize() {
 	std::string model_str = abs_model.utf8().get_data();
 	std::string config_str = abs_config.utf8().get_data();
 
+	bool piper_initialized = false;
 	try {
+		piper_config = std::make_unique<piper::PiperConfig>();
+		voice = std::make_unique<piper::Voice>();
 		piper::initialize(*piper_config);
+		piper_initialized = true;
 
 		voice->customDictionary.reset();
 		if (!custom_dictionary_path.is_empty()) {
@@ -626,10 +627,14 @@ Error PiperTTS::initialize() {
 		return OK;
 
 	} catch (const std::exception &e) {
+		if (piper_initialized && piper_config) {
+			piper::terminate(*piper_config);
+		}
+		piper_config.reset();
+		voice.reset();
 		UtilityFunctions::push_error(
 				String("PiperTTS: Failed to initialize -- ") + String(e.what()));
 		ready = false;
-		voice->customDictionary.reset();
 		emit_signal("initialized", false);
 		return ERR_CANT_OPEN;
 	}

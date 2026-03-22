@@ -32,9 +32,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON", parallel_level: 2 }
-          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON", parallel_level: 2 }
-          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DCMAKE_OSX_ARCHITECTURES=arm64", parallel_level: 2 }
+          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DGODOTCPP_TARGET=template_release", parallel_level: 2 }
+          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DGODOTCPP_TARGET=template_release", parallel_level: 2 }
+          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DGODOTCPP_TARGET=template_release -DCMAKE_OSX_ARCHITECTURES=arm64", parallel_level: 2 }
 
     steps:
       - name: Checkout repository
@@ -73,7 +73,9 @@ jobs:
       - name: Copy ONNX Runtime (Windows)
         if: matrix.platform == 'windows'
         shell: bash
-        run: cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.windows.x86_64.dll
+        run: |
+          cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.dll
+          cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.windows.x86_64.dll
 
       - name: Copy ONNX Runtime (Linux)
         if: matrix.platform == 'linux'
@@ -253,6 +255,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-24 \
+            -DGODOTCPP_TARGET=template_release \
             -DONNXRUNTIME_DIR="$PWD/ort-android"
 
       - name: Build Android
@@ -268,6 +271,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$PWD/thirdparty/godot-cpp/cmake/ios.toolchain.cmake" \
             -DPLATFORM=OS64 \
             -DDEPLOYMENT_TARGET=15.0 \
+            -DGODOTCPP_TARGET=template_release \
             -DONNXRUNTIME_DIR="$PWD/ort-ios"
 
       - name: Build iOS

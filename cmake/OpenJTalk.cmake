@@ -30,6 +30,8 @@ ExternalProject_Add(
   PREFIX "${CMAKE_CURRENT_BINARY_DIR}/o"
   URL "https://downloads.sourceforge.net/project/open-jtalk/Open%20JTalk/open_jtalk-${OPENJTALK_VERSION}/open_jtalk-${OPENJTALK_VERSION}.tar.gz"
   CMAKE_ARGS ${OPENJTALK_CMAKE_ARGS}
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${EXTERNAL_BUILD_TYPE}
+  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --config ${EXTERNAL_BUILD_TYPE}
   PATCH_COMMAND ${CMAKE_COMMAND}
     -DSOURCE_DIR=<SOURCE_DIR>
     -DCMAKE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/OpenJTalk_CMakeLists.txt

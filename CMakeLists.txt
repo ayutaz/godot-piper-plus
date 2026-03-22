@@ -16,20 +16,13 @@ if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
   add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
   add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+  add_compile_options(/FS)
   add_compile_options(/EHsc)
   add_compile_definitions(WIN32_LEAN_AND_MEAN)
 endif()
 
-# Build type for ExternalProject (single-config generators).
-# With multi-config generators (e.g., Xcode), CMAKE_BUILD_TYPE is empty;
-# default to Release for ExternalProject builds.
-if(CMAKE_BUILD_TYPE)
-  set(EXTERNAL_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
-else()
-  set(EXTERNAL_BUILD_TYPE "Release")
-endif()
-
 # External CMake args propagation for ExternalProject builds
+set(EXTERNAL_CMAKE_ARGS "")
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
   # iOS cross-compilation: pass toolchain file to ExternalProject for proper sysroot setup.
   # If the ios.toolchain.cmake was used (CMAKE_TOOLCHAIN_FILE is set and PLATFORM is defined),
@@ -54,13 +47,6 @@ elseif(APPLE)
   else()
     set(EXTERNAL_CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=arm64)
   endif()
-elseif(MSVC)
-  # Match godot-cpp default: static CRT (/MT for Release, /MTd for Debug).
-  # Generator expression is evaluated at build time for multi-config generators.
-  set(EXTERNAL_CMAKE_ARGS
-    "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
-  )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
   # Android cross-compilation: pass NDK toolchain to ExternalProject
   set(EXTERNAL_CMAKE_ARGS
@@ -73,12 +59,48 @@ else()
 endif()
 
 # ---- godot-cpp ----
-# Map CMAKE_BUILD_TYPE to godot-cpp target
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-  set(GODOTCPP_TARGET "template_debug" CACHE STRING "" FORCE)
-else()
-  set(GODOTCPP_TARGET "template_release" CACHE STRING "" FORCE)
+# Default to editor-compatible binaries for local multi-config builds.
+# CI/package builds can still override this explicitly with -DGODOTCPP_TARGET=template_release.
+if(NOT DEFINED GODOTCPP_TARGET OR GODOTCPP_TARGET STREQUAL "")
+  if(CMAKE_CONFIGURATION_TYPES)
+    set(_PIPER_PLUS_DEFAULT_GODOTCPP_TARGET "template_debug")
+  elseif(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    set(_PIPER_PLUS_DEFAULT_GODOTCPP_TARGET "template_debug")
+  else()
+    set(_PIPER_PLUS_DEFAULT_GODOTCPP_TARGET "template_release")
+  endif()
+  set(GODOTCPP_TARGET "${_PIPER_PLUS_DEFAULT_GODOTCPP_TARGET}" CACHE STRING "" FORCE)
 endif()
+set_property(CACHE GODOTCPP_TARGET PROPERTY STRINGS "template_debug;template_release;editor")
+
+# ExternalProject configuration should follow the selected Godot artifact flavor.
+# Multi-config generators otherwise install Release libs by default, which breaks
+# local Debug/template_debug builds on Windows.
+if(CMAKE_CONFIGURATION_TYPES)
+  if(GODOTCPP_TARGET STREQUAL "template_debug" OR GODOTCPP_TARGET STREQUAL "editor")
+    set(EXTERNAL_BUILD_TYPE "Debug")
+  else()
+    set(EXTERNAL_BUILD_TYPE "Release")
+  endif()
+elseif(CMAKE_BUILD_TYPE)
+  set(EXTERNAL_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+else()
+  set(EXTERNAL_BUILD_TYPE "Release")
+endif()
+
+if(MSVC)
+  if(EXTERNAL_BUILD_TYPE STREQUAL "Debug")
+    set(_PIPER_PLUS_EXTERNAL_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
+  else()
+    set(_PIPER_PLUS_EXTERNAL_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+  endif()
+
+  list(APPEND EXTERNAL_CMAKE_ARGS
+    "-DCMAKE_MSVC_RUNTIME_LIBRARY=${_PIPER_PLUS_EXTERNAL_MSVC_RUNTIME_LIBRARY}"
+    -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+  )
+endif()
+
 add_subdirectory(thirdparty/godot-cpp)
 
 # ---- External dependencies ----
@@ -201,6 +223,69 @@ set_target_properties(piper_plus PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin>"
   RUNTIME_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin>"
 )
+
+set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "")
+set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "")
+set(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST "")
+if(WIN32 AND ONNXRUNTIME_DLL)
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "${ONNXRUNTIME_DLL}")
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "onnxruntime.dll")
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST "onnxruntime.windows.x86_64.dll")
+elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "${ONNXRUNTIME_LIB}")
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "libonnxruntime.macos.arm64.dylib")
+elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC "${ONNXRUNTIME_LIB}")
+  set(_PIPER_PLUS_RUNTIME_DEPENDENCY_DST "libonnxruntime.linux.x86_64.so")
+endif()
+
+set(_PIPER_PLUS_TEST_PROJECT_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test/project/addons/piper_plus/bin")
+set(_PIPER_PLUS_TEST_PROJECT_ADDON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test/project/addons/piper_plus")
+
+add_custom_command(TARGET piper_plus POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${_PIPER_PLUS_TEST_PROJECT_ADDON_DIR}"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/piper_plus.gdextension"
+    "${_PIPER_PLUS_TEST_PROJECT_ADDON_DIR}/piper_plus.gdextension"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:piper_plus>"
+    "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/$<TARGET_FILE_NAME:piper_plus>"
+  VERBATIM
+)
+
+if(MSVC)
+  add_custom_command(TARGET piper_plus POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "$<TARGET_PDB_FILE:piper_plus>"
+      "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/$<TARGET_PDB_FILE_NAME:piper_plus>"
+    VERBATIM
+  )
+endif()
+
+if(_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC AND EXISTS "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}")
+  add_custom_command(TARGET piper_plus POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
+      "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_RUNTIME_DEPENDENCY_DST}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
+      "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_RUNTIME_DEPENDENCY_DST}"
+    VERBATIM
+  )
+
+  if(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST)
+    add_custom_command(TARGET piper_plus POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
+        "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${_PIPER_PLUS_RUNTIME_DEPENDENCY_SRC}"
+        "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_DST}"
+      VERBATIM
+    )
+  endif()
+endif()
 
 # ---- Documentation ----
 # Python3 is required by godot-cpp's target_doc_sources() to generate doc_source.cpp.
