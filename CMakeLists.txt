@@ -275,9 +275,10 @@ add_custom_command(TARGET piper_plus POST_BUILD
 
 if(MSVC)
   add_custom_command(TARGET piper_plus POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "$<TARGET_PDB_FILE:piper_plus>"
-      "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/$<TARGET_PDB_FILE_NAME:piper_plus>"
+    COMMAND ${CMAKE_COMMAND}
+      "-DSRC=$<TARGET_PDB_FILE:piper_plus>"
+      "-DDST=${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/$<TARGET_PDB_FILE_NAME:piper_plus>"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyIfExists.cmake"
     VERBATIM
   )
 endif()
