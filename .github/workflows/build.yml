@@ -195,13 +195,11 @@ jobs:
           grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
           sha512sum -c godot.sha512
           unzip -q "${GODOT_LINUX_ZIP}" -d /tmp/godot
-          chmod +x "/tmp/godot/Godot_v4.4-stable_linux.x86_64"
+          chmod +x "/tmp/godot/${GODOT_LINUX_ZIP%.zip}"
 
       - name: Run Linux Godot headless tests
         shell: bash
-        env:
-          GODOT: /tmp/godot/Godot_v4.4-stable_linux.x86_64
-        run: bash test/run-tests.sh
+        run: GODOT="/tmp/godot/${GODOT_LINUX_ZIP%.zip}" bash test/run-tests.sh
 
   build-mobile:
     name: Build Mobile (${{ matrix.name }})
@@ -477,7 +475,7 @@ jobs:
           grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
           sha512sum -c godot.sha512
           unzip -q "${GODOT_LINUX_ZIP}" -d /tmp/godot
-          chmod +x "/tmp/godot/Godot_v4.4-stable_linux.x86_64"
+          chmod +x "/tmp/godot/${GODOT_LINUX_ZIP%.zip}"
 
       - name: Install Godot export templates
         shell: bash
@@ -498,11 +496,9 @@ jobs:
 
       - name: Run Android export smoke
         shell: bash
-        env:
-          GODOT: /tmp/godot/Godot_v4.4-stable_linux.x86_64
         run: |
           chmod +x scripts/ci/export-android-smoke.sh
-          bash scripts/ci/export-android-smoke.sh package/addons/piper_plus
+          GODOT="/tmp/godot/${GODOT_LINUX_ZIP%.zip}" bash scripts/ci/export-android-smoke.sh package/addons/piper_plus
 
   export-ios:
     name: iOS Export Smoke
