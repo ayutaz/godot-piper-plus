@@ -27,6 +27,7 @@ mkdir -p "${TMP_DIR}" "${TEMPLATES_DIR}"
 
 ARCHIVE_PATH="${TMP_DIR}/${TEMPLATES_ARCHIVE}"
 SUMS_PATH="${TMP_DIR}/SHA512-SUMS.txt"
+EXTRACT_DIR="${TMP_DIR}/extract"
 
 curl -L -o "${ARCHIVE_PATH}" "${RELEASE_BASE_URL}/${TEMPLATES_ARCHIVE}"
 curl -L -o "${SUMS_PATH}" "${RELEASE_BASE_URL}/SHA512-SUMS.txt"
@@ -41,4 +42,15 @@ grep " ${TEMPLATES_ARCHIVE}\$" "${SUMS_PATH}" > "${TMP_DIR}/godot-export-templat
   fi
 )
 
-unzip -qo "${ARCHIVE_PATH}" -d "${TEMPLATES_DIR}"
+rm -rf "${EXTRACT_DIR}"
+mkdir -p "${EXTRACT_DIR}"
+unzip -qo "${ARCHIVE_PATH}" -d "${EXTRACT_DIR}"
+
+if [[ -d "${EXTRACT_DIR}/templates" ]]; then
+  cp -R "${EXTRACT_DIR}/templates"/. "${TEMPLATES_DIR}/"
+  if [[ -f "${EXTRACT_DIR}/version.txt" ]]; then
+    cp -f "${EXTRACT_DIR}/version.txt" "${TEMPLATES_DIR}/version.txt"
+  fi
+else
+  cp -R "${EXTRACT_DIR}"/. "${TEMPLATES_DIR}/"
+fi

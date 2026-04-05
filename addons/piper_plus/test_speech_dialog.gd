@@ -151,13 +151,13 @@ static func _on_preview_pressed(
 		_on_preview_failed.bind(dialog, status_label, preview_btn, stop_btn)
 	)
 
-	var init_error := preview_tts.initialize()
+	var init_error: int = preview_tts.initialize()
 	if init_error != OK:
 		status_label.text = "initialize() に失敗しました: %s" % init_error
 		_cleanup_preview(dialog)
 		return
 
-	var synth_error := preview_tts.synthesize_async(preview_text)
+	var synth_error: int = preview_tts.synthesize_async(preview_text)
 	if synth_error != OK:
 		status_label.text = "synthesize_async() に失敗しました: %s" % synth_error
 		_cleanup_preview(dialog)

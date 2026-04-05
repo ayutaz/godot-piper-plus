@@ -128,7 +128,13 @@ ensure_editor_setting() {
   local value="$3"
 
   mkdir -p "$(dirname "$file_path")"
-  touch "$file_path"
+  if [[ ! -s "$file_path" ]]; then
+    cat > "$file_path" <<'EOF'
+[gd_resource type="EditorSettings" format=3]
+
+[resource]
+EOF
+  fi
   local tmp_file
   tmp_file="$(mktemp)"
   grep -v "^${key} = " "$file_path" > "$tmp_file" || true
