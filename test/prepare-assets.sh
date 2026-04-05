@@ -8,6 +8,8 @@ ADDON_SRC="${PIPER_ADDON_SRC:-$REPO_ROOT/addons/piper_plus}"
 ADDON_DST="$PROJECT_DIR/addons/piper_plus"
 ADDON_EXTENSION_SRC="$ADDON_SRC/piper_plus.gdextension"
 ADDON_EXTENSION_DST="$ADDON_DST/piper_plus.gdextension"
+PROJECT_GODOT_DIR="$PROJECT_DIR/.godot"
+EXTENSION_LIST_DST_PATH="$PROJECT_GODOT_DIR/extension_list.cfg"
 ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
 ADDON_BIN_DST="$ADDON_DST/bin"
 ADDON_DICT_DST="$ADDON_DST/dictionaries"
@@ -25,7 +27,7 @@ BUNDLED_DICT_SRC_PATH="$TEST_MODEL_SRC_DIR/openjtalk_dic"
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
 
-mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_DST_DIR" "$ADDON_MODEL_DST_DIR"
+mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_DST_DIR" "$ADDON_MODEL_DST_DIR" "$PROJECT_GODOT_DIR"
 
 find "$ADDON_DST" -mindepth 1 -maxdepth 1 ! -name 'bin' -exec rm -rf {} +
 mkdir -p "$ADDON_DICT_DST" "$ADDON_MODEL_DST_DIR"
@@ -57,6 +59,10 @@ done
 if [[ -f "$ADDON_EXTENSION_SRC" ]]; then
   cp -f "$ADDON_EXTENSION_SRC" "$ADDON_EXTENSION_DST"
 fi
+
+# Godot only auto-loads GDExtensions listed in .godot/extension_list.cfg.
+# Generate it here so CI clean checkouts do not depend on untracked editor cache state.
+printf '%s\n' 'res://addons/piper_plus/piper_plus.gdextension' > "$EXTENSION_LIST_DST_PATH"
 
 if [[ -d "$ADDON_BIN_SRC" ]]; then
   find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
