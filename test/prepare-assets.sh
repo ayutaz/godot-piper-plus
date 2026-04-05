@@ -64,6 +64,11 @@ if [[ -d "$ADDON_BIN_SRC" ]]; then
   if [[ ! -f "$ADDON_BIN_DST/onnxruntime.dll" && -f "$ADDON_BIN_DST/onnxruntime.windows.x86_64.dll" ]]; then
     cp -f "$ADDON_BIN_DST/onnxruntime.windows.x86_64.dll" "$ADDON_BIN_DST/onnxruntime.dll"
   fi
+
+  # GitHub artifact download normalizes file modes, so restore execute bits for native binaries.
+  find "$ADDON_BIN_DST" -maxdepth 1 -type f \
+    \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' -o -name '*.dll' \) \
+    -exec chmod +x {} + 2>/dev/null || true
 fi
 
 find "$MODEL_DST_DIR" -mindepth 1 ! -name '.gitkeep' -exec rm -rf {} +
