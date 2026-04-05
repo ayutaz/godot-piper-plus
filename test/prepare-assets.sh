@@ -60,7 +60,7 @@ fi
 
 if [[ -d "$ADDON_BIN_SRC" ]]; then
   find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
-  cp -f "$ADDON_BIN_SRC"/* "$ADDON_BIN_DST"/ 2>/dev/null || true
+  find "$ADDON_BIN_SRC" -type f ! -name '.gitignore' -exec cp -f {} "$ADDON_BIN_DST"/ \;
   if [[ ! -f "$ADDON_BIN_DST/onnxruntime.dll" && -f "$ADDON_BIN_DST/onnxruntime.windows.x86_64.dll" ]]; then
     cp -f "$ADDON_BIN_DST/onnxruntime.windows.x86_64.dll" "$ADDON_BIN_DST/onnxruntime.dll"
   fi
