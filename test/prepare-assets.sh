@@ -60,7 +60,8 @@ fi
 
 if [[ -d "$ADDON_BIN_SRC" ]]; then
   find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
-  find "$ADDON_BIN_SRC" -type f ! -name '.gitignore' -exec cp -f {} "$ADDON_BIN_DST"/ \;
+  # Preserve symlink sidecars like libonnxruntime.so.1; Linux artifact downloads can keep them as links.
+  find "$ADDON_BIN_SRC" \( -type f -o -type l \) ! -name '.gitignore' -exec cp -a {} "$ADDON_BIN_DST"/ \;
   if [[ ! -f "$ADDON_BIN_DST/onnxruntime.dll" && -f "$ADDON_BIN_DST/onnxruntime.windows.x86_64.dll" ]]; then
     cp -f "$ADDON_BIN_DST/onnxruntime.windows.x86_64.dll" "$ADDON_BIN_DST/onnxruntime.dll"
   fi
