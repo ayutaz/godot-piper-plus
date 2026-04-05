@@ -21,11 +21,11 @@ env:
   ORT_VERSION: "1.24.3"
   ORT_ANDROID_SHA256: "67397e4a970e75617f765d2015ceaf911917e1d822276cfb5792744e8085cbce"
   ORT_IOS_SHA256: "b7eedc45932bac758ffd057cac0feb3f682269e47750b159e4c865145cbf0a8e"
-  GODOT_VERSION: "4.4-stable"
-  GODOT_TEMPLATES_VERSION: "4.4.stable"
-  GODOT_LINUX_ZIP: "Godot_v4.4-stable_linux.x86_64.zip"
-  GODOT_MACOS_ZIP: "Godot_v4.4-stable_macos.universal.zip"
-  GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4-stable_export_templates.tpz"
+  GODOT_VERSION: "4.4.1-stable"
+  GODOT_TEMPLATES_VERSION: "4.4.1.stable"
+  GODOT_LINUX_ZIP: "Godot_v4.4.1-stable_linux.x86_64.zip"
+  GODOT_MACOS_ZIP: "Godot_v4.4.1-stable_macos.universal.zip"
+  GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4.1-stable_export_templates.tpz"
 
 jobs:
   build-desktop:

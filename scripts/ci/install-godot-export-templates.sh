@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-GODOT_VERSION="${GODOT_VERSION:-4.4-stable}"
-GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.stable}"
+GODOT_VERSION="${GODOT_VERSION:-4.4.1-stable}"
+GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 TEMPLATES_ARCHIVE="${GODOT_EXPORT_TEMPLATES_ARCHIVE:-Godot_v${GODOT_VERSION}_export_templates.tpz}"
 RELEASE_BASE_URL="${GODOT_RELEASE_BASE_URL:-https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}}"
 
