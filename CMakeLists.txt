@@ -283,6 +283,41 @@ if(MSVC)
   )
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_custom_command(TARGET piper_plus POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "$<TARGET_FILE:godot-cpp>"
+      "$<TARGET_FILE_DIR:piper_plus>/$<TARGET_FILE_NAME:godot-cpp>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "$<TARGET_FILE:godot-cpp>"
+      "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/$<TARGET_FILE_NAME:godot-cpp>"
+    VERBATIM
+  )
+
+  set(_PIPER_PLUS_IOS_DEPENDENCY_FILES
+    "${ONNXRUNTIME_LIB}"
+    "${OPENJTALK_DIR}/lib/libopenjtalk.a"
+    "${OPENJTALK_DIR}/lib/libmecab.a"
+    "${HTS_ENGINE_DIR}/lib/libHTSEngine.a"
+  )
+
+  foreach(_PIPER_PLUS_IOS_DEPENDENCY_FILE IN LISTS _PIPER_PLUS_IOS_DEPENDENCY_FILES)
+    if(EXISTS "${_PIPER_PLUS_IOS_DEPENDENCY_FILE}")
+      get_filename_component(_PIPER_PLUS_IOS_DEPENDENCY_NAME
+        "${_PIPER_PLUS_IOS_DEPENDENCY_FILE}" NAME)
+      add_custom_command(TARGET piper_plus POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_PIPER_PLUS_IOS_DEPENDENCY_FILE}"
+          "$<TARGET_FILE_DIR:piper_plus>/${_PIPER_PLUS_IOS_DEPENDENCY_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_PIPER_PLUS_IOS_DEPENDENCY_FILE}"
+          "${_PIPER_PLUS_TEST_PROJECT_BIN_DIR}/${_PIPER_PLUS_IOS_DEPENDENCY_NAME}"
+        VERBATIM
+      )
+    endif()
+  endforeach()
+endif()
+
 foreach(_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE IN LISTS _PIPER_PLUS_RUNTIME_DEPENDENCY_FILES)
   if(EXISTS "${_PIPER_PLUS_RUNTIME_DEPENDENCY_FILE}")
     get_filename_component(_PIPER_PLUS_RUNTIME_DEPENDENCY_NAME

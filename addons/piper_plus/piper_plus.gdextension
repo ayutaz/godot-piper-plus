@@ -24,3 +24,17 @@ macos.debug = {"res://addons/piper_plus/bin/libonnxruntime.macos.arm64.dylib": "
 macos.release = {"res://addons/piper_plus/bin/libonnxruntime.macos.arm64.dylib": ""}
 android.debug.arm64 = {"res://addons/piper_plus/bin/libonnxruntime.android.arm64.so": ""}
 android.release.arm64 = {"res://addons/piper_plus/bin/libonnxruntime.android.arm64.so": ""}
+ios.debug = {
+  "res://addons/piper_plus/bin/libgodot-cpp.ios.template_debug.arm64.a": "",
+  "res://addons/piper_plus/bin/libonnxruntime.a": "",
+  "res://addons/piper_plus/bin/libopenjtalk.a": "",
+  "res://addons/piper_plus/bin/libmecab.a": "",
+  "res://addons/piper_plus/bin/libHTSEngine.a": ""
+}
+ios.release = {
+  "res://addons/piper_plus/bin/libgodot-cpp.ios.template_release.arm64.a": "",
+  "res://addons/piper_plus/bin/libonnxruntime.a": "",
+  "res://addons/piper_plus/bin/libopenjtalk.a": "",
+  "res://addons/piper_plus/bin/libmecab.a": "",
+  "res://addons/piper_plus/bin/libHTSEngine.a": ""
+}
