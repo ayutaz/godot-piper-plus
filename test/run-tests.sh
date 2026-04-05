@@ -32,7 +32,8 @@ fi
 "$PREPARE_SCRIPT"
 
 PROJECT_ARG="$PROJECT_DIR"
-if [[ "${GODOT_BIN,,}" == *.exe ]]; then
+GODOT_BIN_LOWER="$(printf '%s' "$GODOT_BIN" | tr '[:upper:]' '[:lower:]')"
+if [[ "$GODOT_BIN_LOWER" == *.exe ]]; then
   if command -v cygpath >/dev/null 2>&1; then
     PROJECT_ARG="$(cygpath -w "$PROJECT_DIR")"
   elif command -v wslpath >/dev/null 2>&1; then

@@ -32,10 +32,13 @@ curl -L -o "${ARCHIVE_PATH}" "${RELEASE_BASE_URL}/${TEMPLATES_ARCHIVE}"
 curl -L -o "${SUMS_PATH}" "${RELEASE_BASE_URL}/SHA512-SUMS.txt"
 grep " ${TEMPLATES_ARCHIVE}\$" "${SUMS_PATH}" > "${TMP_DIR}/godot-export-templates.sha512"
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  shasum -a 512 -c "${TMP_DIR}/godot-export-templates.sha512"
-else
-  sha512sum -c "${TMP_DIR}/godot-export-templates.sha512"
-fi
+(
+  cd "${TMP_DIR}"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    shasum -a 512 -c "godot-export-templates.sha512"
+  else
+    sha512sum -c "godot-export-templates.sha512"
+  fi
+)
 
 unzip -qo "${ARCHIVE_PATH}" -d "${TEMPLATES_DIR}"
