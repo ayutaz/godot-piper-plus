@@ -180,6 +180,7 @@ fi
 ensure_editor_setting_all "$EDITOR_SETTINGS_DIR" "export/android/android_sdk_path" "$ANDROID_SDK_ROOT_NATIVE"
 cp -f "$KEYSTORE_PATH" "$PROJECT_KEYSTORE_PATH"
 
+ensure_editor_setting_all "$EDITOR_SETTINGS_DIR" "export/android/debug_keystore" "$(resolve_native_path "$PROJECT_KEYSTORE_PATH")"
 ensure_editor_setting_all "$EDITOR_SETTINGS_DIR" "export/android/debug_keystore_user" "androiddebugkey"
 ensure_editor_setting_all "$EDITOR_SETTINGS_DIR" "export/android/debug_keystore_pass" "android"
 if [[ -n "${JAVA_HOME_NATIVE}" ]]; then
