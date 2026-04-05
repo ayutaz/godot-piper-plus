@@ -2,6 +2,9 @@
 #include <filesystem>
 #include <fstream>
 #include "custom_dictionary.hpp"
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 class CustomDictionaryTest : public ::testing::Test {
 protected:
@@ -179,4 +182,46 @@ TEST_F(CustomDictionaryTest, SpecialCharacters) {
     EXPECT_NE(result.find("アットユーザー"), std::string::npos);
     EXPECT_EQ(result.find("C++"), std::string::npos);
     EXPECT_EQ(result.find("@user"), std::string::npos);
+}
+
+// 18. SaveUsesRuntimeV2Format - saved files should use the runtime V2 shape
+TEST_F(CustomDictionaryTest, SaveUsesRuntimeV2Format) {
+    dict.addWord("docker", "ドッカー");
+
+    std::string outFile = tempDir + "/saved_v2_dict.json";
+    dict.saveDictionary(outFile);
+
+    std::ifstream file(outFile);
+    ASSERT_TRUE(file.is_open());
+
+    nlohmann::json root = nlohmann::json::parse(file);
+    ASSERT_TRUE(root.contains("version"));
+    EXPECT_EQ(root["version"].get<std::string>(), "2.0");
+    ASSERT_TRUE(root.contains("entries"));
+    EXPECT_TRUE(root["entries"].is_object());
+    EXPECT_EQ(root["entries"]["docker"]["pronunciation"].get<std::string>(), "ドッカー");
+    EXPECT_EQ(root["entries"]["docker"]["priority"].get<int>(), 5);
+}
+
+// 19. LoadLegacyEditorFormat - old Godot editor format should still load
+TEST_F(CustomDictionaryTest, LoadLegacyEditorFormat) {
+    dict.loadDictionary(fixturePath("test_dictionary_editor_legacy.json"));
+
+    auto pron = dict.getPronunciation("docker");
+    ASSERT_TRUE(pron.has_value());
+    EXPECT_EQ(pron.value(), "ドッカー");
+
+    auto pron2 = dict.getPronunciation("GitHub");
+    ASSERT_TRUE(pron2.has_value());
+    EXPECT_EQ(pron2.value(), "ギットハブ");
+}
+
+// 20. ApplyToTextSegmentsPreservesInlinePhonemes - only normal text should be replaced
+TEST_F(CustomDictionaryTest, ApplyToTextSegmentsPreservesInlinePhonemes) {
+    dict.addWord("docker", "ドッカー");
+
+    std::string result = piper::applyCustomDictionaryToTextSegments(
+        "docker [[ d o k a ]] docker", &dict);
+
+    EXPECT_EQ(result, "ドッカー [[ d o k a ]] ドッカー");
 }

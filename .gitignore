@@ -1,5 +1,6 @@
 # Build
 build/
+build-*/
 build-test/
 cmake-build-*/
 
@@ -29,3 +30,28 @@ test/project/addons/piper_plus/bin/*
 
 # ONNX Runtime (downloaded)
 onnxruntime/
+
+# Godot generated cache and editor state
+/.godot/
+/test/project/.godot/
+/test/project/*.uid
+/test/project/addons/piper_plus/*.uid
+/test/project/addons/piper_plus/LICENSE
+/test/project/addons/piper_plus/README.md
+/test/project/addons/piper_plus/THIRD_PARTY_LICENSES.txt
+/test/project/addons/piper_plus/dictionaries/
+/test/project/addons/piper_plus/dictionary_editor.gd
+/test/project/addons/piper_plus/icon.svg
+/test/project/addons/piper_plus/model_downloader.gd
+/test/project/addons/piper_plus/models/
+/test/project/addons/piper_plus/piper_plus_plugin.gd
+/test/project/addons/piper_plus/piper_tts_inspector_plugin.gd
+/test/project/addons/piper_plus/plugin.cfg
+/test/project/addons/piper_plus/test_speech_dialog.gd
+/test/project/models/*.onnx
+/test/project/models/*.onnx.json
+/test/project/*.keystore
+/test/project/addons/piper_plus/*.import
+/test/project/build/
+/.ci/*.backup
+/.ci/*.backup.tres

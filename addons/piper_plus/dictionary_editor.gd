@@ -4,12 +4,12 @@ extends RefCounted
 ## Provides a dialog UI to view and edit JSON-based custom dictionaries.
 ## The dictionary maps words (keys) to their readings/pronunciations (values).
 ##
-## Expected JSON format (piper-plus custom_dictionary.cpp compatible):
+## Default save format (piper-plus custom_dictionary.cpp compatible):
 ## {
-##   "entries": [
-##     { "pattern": "word", "replacement": "reading" },
-##     ...
-##   ]
+##   "version": "2.0",
+##   "entries": {
+##     "word": { "pronunciation": "reading", "priority": 5 }
+##   }
 ## }
 
 const DEFAULT_DICT_PATH := "res://addons/piper_plus/dictionaries/custom_dictionary.json"
@@ -200,20 +200,59 @@ static func _on_load_pressed(
 		return
 
 	var dict: Dictionary = data
-	var entries: Array = dict.get("entries", [])
+	var loaded_entries: Array[Dictionary] = []
+
+	if dict.has("entries"):
+		var raw_entries: Variant = dict["entries"]
+		if raw_entries is Dictionary:
+			var entries_dict: Dictionary = raw_entries
+			for pattern_variant in entries_dict.keys():
+				var pattern := str(pattern_variant)
+				var entry_value: Variant = entries_dict[pattern_variant]
+				if entry_value is Dictionary:
+					var entry_dict: Dictionary = entry_value
+					loaded_entries.append({
+						"pattern": pattern,
+						"replacement": str(entry_dict.get("pronunciation", "")),
+					})
+				elif entry_value is String:
+					loaded_entries.append({
+						"pattern": pattern,
+						"replacement": str(entry_value),
+					})
+		elif raw_entries is Array:
+			for entry_variant in raw_entries:
+				if entry_variant is Dictionary:
+					var entry_dict: Dictionary = entry_variant
+					loaded_entries.append({
+						"pattern": str(entry_dict.get("pattern", "")),
+						"replacement": str(entry_dict.get("replacement", "")),
+					})
+	else:
+		for key_variant in dict.keys():
+			var key := str(key_variant)
+			if key in ["version", "description", "metadata", "entries"]:
+				continue
+
+			var value: Variant = dict[key_variant]
+			if value is String:
+				loaded_entries.append({
+					"pattern": key,
+					"replacement": str(value),
+				})
 
 	_clear_entries(entries_vbox)
 
 	# Need to wait one frame for queue_free to take effect before adding new rows
 	await entries_vbox.get_tree().process_frame
 
-	for entry: Variant in entries:
+	for entry in loaded_entries:
 		if entry is Dictionary:
 			var pattern: String = str(entry.get("pattern", ""))
 			var replacement: String = str(entry.get("replacement", ""))
 			_add_entry_row(entries_vbox, pattern, replacement)
 
-	status_label.text = "Loaded " + str(entries.size()) + " entries from " + file_path
+	status_label.text = "Loaded " + str(loaded_entries.size()) + " entries from " + file_path
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +276,7 @@ static func _on_save_pressed(
 	DirAccess.make_dir_recursive_absolute(parent_dir)
 
 	# Collect entries from UI
-	var entries: Array[Dictionary] = []
+	var entries := {}
 	for child: Node in entries_vbox.get_children():
 		if child is HBoxContainer:
 			var pattern_edit: LineEdit = child.get_node_or_null("PatternEdit")
@@ -245,13 +284,17 @@ static func _on_save_pressed(
 			if pattern_edit and replacement_edit:
 				var pattern: String = pattern_edit.text.strip_edges()
 				var replacement: String = replacement_edit.text.strip_edges()
-				if not pattern.is_empty():
-					entries.append({
-						"pattern": pattern,
-						"replacement": replacement,
-					})
+				if not pattern.is_empty() and not replacement.is_empty():
+					entries[pattern] = {
+						"pronunciation": replacement,
+						"priority": 5,
+					}
 
-	var data := { "entries": entries }
+	var data := {
+		"version": "2.0",
+		"description": "Custom dictionary edited in Godot",
+		"entries": entries,
+	}
 	var json_text := JSON.stringify(data, "  ")
 
 	var file := FileAccess.open(file_path, FileAccess.WRITE)

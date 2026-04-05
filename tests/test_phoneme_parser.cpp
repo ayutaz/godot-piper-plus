@@ -162,3 +162,16 @@ TEST_F(PhonemeParser, NestedBrackets) {
     EXPECT_FALSE(result[2].isPhonemes);
     EXPECT_EQ(result[2].text, " c ]] tail");
 }
+
+// 16. ParseMultilingualJapaneseTokens - multilingual inline phonemes should
+//     still understand the Japanese PUA token aliases used by upstream.
+TEST_F(PhonemeParser, ParseMultilingualJapaneseTokens) {
+    auto phonemes = piper::parsePhonemeString(
+        "ky o: t o", piper::PHONEME_TYPE_MULTILINGUAL);
+
+    ASSERT_EQ(phonemes.size(), 4);
+    EXPECT_EQ(phonemes[0], (piper::Phoneme)0xE006);
+    EXPECT_EQ(phonemes[1], (piper::Phoneme)0xE004);
+    EXPECT_EQ(phonemes[2], U't');
+    EXPECT_EQ(phonemes[3], U'o');
+}

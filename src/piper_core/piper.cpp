@@ -1,18 +1,25 @@
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <filesystem>
-#include <unordered_map>
 #include <regex>
+#include <set>
+#include <unordered_map>
 
 #include <onnxruntime_cxx_api.h>
 #include "spdlog/spdlog.h"
 
 #include "json.hpp"
 #include "piper.hpp"
+#include "custom_dictionary.hpp"
+#include "english_phonemize.hpp"
+#include "language_detector.hpp"
+#include "multilingual_phonemize.hpp"
 #include "phoneme_ids.hpp"
 #include "piper_test_utils.hpp"
 #include "utf8.h"
@@ -59,6 +66,113 @@ const std::string instanceName{"piper"};
 std::string getVersion() { return VERSION; }
 static const int DEFAULT_HOP_SIZE = 256;
 
+namespace {
+
+const std::set<std::string> kSupportedMultilingualLanguages = {"ja", "en"};
+
+bool is_supported_multilingual_language(const std::string &lang) {
+  return kSupportedMultilingualLanguages.count(lang) > 0;
+}
+
+std::vector<std::string> get_multilingual_languages(const Voice &voice) {
+  std::vector<std::string> languages = {"ja", "en"};
+
+  if (voice.modelConfig.languageIdMap) {
+    for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+      if (is_supported_multilingual_language(code) &&
+          std::find(languages.begin(), languages.end(), code) == languages.end()) {
+        languages.push_back(code);
+      }
+    }
+  }
+
+  return languages;
+}
+
+std::string get_default_latin_language(const Voice &voice,
+                                       const std::vector<std::string> &languages) {
+  if (voice.synthesisConfig.languageId && voice.modelConfig.languageIdMap) {
+    for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+      if (id == *voice.synthesisConfig.languageId &&
+          code == "en" &&
+          std::find(languages.begin(), languages.end(), code) != languages.end()) {
+        return code;
+      }
+    }
+  }
+
+  if (std::find(languages.begin(), languages.end(), "en") != languages.end()) {
+    return "en";
+  }
+
+  return languages.empty() ? "en" : languages.front();
+}
+
+bool is_openjtalk_boundary_token(Phoneme phoneme) {
+  return phoneme == 0x5E ||   // ^
+         phoneme == 0x24 ||   // $
+         phoneme == 0x3F ||   // ?
+         phoneme == 0xE016 || // ?!
+         phoneme == 0xE017 || // ?.
+         phoneme == 0xE018;   // ?~
+}
+
+std::vector<ProsodyFeature> make_zero_prosody(std::size_t count) {
+  return std::vector<ProsodyFeature>(count, {0, 0, 0});
+}
+
+std::vector<std::filesystem::path> get_cmudict_candidates(
+    const std::string &modelPath, const std::string &modelConfigPath) {
+  const std::filesystem::path modelDir = std::filesystem::path(modelPath).parent_path();
+  const std::filesystem::path configDir =
+      std::filesystem::path(modelConfigPath).parent_path();
+  std::vector<std::filesystem::path> candidates = {
+      modelDir / "cmudict_data.json",
+      configDir / "cmudict_data.json",
+      modelDir / "cmudict.json",
+      configDir / "cmudict.json",
+      modelDir.parent_path() / "dictionaries" / "cmudict_data.json",
+      configDir.parent_path() / "dictionaries" / "cmudict_data.json",
+      modelDir.parent_path() / "dictionaries" / "cmudict.json",
+      configDir.parent_path() / "dictionaries" / "cmudict.json",
+  };
+
+  std::error_code ec;
+  std::filesystem::path current = std::filesystem::current_path(ec);
+  if (!ec) {
+    for (int depth = 0; depth < 6; ++depth) {
+      const std::filesystem::path repoDictDir =
+          current / "addons" / "piper_plus" / "dictionaries";
+      candidates.push_back(repoDictDir / "cmudict_data.json");
+      candidates.push_back(repoDictDir / "cmudict.json");
+
+      const std::filesystem::path parent = current.parent_path();
+      if (parent == current || parent.empty()) {
+        break;
+      }
+      current = parent;
+    }
+  }
+
+  return candidates;
+}
+
+class ScopedLanguageIdRestore {
+public:
+  explicit ScopedLanguageIdRestore(Voice &voice)
+      : voice_(voice), original_(voice.synthesisConfig.languageId) {}
+
+  ~ScopedLanguageIdRestore() { voice_.synthesisConfig.languageId = original_; }
+
+  const std::optional<LanguageId> &original() const { return original_; }
+
+private:
+  Voice &voice_;
+  std::optional<LanguageId> original_;
+};
+
+} // namespace
+
 void initialize(PiperConfig &config) {
   spdlog::info("Initialized piper");
 }
@@ -67,8 +181,32 @@ void terminate(PiperConfig &config) {
   spdlog::info("Terminated piper");
 }
 
-void loadModel(std::string modelPath, ModelSession &session, int executionProvider = EP_CPU) {
-  spdlog::debug("loadModel called with path: {}, EP: {}", modelPath, executionProvider);
+static int resolveExecutionDeviceId(int executionProvider, int requestedDeviceId) {
+  if (requestedDeviceId > 0) {
+    return requestedDeviceId;
+  }
+
+  if (executionProvider == EP_CUDA) {
+    const char *envValue = std::getenv("PIPER_GPU_DEVICE_ID");
+    if (envValue && envValue[0] != '\0') {
+      try {
+        int envDeviceId = std::stoi(envValue);
+        if (envDeviceId >= 0) {
+          return envDeviceId;
+        }
+      } catch (const std::exception &) {
+        spdlog::warn("Ignoring invalid PIPER_GPU_DEVICE_ID='{}'", envValue);
+      }
+    }
+  }
+
+  return std::max(0, requestedDeviceId);
+}
+
+void loadModel(std::string modelPath, ModelSession &session,
+               int executionProvider = EP_CPU, int executionDeviceId = 0) {
+  spdlog::debug("loadModel called with path: {}, EP: {}, device_id: {}",
+                modelPath, executionProvider, executionDeviceId);
 
   // Create env
   try {
@@ -84,18 +222,38 @@ void loadModel(std::string modelPath, ModelSession &session, int executionProvid
   bool using_gpu_ep = false;
   if (executionProvider != EP_CPU) {
     std::string ep_name;
+    std::unordered_map<std::string, std::string> ep_options;
+    const int resolvedDeviceId =
+        resolveExecutionDeviceId(executionProvider, executionDeviceId);
     switch (executionProvider) {
       case EP_COREML: ep_name = "CoreML"; break;
       case EP_DIRECTML: ep_name = "DML"; break;
       case EP_NNAPI: ep_name = "NNAPI"; break;
+      case EP_CUDA:
+        ep_name = "CUDA";
+        break;
       default: break;
     }
     if (!ep_name.empty()) {
       try {
-        std::unordered_map<std::string, std::string> ep_options;
-        session.options.AppendExecutionProvider(ep_name, ep_options);
+        if (executionProvider == EP_CUDA) {
+          OrtCUDAProviderOptions cudaOptions;
+          cudaOptions.device_id = resolvedDeviceId;
+          cudaOptions.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
+          session.options.AppendExecutionProvider_CUDA(cudaOptions);
+        } else {
+          if (executionProvider == EP_DIRECTML && resolvedDeviceId > 0) {
+            ep_options["device_id"] = std::to_string(resolvedDeviceId);
+          }
+          session.options.AppendExecutionProvider(ep_name, ep_options);
+        }
         using_gpu_ep = true;
-        spdlog::info("Using {} execution provider", ep_name);
+        if (executionProvider == EP_CUDA || executionProvider == EP_DIRECTML) {
+          spdlog::info("Using {} execution provider (device_id={})", ep_name,
+                       resolvedDeviceId);
+        } else {
+          spdlog::info("Using {} execution provider", ep_name);
+        }
       } catch (const Ort::Exception& e) {
         spdlog::warn("{} EP not available, falling back to CPU: {}", ep_name, e.what());
         // Reset options since they might be in an inconsistent state
@@ -170,6 +328,10 @@ void loadModel(std::string modelPath, ModelSession &session, int executionProvid
     } else if (name == "sid") {
       session.hasMultiSpeaker = true;
       spdlog::debug("Model supports multi-speaker (sid input)");
+    } else if (name == "lid" || name == "language_id") {
+      session.hasLidInput = true;
+      session.lidInputName = name;
+      spdlog::debug("Model supports language selection ({} input)", name);
     }
   }
 }
@@ -177,7 +339,8 @@ void loadModel(std::string modelPath, ModelSession &session, int executionProvid
 // Load Onnx model and JSON config file
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
-               std::optional<SpeakerId> &speakerId, int executionProvider) {
+               std::optional<SpeakerId> &speakerId, int executionProvider,
+               int executionDeviceId) {
   spdlog::debug("loadVoice called with modelPath={}, configPath={}", modelPath, modelConfigPath);
   spdlog::debug("Parsing voice config at {}", modelConfigPath);
   std::ifstream modelConfigFile(modelConfigPath);
@@ -202,7 +365,26 @@ void loadVoice(PiperConfig &config, std::string modelPath,
 
   spdlog::debug("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
 
-  loadModel(modelPath, voice.session, executionProvider);
+  if (voice.phonemizeConfig.phonemeType == TextPhonemes ||
+      voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
+    for (const auto &candidate : get_cmudict_candidates(modelPath, modelConfigPath)) {
+      if (!candidate.empty() && std::filesystem::exists(candidate)) {
+        if (loadCmuDict(candidate.string(), voice.cmuDict)) {
+          spdlog::info("Loaded English CMU dictionary from {}", candidate.string());
+          break;
+        }
+      }
+    }
+
+    if (voice.cmuDict.empty() &&
+        (voice.phonemizeConfig.phonemeType == TextPhonemes ||
+         (voice.modelConfig.languageIdMap &&
+          voice.modelConfig.languageIdMap->count("en") > 0))) {
+      spdlog::warn("English CMU dictionary was not found. English text phonemization will fail until cmudict_data.json is provided.");
+    }
+  }
+
+  loadModel(modelPath, voice.session, executionProvider, executionDeviceId);
 
 } /* loadVoice */
 
@@ -248,11 +430,30 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
       (int64_t)synthesisConfig.speakerId.value_or(0)};
   std::vector<int64_t> speakerIdShape{(int64_t)speakerId.size()};
 
+  int64_t resolvedLanguageId =
+      static_cast<int64_t>(synthesisConfig.languageId.value_or(0));
+  if (voice != nullptr &&
+      (resolvedLanguageId < 0 ||
+       resolvedLanguageId >= static_cast<int64_t>(voice->modelConfig.numLanguages))) {
+    spdlog::warn("language_id {} is out of range for this model (num_languages={}); using 0",
+                 resolvedLanguageId, voice->modelConfig.numLanguages);
+    resolvedLanguageId = 0;
+  }
+  std::vector<int64_t> languageId{resolvedLanguageId};
+  std::vector<int64_t> languageIdShape{(int64_t)languageId.size()};
+
   if (session.hasMultiSpeaker) {
     inputTensors.push_back(Ort::Value::CreateTensor<int64_t>(
         memoryInfo, speakerId.data(), speakerId.size(), speakerIdShape.data(),
         speakerIdShape.size()));
     inputNamesVec.push_back("sid");
+  }
+
+  if (session.hasLidInput) {
+    inputTensors.push_back(Ort::Value::CreateTensor<int64_t>(
+        memoryInfo, languageId.data(), languageId.size(), languageIdShape.data(),
+        languageIdShape.size()));
+    inputNamesVec.push_back(session.lidInputName.c_str());
   }
 
   // Add prosody features if model supports them and they are provided
@@ -368,6 +569,16 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,
                  std::vector<int16_t> &audioBuffer, SynthesisResult &result,
                  const std::function<void()> &audioCallback) {
+  ScopedLanguageIdRestore languageIdRestore(voice);
+  result.inferSeconds = 0.0;
+  result.audioSeconds = 0.0;
+  result.realTimeFactor = 0.0;
+  result.phonemeTimings.clear();
+  result.hasTimingInfo = false;
+
+  if (voice.customDictionary) {
+    text = applyCustomDictionaryToTextSegments(text, voice.customDictionary.get());
+  }
 
   std::size_t sentenceSilenceSamples = 0;
   if (voice.synthesisConfig.sentenceSilenceSeconds > 0) {
@@ -386,7 +597,7 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
   // Prosody features for each sentence (only used for OpenJTalk with prosody-enabled models)
   std::vector<std::vector<ProsodyFeature>> allProsodyFeatures;
   bool useProsody = voice.session.hasProsodyInput &&
-                    voice.phonemizeConfig.phonemeType == OpenJTalkPhonemes;
+                    usesOpenJTalk(voice.phonemizeConfig.phonemeType);
 
   // Process each segment
   for (const auto& segment : textSegments) {
@@ -400,7 +611,7 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
 
       // Add empty prosody features for direct phoneme input
       if (useProsody) {
-        std::vector<ProsodyFeature> emptyProsody(parsedPhonemes.size(), {0, 0, 0});
+        std::vector<ProsodyFeature> emptyProsody = make_zero_prosody(parsedPhonemes.size());
         allProsodyFeatures.push_back(std::move(emptyProsody));
       }
     } else {
@@ -422,9 +633,103 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
           throw std::runtime_error("OpenJTalk is not available or failed to process Japanese text. "
                                    "Cannot synthesize Japanese without OpenJTalk.");
         }
+      } else if (voice.phonemizeConfig.phonemeType == TextPhonemes) {
+        if (voice.cmuDict.empty()) {
+          throw std::runtime_error("English CMU dictionary is not loaded. Provide cmudict_data.json next to the model or config.");
+        }
+
+        phonemize_english(segment.text, segmentPhonemes, voice.cmuDict);
+        if (segmentPhonemes.empty() && !segment.text.empty()) {
+          throw std::runtime_error("English phonemization failed for non-empty input.");
+        }
+      } else if (voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
+        const std::vector<std::string> languages = get_multilingual_languages(voice);
+        const std::string defaultLatin = get_default_latin_language(voice, languages);
+        UnicodeLanguageDetector detector(languages, defaultLatin);
+        auto languageSegments = detector.segmentText(segment.text);
+
+        std::vector<Phoneme> combinedPhonemes;
+        std::vector<ProsodyFeature> combinedProsody;
+
+        for (const auto &languageSegment : languageSegments) {
+          std::vector<std::vector<Phoneme>> languagePhonemes;
+          std::vector<std::vector<ProsodyFeature>> languageProsody;
+
+          if (languageSegment.lang == "ja") {
+            if (useProsody) {
+              phonemize_openjtalk_with_prosody(languageSegment.text, languagePhonemes,
+                                               languageProsody);
+            } else {
+              phonemize_openjtalk(languageSegment.text, languagePhonemes);
+            }
+
+            for (std::size_t sentenceIndex = 0; sentenceIndex < languagePhonemes.size();
+                 ++sentenceIndex) {
+              const auto &jaSentence = languagePhonemes[sentenceIndex];
+              const auto &jaProsody =
+                  sentenceIndex < languageProsody.size()
+                      ? languageProsody[sentenceIndex]
+                      : make_zero_prosody(jaSentence.size());
+
+              for (std::size_t phonemeIndex = 0; phonemeIndex < jaSentence.size();
+                   ++phonemeIndex) {
+                if (is_openjtalk_boundary_token(jaSentence[phonemeIndex])) {
+                  continue;
+                }
+
+                combinedPhonemes.push_back(jaSentence[phonemeIndex]);
+                if (useProsody) {
+                  if (phonemeIndex < jaProsody.size()) {
+                    combinedProsody.push_back(jaProsody[phonemeIndex]);
+                  } else {
+                    combinedProsody.push_back({0, 0, 0});
+                  }
+                }
+              }
+            }
+          } else if (languageSegment.lang == "en") {
+            if (voice.cmuDict.empty()) {
+              throw std::runtime_error("English CMU dictionary is not loaded. Provide cmudict_data.json next to the model, config, or addons/piper_plus/dictionaries.");
+            }
+
+            phonemize_english(languageSegment.text, languagePhonemes, voice.cmuDict);
+            for (const auto &sentence : languagePhonemes) {
+              combinedPhonemes.insert(combinedPhonemes.end(), sentence.begin(), sentence.end());
+              if (useProsody) {
+                auto zeroProsody = make_zero_prosody(sentence.size());
+                combinedProsody.insert(combinedProsody.end(), zeroProsody.begin(),
+                                       zeroProsody.end());
+              }
+            }
+          } else {
+            spdlog::debug("Skipping unsupported multilingual segment '{}'", languageSegment.lang);
+          }
+        }
+
+        if (!combinedPhonemes.empty()) {
+          segmentPhonemes.push_back(std::move(combinedPhonemes));
+          if (useProsody) {
+            segmentProsody.push_back(std::move(combinedProsody));
+          }
+        }
+
+        if (!languageSegments.empty() && !languageIdRestore.original().has_value() &&
+            voice.modelConfig.languageIdMap) {
+          const std::string dominantLanguage =
+              detectDominantLanguage(segment.text, detector);
+          auto langIt = voice.modelConfig.languageIdMap->find(dominantLanguage);
+          if (langIt != voice.modelConfig.languageIdMap->end()) {
+            voice.synthesisConfig.languageId = langIt->second;
+            spdlog::debug("Auto-selected dominant language '{}' (lid={})",
+                          dominantLanguage, langIt->second);
+          }
+        }
+
+        if (segmentPhonemes.empty() && !segment.text.empty()) {
+          throw std::runtime_error("Multilingual phonemization failed for non-empty input.");
+        }
       } else {
-        // TextPhonemes: not supported in GDExtension (no espeak, no codepoints)
-        throw std::runtime_error("Only OpenJTalkPhonemes phoneme type is currently supported.");
+        throw std::runtime_error("Unsupported phoneme type.");
       }
 
       // Add all sentences from this segment
@@ -436,7 +741,8 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
             allProsodyFeatures.push_back(std::move(segmentProsody[i]));
           } else {
             // Fallback: create zero prosody features
-            std::vector<ProsodyFeature> zeroProsody(phonemes.back().size(), {0, 0, 0});
+            std::vector<ProsodyFeature> zeroProsody =
+                make_zero_prosody(phonemes.back().size());
             allProsodyFeatures.push_back(std::move(zeroProsody));
           }
         }
@@ -447,6 +753,7 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
   // Synthesize each sentence independently.
   std::vector<PhonemeId> phonemeIds;
   std::map<Phoneme, std::size_t> missingPhonemes;
+  double timingOffsetSeconds = 0.0;
   size_t sentenceIdx = 0;
   for (auto phonemesIter = phonemes.begin(); phonemesIter != phonemes.end();
        ++phonemesIter, ++sentenceIdx) {
@@ -616,8 +923,21 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
                       numPhonemeIds, sentenceProsody.size());
       }
 
-      synthesize(phonemeIds, voice.synthesisConfig, voice.session, audioBuffer,
-                 phraseResults[phraseIdx], &voice, prosodyPtr);
+      std::vector<int16_t> phraseAudioBuffer;
+      synthesize(phonemeIds, voice.synthesisConfig, voice.session,
+                 phraseAudioBuffer, phraseResults[phraseIdx], &voice,
+                 prosodyPtr);
+      audioBuffer.insert(audioBuffer.end(), phraseAudioBuffer.begin(),
+                         phraseAudioBuffer.end());
+
+      if (phraseResults[phraseIdx].hasTimingInfo) {
+        result.hasTimingInfo = true;
+        for (auto timing : phraseResults[phraseIdx].phonemeTimings) {
+          timing.start_time += static_cast<float>(timingOffsetSeconds);
+          timing.end_time += static_cast<float>(timingOffsetSeconds);
+          result.phonemeTimings.push_back(std::move(timing));
+        }
+      }
 
       // Add end of phrase silence
       for (std::size_t i = 0; i < phraseSilenceSamples[phraseIdx]; i++) {
@@ -626,6 +946,14 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
 
       result.audioSeconds += phraseResults[phraseIdx].audioSeconds;
       result.inferSeconds += phraseResults[phraseIdx].inferSeconds;
+      timingOffsetSeconds += phraseResults[phraseIdx].audioSeconds;
+      if (phraseSilenceSamples[phraseIdx] > 0) {
+        result.audioSeconds +=
+            static_cast<double>(phraseSilenceSamples[phraseIdx]) /
+            static_cast<double>(voice.synthesisConfig.sampleRate);
+        timingOffsetSeconds += static_cast<double>(phraseSilenceSamples[phraseIdx]) /
+                               static_cast<double>(voice.synthesisConfig.sampleRate);
+      }
 
       phonemeIds.clear();
     }
@@ -635,6 +963,10 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
       for (std::size_t i = 0; i < sentenceSilenceSamples; i++) {
         audioBuffer.push_back(0);
       }
+      result.audioSeconds += static_cast<double>(sentenceSilenceSamples) /
+                             static_cast<double>(voice.synthesisConfig.sampleRate);
+      timingOffsetSeconds += static_cast<double>(sentenceSilenceSamples) /
+                             static_cast<double>(voice.synthesisConfig.sampleRate);
     }
 
     if (audioCallback) {
@@ -664,44 +996,273 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
 
 } /* textToAudio */
 
+void inspectText(PiperConfig &config, Voice &voice, std::string text,
+                 InspectionResult &result) {
+  ScopedLanguageIdRestore languageIdRestore(voice);
+  result.phonemeSentences.clear();
+  result.phonemeIdSentences.clear();
+  result.missingPhonemes.clear();
+  result.resolvedLanguageId.reset();
+
+  if (voice.customDictionary) {
+    text = applyCustomDictionaryToTextSegments(text, voice.customDictionary.get());
+  }
+
+  auto textSegments = parsePhonemeNotation(text);
+  bool useProsody = voice.session.hasProsodyInput &&
+                    usesOpenJTalk(voice.phonemizeConfig.phonemeType);
+
+  for (const auto &segment : textSegments) {
+    if (segment.isPhonemes) {
+      result.phonemeSentences.push_back(parsePhonemeString(
+          segment.text, static_cast<int>(voice.phonemizeConfig.phonemeType)));
+      continue;
+    }
+
+    std::vector<std::vector<Phoneme>> segmentPhonemes;
+    std::vector<std::vector<ProsodyFeature>> segmentProsody;
+
+    if (voice.phonemizeConfig.phonemeType == OpenJTalkPhonemes) {
+      if (useProsody) {
+        phonemize_openjtalk_with_prosody(segment.text, segmentPhonemes, segmentProsody);
+      } else {
+        phonemize_openjtalk(segment.text, segmentPhonemes);
+      }
+
+      if (segmentPhonemes.empty() && !segment.text.empty()) {
+        throw std::runtime_error("OpenJTalk is not available or failed to process Japanese text.");
+      }
+    } else if (voice.phonemizeConfig.phonemeType == TextPhonemes) {
+      if (voice.cmuDict.empty()) {
+        throw std::runtime_error("English CMU dictionary is not loaded. Provide cmudict_data.json next to the model or config.");
+      }
+
+      phonemize_english(segment.text, segmentPhonemes, voice.cmuDict);
+      if (segmentPhonemes.empty() && !segment.text.empty()) {
+        throw std::runtime_error("English phonemization failed for non-empty input.");
+      }
+    } else if (voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
+      const std::vector<std::string> languages = get_multilingual_languages(voice);
+      const std::string defaultLatin = get_default_latin_language(voice, languages);
+      UnicodeLanguageDetector detector(languages, defaultLatin);
+      auto languageSegments = detector.segmentText(segment.text);
+
+      std::vector<Phoneme> combinedPhonemes;
+      for (const auto &languageSegment : languageSegments) {
+        std::vector<std::vector<Phoneme>> languagePhonemes;
+        std::vector<std::vector<ProsodyFeature>> languageProsody;
+
+        if (languageSegment.lang == "ja") {
+          if (useProsody) {
+            phonemize_openjtalk_with_prosody(languageSegment.text, languagePhonemes,
+                                             languageProsody);
+          } else {
+            phonemize_openjtalk(languageSegment.text, languagePhonemes);
+          }
+
+          for (const auto &jaSentence : languagePhonemes) {
+            for (Phoneme phoneme : jaSentence) {
+              if (!is_openjtalk_boundary_token(phoneme)) {
+                combinedPhonemes.push_back(phoneme);
+              }
+            }
+          }
+        } else if (languageSegment.lang == "en") {
+          if (voice.cmuDict.empty()) {
+            throw std::runtime_error("English CMU dictionary is not loaded. Provide cmudict_data.json next to the model, config, or addons/piper_plus/dictionaries.");
+          }
+
+          phonemize_english(languageSegment.text, languagePhonemes, voice.cmuDict);
+          for (const auto &sentence : languagePhonemes) {
+            combinedPhonemes.insert(combinedPhonemes.end(), sentence.begin(), sentence.end());
+          }
+        }
+      }
+
+      if (!combinedPhonemes.empty()) {
+        segmentPhonemes.push_back(std::move(combinedPhonemes));
+      }
+
+      if (!languageSegments.empty() && !languageIdRestore.original().has_value() &&
+          voice.modelConfig.languageIdMap) {
+        const std::string dominantLanguage =
+            detectDominantLanguage(segment.text, detector);
+        auto langIt = voice.modelConfig.languageIdMap->find(dominantLanguage);
+        if (langIt != voice.modelConfig.languageIdMap->end()) {
+          voice.synthesisConfig.languageId = langIt->second;
+        }
+      }
+
+      if (segmentPhonemes.empty() && !segment.text.empty()) {
+        throw std::runtime_error("Multilingual phonemization failed for non-empty input.");
+      }
+    } else {
+      throw std::runtime_error("Unsupported phoneme type.");
+    }
+
+    for (auto &sentence : segmentPhonemes) {
+      result.phonemeSentences.push_back(std::move(sentence));
+    }
+  }
+
+  result.resolvedLanguageId = voice.synthesisConfig.languageId;
+
+  PhonemeIdConfig idConfig;
+  idConfig.phonemeIdMap =
+      std::make_shared<PhonemeIdMap>(voice.phonemizeConfig.phonemeIdMap);
+  idConfig.interspersePad = voice.phonemizeConfig.interspersePad;
+  idConfig.addBos = true;
+  idConfig.addEos = true;
+
+  for (const auto &sentencePhonemes : result.phonemeSentences) {
+    std::vector<PhonemeId> ids;
+    phonemes_to_ids(sentencePhonemes, idConfig, ids, result.missingPhonemes);
+    result.phonemeIdSentences.push_back(std::move(ids));
+  }
+}
+
 // Synthesize audio directly from phonemes
 void phonemesToAudio(PiperConfig &config, Voice &voice,
                      const std::vector<Phoneme> &phonemes,
                      std::vector<int16_t> &audioBuffer,
                      SynthesisResult &result,
                      const std::function<void()> &audioCallback) {
+  result.inferSeconds = 0.0;
+  result.audioSeconds = 0.0;
+  result.realTimeFactor = 0.0;
+  result.phonemeTimings.clear();
+  result.hasTimingInfo = false;
 
-  // Convert phonemes to IDs
+  std::size_t sentenceSilenceSamples = 0;
+  if (voice.synthesisConfig.sentenceSilenceSeconds > 0) {
+    sentenceSilenceSamples = static_cast<std::size_t>(
+        voice.synthesisConfig.sentenceSilenceSeconds *
+        voice.synthesisConfig.sampleRate * voice.synthesisConfig.channels);
+  }
+
+  std::vector<std::vector<Phoneme>> phrasePhonemes;
+  std::vector<std::size_t> phraseSilenceSamples;
+  if (voice.synthesisConfig.phonemeSilenceSeconds) {
+    const std::map<Phoneme, float> &phonemeSilenceSeconds =
+        *voice.synthesisConfig.phonemeSilenceSeconds;
+    phrasePhonemes.emplace_back();
+
+    for (const auto &phoneme : phonemes) {
+      phrasePhonemes.back().push_back(phoneme);
+      auto silenceIter = phonemeSilenceSeconds.find(phoneme);
+      if (silenceIter == phonemeSilenceSeconds.end()) {
+        continue;
+      }
+
+      phraseSilenceSamples.push_back(static_cast<std::size_t>(
+          silenceIter->second * voice.synthesisConfig.sampleRate *
+          voice.synthesisConfig.channels));
+      phrasePhonemes.emplace_back();
+    }
+  } else {
+    phrasePhonemes.push_back(phonemes);
+  }
+
+  while (phraseSilenceSamples.size() < phrasePhonemes.size()) {
+    phraseSilenceSamples.push_back(0);
+  }
+
   std::vector<PhonemeId> phonemeIds;
   std::map<Phoneme, std::size_t> missingPhonemes;
+  double timingOffsetSeconds = 0.0;
 
   PhonemeIdConfig idConfig;
   idConfig.phonemeIdMap =
       std::make_shared<PhonemeIdMap>(voice.phonemizeConfig.phonemeIdMap);
   idConfig.interspersePad = voice.phonemizeConfig.interspersePad;
-
-  // The phonemes_to_ids function handles BOS/EOS automatically based on addBos/addEos flags
   idConfig.addBos = true;
   idConfig.addEos = true;
 
-  // Convert phonemes to IDs
-  phonemes_to_ids(phonemes, idConfig, phonemeIds, missingPhonemes);
+  for (std::size_t phraseIdx = 0; phraseIdx < phrasePhonemes.size(); ++phraseIdx) {
+    if (phrasePhonemes[phraseIdx].empty()) {
+      continue;
+    }
 
-  // Report missing phonemes
+    phonemes_to_ids(phrasePhonemes[phraseIdx], idConfig, phonemeIds, missingPhonemes);
+
+    SynthesisResult phraseResult;
+    std::vector<int16_t> phraseAudioBuffer;
+    synthesize(phonemeIds, voice.synthesisConfig, voice.session,
+               phraseAudioBuffer, phraseResult, &voice);
+    audioBuffer.insert(audioBuffer.end(), phraseAudioBuffer.begin(),
+                       phraseAudioBuffer.end());
+
+    if (phraseResult.hasTimingInfo) {
+      result.hasTimingInfo = true;
+      for (auto timing : phraseResult.phonemeTimings) {
+        timing.start_time += static_cast<float>(timingOffsetSeconds);
+        timing.end_time += static_cast<float>(timingOffsetSeconds);
+        result.phonemeTimings.push_back(std::move(timing));
+      }
+    }
+
+    result.audioSeconds += phraseResult.audioSeconds;
+    result.inferSeconds += phraseResult.inferSeconds;
+    timingOffsetSeconds += phraseResult.audioSeconds;
+
+    for (std::size_t i = 0; i < phraseSilenceSamples[phraseIdx]; ++i) {
+      audioBuffer.push_back(0);
+    }
+    if (phraseSilenceSamples[phraseIdx] > 0) {
+      const double silenceSeconds =
+          static_cast<double>(phraseSilenceSamples[phraseIdx]) /
+          static_cast<double>(voice.synthesisConfig.sampleRate);
+      result.audioSeconds += silenceSeconds;
+      timingOffsetSeconds += silenceSeconds;
+    }
+  }
+
+  if (sentenceSilenceSamples > 0) {
+    for (std::size_t i = 0; i < sentenceSilenceSamples; ++i) {
+      audioBuffer.push_back(0);
+    }
+    const double silenceSeconds =
+        static_cast<double>(sentenceSilenceSamples) /
+        static_cast<double>(voice.synthesisConfig.sampleRate);
+    result.audioSeconds += silenceSeconds;
+    timingOffsetSeconds += silenceSeconds;
+  }
+
   if (!missingPhonemes.empty()) {
-    for (auto& [phoneme, count] : missingPhonemes) {
+    for (auto &[phoneme, count] : missingPhonemes) {
       spdlog::warn("Missing phoneme: '{}' ({})", phonemeToString(phoneme), count);
     }
   }
 
-  // Synthesize audio
-  synthesize(phonemeIds, voice.synthesisConfig, voice.session, audioBuffer, result, &voice);
+  if (result.audioSeconds > 0) {
+    result.realTimeFactor = result.inferSeconds / result.audioSeconds;
+  }
 
-  // Call the audio callback if provided
   if (audioCallback) {
     audioCallback();
   }
 
 } /* phonemesToAudio */
+
+void inspectPhonemes(Voice &voice, const std::vector<Phoneme> &phonemes,
+                     InspectionResult &result) {
+  result.phonemeSentences.clear();
+  result.phonemeIdSentences.clear();
+  result.missingPhonemes.clear();
+  result.resolvedLanguageId = voice.synthesisConfig.languageId;
+
+  result.phonemeSentences.push_back(phonemes);
+
+  PhonemeIdConfig idConfig;
+  idConfig.phonemeIdMap =
+      std::make_shared<PhonemeIdMap>(voice.phonemizeConfig.phonemeIdMap);
+  idConfig.interspersePad = voice.phonemizeConfig.interspersePad;
+  idConfig.addBos = true;
+  idConfig.addEos = true;
+
+  std::vector<PhonemeId> ids;
+  phonemes_to_ids(phonemes, idConfig, ids, result.missingPhonemes);
+  result.phonemeIdSentences.push_back(std::move(ids));
+}
 
 } // namespace piper

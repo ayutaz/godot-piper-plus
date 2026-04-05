@@ -46,7 +46,7 @@ const DOWNLOAD_ITEMS: Dictionary = {
 	},
 	"en_US-ljspeech-medium": {
 		"type": "model",
-		"description": "English LJSpeech model (medium quality, ~60 MB) [NOT YET FUNCTIONAL - English G2P unimplemented]",
+		"description": "English LJSpeech model (medium quality, ~60 MB)",
 		"dest": "res://addons/piper_plus/models/en_US-ljspeech-medium/",
 		"files": [
 			{
@@ -72,6 +72,8 @@ const DOWNLOAD_ITEMS: Dictionary = {
 		],
 	},
 }
+
+const OPENJTALK_DICT_PATH := "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
 
 # ---------------------------------------------------------------------------
 # Internal state keys (used as node names / meta)
@@ -181,6 +183,56 @@ static func create_dialog() -> AcceptDialog:
 	)
 
 	return dialog
+
+
+static func list_item_keys() -> PackedStringArray:
+	var keys := PackedStringArray()
+	for key in DOWNLOAD_ITEMS.keys():
+		keys.append(String(key))
+	return keys
+
+
+static func list_model_item_keys() -> PackedStringArray:
+	var keys := PackedStringArray()
+	for key in DOWNLOAD_ITEMS.keys():
+		var item := Dictionary(DOWNLOAD_ITEMS[key])
+		if String(item.get("type", "")) == "model":
+			keys.append(String(key))
+	return keys
+
+
+static func get_item_definition(key: String) -> Dictionary:
+	if not DOWNLOAD_ITEMS.has(key):
+		return {}
+	return Dictionary(DOWNLOAD_ITEMS[key]).duplicate(true)
+
+
+static func get_primary_model_path(key: String) -> String:
+	var item := get_item_definition(key)
+	if item.is_empty() or String(item.get("type", "")) != "model":
+		return ""
+
+	var dest := String(item.get("dest", ""))
+	var files: Array = item.get("files", [])
+	for file_entry: Dictionary in files:
+		var filename := String(file_entry.get("filename", ""))
+		if filename.ends_with(".onnx"):
+			return dest + filename
+	return ""
+
+
+static func get_recommended_dictionary_path(key: String) -> String:
+	if key == "ja_JP-test-medium" or key == "tsukuyomi-chan":
+		if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OPENJTALK_DICT_PATH)):
+			return OPENJTALK_DICT_PATH
+	return ""
+
+
+static func is_item_installed(key: String) -> bool:
+	var item := get_item_definition(key)
+	if item.is_empty():
+		return false
+	return _is_item_installed(key, item)
 
 
 # ---------------------------------------------------------------------------
