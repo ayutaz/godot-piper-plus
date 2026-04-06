@@ -60,6 +60,3 @@ text = "Initialize"
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 
 [node name="PiperTTS" type="PiperTTS" parent="."]
-model_path = "res://addons/piper_plus/models/ja_JP-test-medium.onnx"
-config_path = "res://addons/piper_plus/models/ja_JP-test-medium.onnx.json"
-dictionary_path = "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
