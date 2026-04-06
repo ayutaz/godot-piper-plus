@@ -6,7 +6,7 @@
 	<description>
 		Integrates the piper-plus VITS neural text-to-speech engine into Godot as a node. It supports Japanese text via the builtin OpenJTalk path or an optional [code]openjtalk-native[/code] shared library, English text via the bundled CMU-based G2P path, capability-based multilingual routing, exact [member language_code] resolution with conflict validation, raw phoneme input, and inspection utilities that expose phoneme routing and timing metadata without requiring custom engine bindings.
 		Set [member model_path] and any optional configuration members, then call [method initialize] before synthesis or inspection. [member model_path] can point to a concrete [code].onnx[/code] file, a directory that contains a single matching model, or a registered bundled model key/alias. If [member config_path] is empty, the node falls back to [code]&lt;model&gt;.json[/code] and then [code]config.json[/code] next to the resolved model.
-		Use [method synthesize], [method synthesize_request], or [method synthesize_phoneme_string] for synchronous synthesis, [method synthesize_async] or [method synthesize_async_request] for worker-thread synthesis, and [method synthesize_streaming] or [method synthesize_streaming_request] for low-latency streamed playback. Use [method inspect_text], [method inspect_request], or [method inspect_phoneme_string] to inspect phoneme output without generating audio. The most recent synthesis and inspection metadata is cached in [method get_last_synthesis_result] and [method get_last_inspection_result].
+		Use [method synthesize], [method synthesize_request], or [method synthesize_phoneme_string] for synchronous synthesis, [method synthesize_async] or [method synthesize_async_request] for worker-thread synthesis, and [method synthesize_streaming] or [method synthesize_streaming_request] for low-latency streamed playback. Use [method inspect_text], [method inspect_request], or [method inspect_phoneme_string] to inspect phoneme output without generating audio. The most recent synthesis and inspection metadata is cached in [method get_last_synthesis_result] and [method get_last_inspection_result], [method get_language_capabilities] exposes the loaded model contract, and [method get_last_error] exposes machine-readable validation and routing failures.
 		For multilingual text input, [code]ja[/code] and [code]en[/code] can be auto-routed as preview languages, [code]es[/code] / [code]fr[/code] / [code]pt[/code] are experimental explicit-only adapters, and [code]zh[/code] remains phoneme-only because a text phonemizer is not implemented. The canonical support matrix is documented in [code]tests/fixtures/multilingual_capability_matrix.json[/code] and rendered for humans in [code]docs/generated/multilingual_capability_matrix.md[/code].
 		Set [member execution_provider] to use GPU acceleration on supported platforms (CoreML on macOS/iOS, DirectML on Windows, NNAPI on Android, CUDA when built with a CUDA-enabled ONNX Runtime package). Use [member gpu_device_id] to pick a non-default CUDA/DirectML device when the selected execution provider supports it.
 		[codeblocks]
@@ -53,7 +53,7 @@
 			<description>
 				Flexible synchronous synthesis entry point. The request must contain exactly one input source: [code]text[/code], [code]phoneme_string[/code], or [code]phonemes[/code]. [code]phonemes[/code] may be a [PackedStringArray], [Array], or [String], and is normalized into a single raw phoneme string before synthesis.
 				Optional per-request overrides include [code]speaker_id[/code], [code]language_id[/code], [code]language_code[/code], [code]speech_rate[/code], [code]noise_scale[/code], [code]noise_w[/code], [code]sentence_silence_seconds[/code] (or the alias [code]sentence_silence[/code]), and [code]phoneme_silence_seconds[/code] (or the alias [code]phoneme_silence[/code]).
-				Returns [code]null[/code] on validation or synthesis failure. On success, [method get_last_synthesis_result] is updated. The result dictionary contains [code]input_mode[/code], [code]sample_rate[/code], [code]infer_seconds[/code], [code]audio_seconds[/code], [code]real_time_factor[/code], [code]has_timing_info[/code], [code]phoneme_timings[/code], [code]sentence_silence_seconds[/code], [code]phoneme_silence_seconds[/code], [code]resolved_language_id[/code], and [code]resolved_language_code[/code].
+				Returns [code]null[/code] on validation or synthesis failure. On success, [method get_last_synthesis_result] is updated. The result dictionary contains [code]input_mode[/code], [code]sample_rate[/code], [code]infer_seconds[/code], [code]audio_seconds[/code], [code]real_time_factor[/code], [code]has_timing_info[/code], [code]phoneme_timings[/code], [code]sentence_silence_seconds[/code], [code]phoneme_silence_seconds[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]selection_mode[/code], and [code]resolved_segments[/code].
 			</description>
 		</method>
 		<method name="synthesize_phoneme_string">
@@ -97,7 +97,7 @@
 			<return type="Dictionary" />
 			<param index="0" name="text" type="String" />
 			<description>
-				Inspects the given text without generating audio and returns a dictionary describing the resolved phoneme sentences. The returned dictionary includes [code]phoneme_sentences[/code], [code]phoneme_id_sentences[/code], [code]missing_phonemes[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]input_mode[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
+				Inspects the given text without generating audio and returns a dictionary describing the resolved phoneme sentences. The returned dictionary includes [code]phoneme_sentences[/code], [code]phoneme_id_sentences[/code], [code]missing_phonemes[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]selection_mode[/code], [code]resolved_segments[/code], [code]input_mode[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
 				Returns an empty dictionary if the node is not initialized, synthesis is already running, validation fails, or inspection throws an error. On success, [method get_last_inspection_result] is updated.
 			</description>
 		</method>
@@ -105,7 +105,7 @@
 			<return type="Dictionary" />
 			<param index="0" name="request" type="Dictionary" />
 			<description>
-				Flexible inspection entry point that accepts the same request dictionary schema as [method synthesize_request], but performs phonemization and routing inspection only. Raw phoneme input remains grouped as a single sentence in [code]phoneme_sentences[/code] and [code]phoneme_id_sentences[/code].
+				Flexible inspection entry point that accepts the same request dictionary schema as [method synthesize_request], but performs phonemization and routing inspection only. Raw phoneme input remains grouped as a single sentence in [code]phoneme_sentences[/code] and [code]phoneme_id_sentences[/code]. On success the dictionary also reports [code]selection_mode[/code] and [code]resolved_segments[/code] so request routing can be compared directly with [method synthesize_request].
 				Returns an empty dictionary on validation failure or if the node is busy or uninitialized. On success, [method get_last_inspection_result] is updated. When phoneme input is supplied, the dictionary reports [code]input_mode = "phoneme_string"[/code].
 			</description>
 		</method>
@@ -121,14 +121,14 @@
 			<return type="Dictionary" />
 			<description>
 				Returns the most recent synthesis metadata dictionary produced by [method synthesize], [method synthesize_request], [method synthesize_phoneme_string], [method synthesize_async], [method synthesize_async_request], [method synthesize_streaming], or [method synthesize_streaming_request].
-				The dictionary is empty until a synthesis succeeds. On success it contains [code]input_mode[/code], [code]sample_rate[/code], [code]infer_seconds[/code], [code]audio_seconds[/code], [code]real_time_factor[/code], [code]has_timing_info[/code], [code]phoneme_timings[/code], [code]sentence_silence_seconds[/code], [code]phoneme_silence_seconds[/code], [code]resolved_language_id[/code], and [code]resolved_language_code[/code]. Each item in [code]phoneme_timings[/code] is a dictionary with [code]phoneme[/code], [code]start_time[/code], [code]end_time[/code], [code]start_frame[/code], and [code]end_frame[/code].
+				The dictionary is empty until a synthesis succeeds. On success it contains [code]input_mode[/code], [code]sample_rate[/code], [code]infer_seconds[/code], [code]audio_seconds[/code], [code]real_time_factor[/code], [code]has_timing_info[/code], [code]phoneme_timings[/code], [code]sentence_silence_seconds[/code], [code]phoneme_silence_seconds[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]selection_mode[/code], and [code]resolved_segments[/code]. Each item in [code]phoneme_timings[/code] is a dictionary with [code]phoneme[/code], [code]start_time[/code], [code]end_time[/code], [code]start_frame[/code], and [code]end_frame[/code]. Each item in [code]resolved_segments[/code] includes [code]text[/code], [code]language_code[/code], [code]language_id[/code], [code]selection_mode[/code], and [code]is_phoneme_input[/code].
 			</description>
 		</method>
 		<method name="get_last_inspection_result" qualifiers="const">
 			<return type="Dictionary" />
 			<description>
 				Returns the most recent inspection metadata dictionary produced by [method inspect_text], [method inspect_request], or [method inspect_phoneme_string].
-				The dictionary is empty until an inspection succeeds. On success it contains [code]phoneme_sentences[/code], [code]phoneme_id_sentences[/code], [code]missing_phonemes[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]input_mode[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
+				The dictionary is empty until an inspection succeeds. On success it contains [code]phoneme_sentences[/code], [code]phoneme_id_sentences[/code], [code]missing_phonemes[/code], [code]resolved_language_id[/code], [code]resolved_language_code[/code], [code]selection_mode[/code], [code]resolved_segments[/code], [code]input_mode[/code], [code]sentence_silence_seconds[/code], and [code]phoneme_silence_seconds[/code].
 			</description>
 		</method>
 		<method name="get_language_capabilities" qualifiers="const">
@@ -166,7 +166,7 @@
 			<param index="1" name="playback" type="AudioStreamGeneratorPlayback" />
 			<description>
 				Streaming variant of [method synthesize_request]. The request schema matches [method synthesize_request], including raw phoneme input. The [param playback] requirements are the same as [method synthesize_streaming].
-				When all audio has been pushed to the playback, the [signal streaming_ended] signal is emitted. On failure, the [signal synthesis_failed] signal is emitted.
+				When all audio has been pushed to the playback, the [signal streaming_ended] signal is emitted and [method get_last_synthesis_result] contains the same routing metadata shape as [method synthesize_request], including [code]selection_mode[/code] and [code]resolved_segments[/code]. On failure, the [signal synthesis_failed] signal is emitted.
 			</description>
 		</method>
 	</methods>
@@ -234,18 +234,18 @@
 		<signal name="synthesis_completed">
 			<param index="0" name="audio" type="AudioStreamWAV" />
 			<description>
-				Emitted when [method synthesize_async] finishes successfully. [param audio] contains the synthesized speech as an [AudioStreamWAV] (22050 Hz, 16-bit PCM). This signal is emitted on the main thread and is safe to use for updating the scene.
+				Emitted when [method synthesize_async] or [method synthesize_async_request] finishes successfully. [param audio] contains the synthesized speech as an [AudioStreamWAV] (22050 Hz, 16-bit PCM). This signal is emitted on the main thread and is safe to use for updating the scene.
 			</description>
 		</signal>
 		<signal name="synthesis_failed">
 			<param index="0" name="error" type="String" />
 			<description>
-				Emitted when [method synthesize_async] or [method synthesize_streaming] fails. [param error] contains a human-readable error message describing the cause of the failure.
+				Emitted when [method synthesize_async], [method synthesize_async_request], [method synthesize_streaming], or [method synthesize_streaming_request] fails. [param error] contains a human-readable error message describing the cause of the failure.
 			</description>
 		</signal>
 		<signal name="streaming_ended">
 			<description>
-				Emitted when [method synthesize_streaming] has finished pushing all audio chunks to the playback buffer. This signal is emitted on the main thread.
+				Emitted when [method synthesize_streaming] or [method synthesize_streaming_request] has finished pushing all audio chunks to the playback buffer. This signal is emitted on the main thread.
 			</description>
 		</signal>
 	</signals>

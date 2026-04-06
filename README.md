@@ -32,6 +32,7 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 - 日本語 OpenJTalk と英語 CMU 辞書ベース G2P を使った text input 合成
 - bilingual / multilingual モデルに対する capability-based routing
+- `get_language_capabilities()` / `get_last_error()` による multilingual contract と machine-readable failure の取得
 - `language_id` と `language_code` による言語選択
 - `model_path` の実ファイル指定、モデル名/エイリアス解決、`config_path` fallback
 - `synthesize_request` / `inspect_request` による request ベース API
@@ -39,6 +40,7 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 - `sentence_silence_seconds` / `phoneme_silence_seconds` の制御
 - `inspect_*` と `get_last_synthesis_result()` による dry-run / timing / 結果取得
 - `custom_dictionary_path` による辞書前処理と `[[ phonemes ]]` 直入力
+- `resolved_segments` を含む inspection / synthesis metadata の取得
 - `openjtalk_library_path` による `openjtalk-native` shared library 指定と builtin OpenJTalk fallback
 - `execution_provider = EP_CUDA` と `gpu_device_id` による GPU device 指定
 - Inspector 拡張、preset 適用、テスト発話 UI、モデル downloader、辞書 editor
@@ -48,8 +50,8 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 
 ## 検証状況
 
-- 2026-03-23 時点で `ctest --test-dir build-p1-debug -C Debug --output-on-failure` は `123/123` pass
-- 2026-03-23 時点で Windows の source build は `test/prepare-assets.sh` 相当で asset を同期した上で Godot headless の `test/project` を完走できます
+- 2026-04-06 時点で `ctest --test-dir build-p1-debug -C Debug --output-on-failure` は `131/131` pass です。multilingual capability matrix の freshness check と matrix-first C++ test を含みます
+- 2026-04-06 時点で Godot headless の `test/project` は `32 pass / 0 fail / 1 skip` です。skip は OpenJTalk dictionary asset が無い環境の既知ケースで、multilingual request / streaming test は通過しています
 - 2026-03-23 時点で `scripts/ci/package-addon.sh` は `.gdextension` に書かれた debug / release binary を全 platform 分拾い、Windows の `onnxruntime_providers_shared.dll` も package へ含めます
 - 2026-03-23 時点で `scripts/ci/validate-addon-package.sh` は manifest 上の全 binary / dependency を検証し、local で Windows だけの partial package を渡した場合も Android/iOS binary 欠落で失敗することを確認しています
 - 2026-03-23 時点で Windows の packaged addon は、現在の local build bin から組み立てた package を使う headless smoke (`scripts/ci/smoke-test-packaged-addon.sh`) で再確認済みです

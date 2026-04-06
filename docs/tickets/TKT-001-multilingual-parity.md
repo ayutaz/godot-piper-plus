@@ -1,6 +1,6 @@
 # TKT-001 multilingual parity 拡張
 
-- 状態: `進行中`
+- 状態: `完了`
 - 主マイルストーン: [M2 Language / Model / Backend 完成](../milestones.md#m2)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5), [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-3` `FR-4` `FR-6` `NFR-5`
@@ -9,10 +9,18 @@
 
 ## 進捗
 
-- [ ] capability matrix を正本化する
-- [ ] MVP と stretch の境界を固定する
-- [ ] matrix-first の C++ / headless test を追加する
-- [ ] README / API 文書 / milestone を capability-based に揃える
+- [x] capability matrix を正本化する
+- [x] MVP と stretch の境界を固定する
+- [x] matrix-first の C++ / headless test を追加する
+- [x] README / API 文書 / milestone を capability-based に揃える
+
+## 完了メモ
+
+- multilingual contract は `tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として固定しました。
+- `PiperTTS` は `get_language_capabilities()`、`get_last_error()`、`resolved_segments`、`synthesize_streaming_request()` を含む capability-first contract に更新済みです。
+- request ごとの `SynthesisConfig` を使う request-local routing に揃え、`inspect_*` と `synthesize_*` の language resolution を共通化しました。
+- `es` / `fr` / `pt` は `experimental explicit-only`、`zh` は `phoneme-only` / `raw_phoneme_only` として machine-readable に露出しています。
+- 検証は `ctest --test-dir build-p1-debug -C Debug --output-on-failure` で `131/131` pass、`godot_console.exe --path test/project --headless` で `32 pass / 0 fail / 1 skip` です。skip は OpenJTalk dictionary asset が無い既知ケースです。
 
 ## タスク目的とゴール
 
@@ -31,6 +39,8 @@
 - unsupported language は説明可能な failure を返し、silent skip をしないこと。
 
 ## Stretch
+
+以下は今回の ticket 完了範囲外です。必要になった時点で別 ticket または `M5` / `TKT-007` 側へ切り出します。
 
 - `ja/en` 以外で auto-routing を許可する言語を、script 判定と golden test が揃った範囲に限定して追加する。
 - 複数の upstream model family をまたぐ capability matrix を追加する。
@@ -78,8 +88,8 @@
 ## 実装する e2e テスト
 
 - headless の `test/project` で multilingual model を使い、capability matrix に沿った inspection と最小合成を流す。
-- packaged addon smoke では addon load と 1 つの explicit-only path、1 つの unsupported path を確認する。
-- release 前に対象言語マトリクスを CI の pass/fail 条件へ組み込む。
+- packaged addon smoke での explicit-only / unsupported path の最終確認は `M5` と `TKT-003` から `TKT-007` へ引き継ぐ。
+- release 前の broader CI matrix への昇格は `M5` と `TKT-007` 側で扱う。
 
 ## 実装に関する懸念事項
 

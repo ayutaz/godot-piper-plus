@@ -191,7 +191,6 @@ release 判定の対象 platform は次のとおりです。
 - Android arm64 export smoke / runtime 確認と必要修正
 - Windows local Android export の generic configuration error 切り分け
 - iOS arm64 export/link smoke の初回 CI 結果確認と必要修正
-- `ja/en` を超える multilingual parity 拡張の対象言語、routing 方針、検証ケースの確定
 - Web 向け GDExtension build / export 導線と runtime 検証方法の確立
 - 上記結果を反映した package / 文書の最終化
 
