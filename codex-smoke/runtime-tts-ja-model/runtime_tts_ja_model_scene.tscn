@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://ct3ie1hav2fr7"]
+
+[ext_resource type="Script" path="res://codex-smoke/runtime-tts-ja-model/runtime_tts_ja_model.gd" id="1_7goan"]
+
+[node name="RuntimeTtsJaModelRoot" type="Control" unique_id=235145650]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_7goan")
+
+[node name="StatusLabel" type="Label" parent="." unique_id=1247332596]
+layout_mode = 0
+text = "booting"
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1760251653]
+
+[node name="PiperTTS" type="PiperTTS" parent="." unique_id=433160110]
