@@ -201,4 +201,5 @@ release 判定の対象 platform は次のとおりです。
 - `doc_classes/PiperTTS.xml`
 - `docs/milestones.md`
 - `docs/tickets/README.md`
+- `docs/web-platform-research.md`
 - `CHANGELOG.md`

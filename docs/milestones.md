@@ -22,7 +22,7 @@
 | 進行中 | M4 Packaging / Documentation 完成 | `FR-9` `NFR-6` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package assembly / validator と addon 文書は整備済み。multilingual contract は反映済みで、残りは platform / Web 結果の最終反映 |
 | 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-001](./tickets/TKT-001-multilingual-parity.md) [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証は整備済み。残りは Web と platform smoke の最終 gate 化 |
 | 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) | Windows / Linux は概ね確定。macOS / Android / iOS は初回結果の確認と必要修正が残る |
-| 未着手 | M7 Web Support 完成 | `FR-10` | [TKT-002](./tickets/TKT-002-web-platform.md) | `web.*` entry、build / export 導線、browser runtime 検証が未整備 |
+| 進行中 | M7 Web Support 完成 | `FR-10` | [TKT-002](./tickets/TKT-002-web-platform.md) | feasibility と設計方針は整理済み。残りは custom template、`web.*` manifest、browser runtime 検証の実装 |
 | 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-001](./tickets/TKT-001-multilingual-parity.md) [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package / README / changelog の基礎と multilingual 反映は完了。残りは platform / Web 結果の最終反映と申請導線の確定 |
 
 ## マイルストーン詳細
@@ -117,9 +117,9 @@
 ### M7 Web Support 完成
 
 - 対象要求: `FR-10`
-- 状態: `未着手`
+- 状態: `進行中`
 - 関連チケット: [TKT-002 Web Platform 対応](./tickets/TKT-002-web-platform.md)
-- 現状: `web.*` 向け GDExtension entry、build / export 導線、runtime backend 制約、browser smoke test は未整備です。
+- 現状: feasibility と設計メモは [docs/web-platform-research.md](./web-platform-research.md) に整理済みです。`web.*` 向け GDExtension entry、build / export 導線、runtime backend 実装、browser smoke test は未整備です。
 - 残作業:
   - Web の対象アーキテクチャ、利用可能 backend、制約事項を定義する
   - `web.*` entry と package 反映を実装する

@@ -1,6 +1,6 @@
 # TKT-002 Web Platform 対応
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -9,10 +9,15 @@
 
 ## 進捗
 
-- [ ] Web backend と制約の feasibility を確定する
+- [x] Web backend と制約の feasibility を確定する
 - [ ] `web.*` manifest / package / build 導線を実装する
 - [ ] browser smoke 手順を自動化する
 - [ ] README と package 文書へ制約を反映する
+
+## 技術調査
+
+- 設計と一次ソース調査は [docs/web-platform-research.md](../web-platform-research.md) に集約しています。
+- 現時点の推奨方針は、`preview` 扱いの Web 対応として custom dlink template、CPU-only backend、browser smoke を先に閉じることです。
 
 ## タスク目的とゴール
 
