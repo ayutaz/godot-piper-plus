@@ -20,11 +20,11 @@ const DOWNLOAD_ITEMS: Dictionary = {
 		"dest": "res://addons/piper_plus/models/ja_JP-test-medium/",
 		"files": [
 			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/ja_JP-test-medium.onnx",
+				"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx?download=true",
 				"filename": "ja_JP-test-medium.onnx",
 			},
 			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/ja_JP-test-medium.onnx.json",
+				"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx.json?download=true",
 				"filename": "ja_JP-test-medium.onnx.json",
 			},
 		],
@@ -65,7 +65,7 @@ const DOWNLOAD_ITEMS: Dictionary = {
 		"dest": "res://addons/piper_plus/dictionaries/",
 		"files": [
 			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/open_jtalk_dic_utf_8-1.11.zip",
+				"url": "https://huggingface.co/ccds/vits_onnx/resolve/main/open_jtalk_dic_utf_8-1.11.zip?download=true",
 				"filename": "open_jtalk_dic_utf_8-1.11.zip",
 				"extract": true,
 			},
@@ -223,7 +223,7 @@ static func get_primary_model_path(key: String) -> String:
 
 static func get_recommended_dictionary_path(key: String) -> String:
 	if key == "ja_JP-test-medium" or key == "tsukuyomi-chan":
-		if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OPENJTALK_DICT_PATH)):
+		if _has_compiled_openjtalk_dictionary(OPENJTALK_DICT_PATH):
 			return OPENJTALK_DICT_PATH
 	return ""
 
@@ -242,11 +242,9 @@ static func is_item_installed(key: String) -> bool:
 static func _is_item_installed(key: String, item: Dictionary) -> bool:
 	var dest: String = item["dest"]
 	var files: Array = item["files"]
-	# For zip-extracted dictionaries, check if the destination directory has content
+	# A Japanese dictionary is usable only after the compiled OpenJTalk files exist.
 	if item["type"] == "dictionary":
-		return DirAccess.dir_exists_absolute(
-			ProjectSettings.globalize_path(dest + "open_jtalk_dic_utf_8-1.11")
-		)
+		return _has_compiled_openjtalk_dictionary(dest + "open_jtalk_dic_utf_8-1.11")
 	# For models, check if all non-zip files exist
 	for file_entry: Dictionary in files:
 		var extract: bool = file_entry.get("extract", false)
@@ -255,6 +253,18 @@ static func _is_item_installed(key: String, item: Dictionary) -> bool:
 		var full_path: String = dest + file_entry["filename"]
 		if not FileAccess.file_exists(full_path):
 			return false
+	return true
+
+
+static func _has_compiled_openjtalk_dictionary(path: String) -> bool:
+	var absolute_path := ProjectSettings.globalize_path(path)
+	if not DirAccess.dir_exists_absolute(absolute_path):
+		return false
+
+	for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
+		if not FileAccess.file_exists(absolute_path.path_join(required_file)):
+			return false
+
 	return true
 
 

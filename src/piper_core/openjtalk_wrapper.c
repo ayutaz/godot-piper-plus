@@ -291,7 +291,7 @@ int openjtalk_ensure_dictionary(void) {
 
     fprintf(stderr,
             "OpenJTalk dictionary is not ready at: %s\n"
-            "Expected compiled dictionary files: dicrc, sys.dic, unk.dic, matrix.bin, char.bin\n",
+            "Expected compiled dictionary files: sys.dic, unk.dic, matrix.bin, char.bin\n",
             dic_path ? dic_path : "(null)");
     return 0;
 }

@@ -17,10 +17,9 @@
 
 // Dictionary directory name
 #define DICTIONARY_DIR "open_jtalk_dic_utf_8-1.11"
-#define OPENJTALK_REQUIRED_FILE_COUNT 5
+#define OPENJTALK_REQUIRED_FILE_COUNT 4
 
 static const char* OPENJTALK_REQUIRED_FILES[OPENJTALK_REQUIRED_FILE_COUNT] = {
-    "dicrc",
     "sys.dic",
     "unk.dic",
     "matrix.bin",
@@ -184,7 +183,7 @@ int ensure_openjtalk_dictionary(void) {
 
     fprintf(stderr,
         "OpenJTalk dictionary is not ready at: %s\n"
-        "Expected compiled dictionary files: dicrc, sys.dic, unk.dic, matrix.bin, char.bin\n"
+        "Expected compiled dictionary files: sys.dic, unk.dic, matrix.bin, char.bin\n"
         "Please use the Godot editor plugin (PiperTTS > Model Downloader) to download it,\n"
         "or set the OPENJTALK_DICTIONARY_PATH environment variable,\n"
         "or set the dictionary_path property on PiperTTS node.\n",

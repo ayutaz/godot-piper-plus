@@ -166,7 +166,7 @@ func _has_compiled_openjtalk_dictionary(bundle: Dictionary) -> bool:
     if not DirAccess.dir_exists_absolute(absolute_path):
         return false
 
-    for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin", "dicrc"]:
+    for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
         if not FileAccess.file_exists(absolute_path.path_join(required_file)):
             return false
 
