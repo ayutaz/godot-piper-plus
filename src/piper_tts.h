@@ -22,6 +22,7 @@
 // Forward declarations
 namespace piper {
 struct PiperConfig;
+struct SynthesisConfig;
 struct SynthesisResult;
 struct Voice;
 } // namespace piper
@@ -65,6 +66,7 @@ private:
 	std::unique_ptr<piper::Voice> voice;
 	Dictionary last_synthesis_result_;
 	Dictionary last_inspection_result_;
+	Dictionary last_error_;
 
 	// Async synthesis state
 	std::atomic<bool> processing{false};
@@ -89,13 +91,17 @@ private:
 	Ref<AudioStreamWAV> create_audio_stream(const std::vector<int16_t> &audio_buffer, int sample_rate) const;
 
 	// Async internal methods (called via call_deferred from worker thread)
-	void _synthesis_thread_func(std::string text_str, uint32_t generation);
+	void _synthesis_thread_func(std::string text_str, std::string phoneme_string,
+			bool has_phoneme_string, piper::SynthesisConfig synthesis_config,
+			uint32_t generation);
 	void _on_synthesis_raw_done(const PackedByteArray &pcm_data, int sample_rate, uint32_t generation);
 	void _on_synthesis_failed(const String &error_msg, uint32_t generation);
 	void _join_worker_thread();
 
 	// Streaming internal methods (M6)
-	void _streaming_thread_func(std::string text_str, uint32_t generation);
+	void _streaming_thread_func(std::string text_str, std::string phoneme_string,
+			bool has_phoneme_string, piper::SynthesisConfig synthesis_config,
+			uint32_t generation);
 	void _push_pending_samples();
 
 protected:
@@ -162,15 +168,20 @@ public:
 	Dictionary inspect_phoneme_string(const String &phoneme_string);
 	Dictionary get_last_synthesis_result() const;
 	Dictionary get_last_inspection_result() const;
+	Dictionary get_language_capabilities() const;
+	Dictionary get_last_error() const;
 
 	// Methods (M3: async)
 	Error synthesize_async(const String &text);
+	Error synthesize_async_request(const Dictionary &request);
 	void stop();
 	bool is_processing() const;
 
 	// Methods (M6: streaming)
 	void _process(double p_delta) override;
 	Error synthesize_streaming(const String &text, const Ref<AudioStreamGeneratorPlayback> &playback);
+	Error synthesize_streaming_request(
+			const Dictionary &request, const Ref<AudioStreamGeneratorPlayback> &playback);
 
 	// Signals:
 	//   initialized(success: bool)

@@ -8,6 +8,7 @@ const BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
 
 var _async_completed_audio = null
 var _async_failed_error := ""
+var _streaming_completed := false
 
 func _addon_available() -> bool:
     return ClassDB.class_exists("PiperTTS")
@@ -20,6 +21,9 @@ func _create_tts():
 func _cleanup_tts(tts) -> void:
     if is_instance_valid(tts):
         tts.stop()
+        var parent: Node = tts.get_parent()
+        if parent != null:
+            parent.remove_child(tts)
         tts.free()
 
 func _has_property(object: Object, property_name: String) -> bool:
@@ -100,6 +104,41 @@ func _load_bundle_config(bundle: Dictionary) -> Dictionary:
 
     return parsed
 
+func _repo_root_path() -> String:
+    var current := ProjectSettings.globalize_path("res://")
+    for _i in range(8):
+        var candidate := current.path_join("tests/fixtures/multilingual_capability_matrix.json")
+        if FileAccess.file_exists(candidate):
+            return current
+        var parent := current.get_base_dir()
+        if parent == current or parent.is_empty():
+            break
+        current = parent
+    return ""
+
+func _load_multilingual_capability_matrix() -> Array:
+    var repo_root := _repo_root_path()
+    if repo_root.is_empty():
+        return []
+    var fixture_path := repo_root.path_join("tests/fixtures/multilingual_capability_matrix.json")
+    if not FileAccess.file_exists(fixture_path):
+        return []
+
+    var text := FileAccess.get_file_as_string(fixture_path)
+    if text.is_empty():
+        return []
+
+    var parsed = JSON.parse_string(text)
+    if typeof(parsed) != TYPE_ARRAY:
+        return []
+    return parsed
+
+func _matrix_row_by_code(rows: Array, language_code: String) -> Dictionary:
+    for row in rows:
+        if typeof(row) == TYPE_DICTIONARY and String(row.get("language_code", "")) == language_code:
+            return row
+    return {}
+
 func _preferred_test_language_code(bundle: Dictionary) -> String:
     var env_language := OS.get_environment("PIPER_TEST_LANGUAGE_CODE").strip_edges()
     if not env_language.is_empty():
@@ -127,6 +166,38 @@ func _on_synthesis_completed_for_test(audio) -> void:
 
 func _on_synthesis_failed_for_test(error: String) -> void:
     _async_failed_error = error
+
+func _on_streaming_ended_for_test() -> void:
+    _streaming_completed = true
+
+func _create_streaming_playback() -> Dictionary:
+    var tree := Engine.get_main_loop() as SceneTree
+    if tree == null or tree.root == null:
+        return {}
+
+    var container := Node.new()
+    tree.root.add_child(container)
+
+    var player := AudioStreamPlayer.new()
+    var generator := AudioStreamGenerator.new()
+    generator.mix_rate = 22050
+    generator.buffer_length = 0.1
+    player.stream = generator
+    container.add_child(player)
+    player.play()
+
+    for _i in range(30):
+        var playback = player.get_stream_playback()
+        if playback is AudioStreamGeneratorPlayback:
+            return {
+                "container": container,
+                "player": player,
+                "playback": playback,
+            }
+        await tree.process_frame
+
+    container.queue_free()
+    return {}
 
 func _configure_test_model(tts) -> bool:
     var bundle = _model_bundle()
@@ -204,7 +275,12 @@ func list_test_names() -> Array[String]:
         "test_is_processing_default",
         "test_initialize_with_model",
         "test_directory_model_path_resolution",
+        "test_language_capabilities",
         "test_language_code_normalization",
+        "test_language_code_exact_match_selection_mode",
+        "test_multilingual_explicit_language_variants",
+        "test_multilingual_unsupported_language_rejected_for_text",
+        "test_multilingual_language_selector_conflict_rejected",
         "test_gpu_device_id_clamp",
         "test_invalid_openjtalk_library_path_falls_back",
         "test_initialize_with_config_fallback",
@@ -217,6 +293,8 @@ func list_test_names() -> Array[String]:
         "test_question_marker_phoneme_string",
         "test_synthesize_request_with_sentence_silence",
         "test_synthesize_async",
+        "test_synthesize_async_request",
+        "test_synthesize_streaming_request",
         "test_audio_stream_format",
         "test_last_synthesis_result_timing",
     ]
@@ -226,7 +304,10 @@ func run_test(method_name: String) -> void:
         failures.append("Unknown test: %s" % method_name)
         return
 
-    if method_name == "test_synthesize_async":
+    if method_name == "test_synthesize_async" or method_name == "test_synthesize_async_request":
+        await Callable(self, method_name).call()
+        return
+    if method_name == "test_synthesize_streaming_request":
         await Callable(self, method_name).call()
         return
 
@@ -275,6 +356,8 @@ func test_properties() -> void:
     assert_equal(tts.sentence_silence_seconds, 0.35, "sentence_silence_seconds should round-trip")
     assert_equal(tts.phoneme_silence_seconds, {"a": 0.05, "?!": 0.1}, "phoneme_silence_seconds should round-trip")
     assert_equal(tts.gpu_device_id, 2, "gpu_device_id should round-trip")
+    assert_true(tts.has_method("synthesize_async_request"), "PiperTTS should expose synthesize_async_request()")
+    assert_true(tts.has_method("synthesize_streaming_request"), "PiperTTS should expose synthesize_streaming_request()")
     _cleanup_tts(tts)
 
 func test_speech_rate_range() -> void:
@@ -385,6 +468,73 @@ func test_directory_model_path_resolution() -> void:
     assert_true(tts.is_ready(), "PiperTTS should be ready after resolving a model directory")
     _cleanup_tts(tts)
 
+func test_language_capabilities() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    assert_equal(tts.initialize(), OK, "initialize() should succeed before querying language capabilities")
+    if not _require_method(tts, "get_language_capabilities") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    var capabilities: Dictionary = tts.get_language_capabilities()
+    var available_codes: PackedStringArray = capabilities.get("available_language_codes", PackedStringArray())
+    var auto_route_codes: PackedStringArray = capabilities.get("auto_route_language_codes", PackedStringArray())
+    var explicit_only_codes: PackedStringArray = capabilities.get("explicit_only_language_codes", PackedStringArray())
+    var phoneme_only_codes: PackedStringArray = capabilities.get("phoneme_only_language_codes", PackedStringArray())
+    var preview_codes: PackedStringArray = capabilities.get("preview_language_codes", PackedStringArray())
+    var experimental_codes: PackedStringArray = capabilities.get("experimental_language_codes", PackedStringArray())
+    var language_entries: Array = capabilities.get("languages", [])
+
+    assert_true(bool(capabilities.get("has_language_id_map", false)), "get_language_capabilities() should report the multilingual model language_id_map")
+    assert_true(bool(capabilities.get("supports_text_input", false)), "get_language_capabilities() should report that the multilingual model supports text input")
+    assert_equal(String(capabilities.get("default_language_code", "")), "en", "get_language_capabilities() should default the multilingual model to en")
+
+    var expected_languages := {
+        "ja": {"support_tier": "preview", "frontend_backend": "openjtalk", "routing_mode": "auto", "text_supported": true, "auto_supported": true},
+        "en": {"support_tier": "preview", "frontend_backend": "cmu_dict", "routing_mode": "auto", "text_supported": true, "auto_supported": true},
+        "es": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
+        "fr": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
+        "pt": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
+        "zh": {"support_tier": "phoneme_only", "frontend_backend": "raw_phoneme_only", "routing_mode": "phoneme_only", "text_supported": false, "auto_supported": false},
+    }
+
+    for language_code in expected_languages.keys():
+        var expected: Dictionary = expected_languages[language_code]
+        assert_true(available_codes.has(language_code), "get_language_capabilities() should list %s as an available language" % language_code)
+        var entry := _matrix_row_by_code(language_entries, language_code)
+        assert_false(entry.is_empty(), "get_language_capabilities().languages should include %s" % language_code)
+        if entry.is_empty():
+            continue
+        assert_equal(String(entry.get("support_tier", "")), String(expected.get("support_tier", "")), "get_language_capabilities().languages should expose support_tier for %s" % language_code)
+        assert_equal(String(entry.get("frontend_backend", "")), String(expected.get("frontend_backend", "")), "get_language_capabilities().languages should expose frontend_backend for %s" % language_code)
+        assert_equal(String(entry.get("routing_mode", "")), String(expected.get("routing_mode", "")), "get_language_capabilities().languages should expose routing_mode for %s" % language_code)
+        assert_equal(bool(entry.get("text_supported", false)), bool(expected.get("text_supported", false)), "get_language_capabilities().languages should expose text_supported for %s" % language_code)
+        assert_equal(bool(entry.get("auto_supported", false)), bool(expected.get("auto_supported", false)), "get_language_capabilities().languages should expose auto_supported for %s" % language_code)
+
+    for code in ["ja", "en"]:
+        assert_true(auto_route_codes.has(code), "get_language_capabilities() should include %s in auto_route_language_codes" % code)
+        assert_true(preview_codes.has(code), "get_language_capabilities() should include %s in preview_language_codes" % code)
+        assert_true(explicit_only_codes.has(code) == false, "get_language_capabilities() should not list %s in explicit_only_language_codes" % code)
+    for code in ["es", "fr", "pt"]:
+        assert_true(explicit_only_codes.has(code), "get_language_capabilities() should include %s in explicit_only_language_codes" % code)
+        assert_true(experimental_codes.has(code), "get_language_capabilities() should include %s in experimental_language_codes" % code)
+    assert_true(phoneme_only_codes.has("zh"), "get_language_capabilities() should include zh in phoneme_only_language_codes")
+
+    assert_true(tts.get_last_error().is_empty(), "successful get_language_capabilities() should not set last_error")
+    _cleanup_tts(tts)
+
 func test_language_code_normalization() -> void:
     var tts = _create_tts()
     if tts == null:
@@ -409,6 +559,165 @@ func test_language_code_normalization() -> void:
     var inspected: Dictionary = tts.inspect_text(DEFAULT_EN_TEST_TEXT)
     assert_equal(String(inspected.get("resolved_language_code", "")), "en", "inspect_text() should resolve language_code aliases to the canonical code")
     assert_equal(int(inspected.get("resolved_language_id", -1)), 1, "inspect_text() should resolve EN_us to language_id=1 for the bundled multilingual model")
+    assert_equal(String(inspected.get("selection_mode", "")), "language_code_base", "inspect_text() should report language_code_base for EN_us")
+    assert_true(tts.get_last_error().is_empty(), "successful multilingual inspection should clear last_error")
+    _cleanup_tts(tts)
+
+func test_language_code_exact_match_selection_mode() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    tts.language_code = "fr"
+    assert_equal(tts.initialize(), OK, "initialize() should accept exact canonical language_code values")
+
+    if not _require_method(tts, "inspect_text") or not _require_method(tts, "get_last_synthesis_result"):
+        _cleanup_tts(tts)
+        return
+
+    var inspected: Dictionary = tts.inspect_text("salut ami")
+    assert_equal(String(inspected.get("resolved_language_code", "")), "fr", "inspect_text() should resolve exact language_code values")
+    assert_equal(int(inspected.get("resolved_language_id", -1)), 4, "inspect_text() should resolve fr to language_id=4 for the bundled multilingual model")
+    assert_equal(String(inspected.get("selection_mode", "")), "language_code_exact", "inspect_text() should report language_code_exact for canonical code matches")
+    var resolved_segments: Array = inspected.get("resolved_segments", [])
+    assert_true(resolved_segments.size() > 0, "inspect_text() should expose resolved_segments for multilingual routing")
+    if resolved_segments.size() > 0:
+        var first_segment: Dictionary = resolved_segments[0]
+        assert_equal(String(first_segment.get("language_code", "")), "fr", "resolved_segments should report the routed language code")
+        assert_false(bool(first_segment.get("is_phoneme_input", true)), "text routing should mark resolved_segments as text input")
+
+    var audio = tts.synthesize("salut ami")
+    assert_not_null(audio, "synthesize() should work for exact canonical language routing")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("resolved_language_code", "")), "fr", "get_last_synthesis_result() should include the resolved canonical language code")
+    assert_equal(int(synth_result.get("resolved_language_id", -1)), 4, "get_last_synthesis_result() should include the resolved language_id")
+    assert_equal(String(synth_result.get("selection_mode", "")), "language_code_exact", "get_last_synthesis_result() should include the selection mode")
+    resolved_segments = synth_result.get("resolved_segments", [])
+    assert_true(resolved_segments.size() > 0, "get_last_synthesis_result() should include resolved_segments")
+    _cleanup_tts(tts)
+
+func test_multilingual_explicit_language_variants() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    tts.language_code = " FR_fr "
+    assert_equal(tts.initialize(), OK, "initialize() should accept normalized French language_code aliases")
+
+    if not _require_method(tts, "inspect_text") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_text("salut ami")
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_true(phoneme_sentences.size() > 0, "inspect_text() should return phonemes for explicit French text routing")
+    assert_equal(String(inspected.get("resolved_language_code", "")), "fr", "inspect_text() should resolve FR_fr to the canonical French language code")
+    assert_equal(int(inspected.get("resolved_language_id", -1)), 4, "inspect_text() should resolve FR_fr to language_id=4 for the bundled multilingual model")
+    assert_equal(String(inspected.get("selection_mode", "")), "language_code_base", "inspect_text() should report language_code_base for FR_fr")
+
+    var audio = tts.synthesize("salut ami")
+    assert_not_null(audio, "synthesize() should work for explicit French text routing")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("resolved_language_code", "")), "fr", "get_last_synthesis_result() should report the canonical French code")
+    assert_equal(int(synth_result.get("resolved_language_id", -1)), 4, "get_last_synthesis_result() should report language_id=4 for French routing")
+    assert_equal(String(synth_result.get("selection_mode", "")), "language_code_base", "get_last_synthesis_result() should report language_code_base for FR_fr")
+    _cleanup_tts(tts)
+
+func test_multilingual_unsupported_language_rejected_for_text() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    assert_equal(tts.initialize(), OK, "initialize() should still succeed when no explicit language is preconfigured")
+
+    if not _require_method(tts, "inspect_request") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_request({
+        "text": "你好",
+        "language_code": "zh",
+    })
+    assert_true(inspected.is_empty(), "inspect_request() should reject unsupported multilingual text routing for zh")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_LANGUAGE_UNSUPPORTED_FOR_TEXT", "inspect_request() should record an unsupported-language error code")
+    assert_equal(String(last_error.get("stage", "")), "inspect_request", "inspect_request() should record its failure stage")
+    assert_true(tts.get_last_inspection_result().is_empty(), "failed multilingual inspection should not update get_last_inspection_result()")
+
+    var audio = tts.synthesize_request({
+        "text": "你好",
+        "language_code": "zh",
+    })
+    assert_true(audio == null, "synthesize_request() should reject unsupported multilingual text routing for zh")
+    last_error = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_LANGUAGE_UNSUPPORTED_FOR_TEXT", "synthesize_request() should record an unsupported-language error code")
+    assert_equal(String(last_error.get("stage", "")), "synthesize_request", "synthesize_request() should record its failure stage")
+    _cleanup_tts(tts)
+
+func test_multilingual_language_selector_conflict_rejected() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    assert_equal(tts.initialize(), OK, "initialize() should succeed before checking language selector conflicts")
+    if not _require_method(tts, "inspect_request") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    var conflict_request := {
+        "text": "salut ami",
+        "language_code": "fr",
+        "language_id": 1,
+    }
+    var inspected: Dictionary = tts.inspect_request(conflict_request)
+    assert_true(inspected.is_empty(), "inspect_request() should reject conflicting language_code and language_id selectors")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_LANGUAGE_SELECTOR_CONFLICT", "inspect_request() should expose a selector conflict error code")
+    assert_equal(String(last_error.get("stage", "")), "inspect_request", "inspect_request() should report the selector conflict stage")
+
+    var audio = tts.synthesize_request(conflict_request)
+    assert_true(audio == null, "synthesize_request() should reject conflicting language selectors")
+    last_error = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_LANGUAGE_SELECTOR_CONFLICT", "synthesize_request() should expose a selector conflict error code")
+    assert_equal(String(last_error.get("stage", "")), "synthesize_request", "synthesize_request() should report the selector conflict stage")
     _cleanup_tts(tts)
 
 func test_gpu_device_id_clamp() -> void:
@@ -555,6 +864,11 @@ func test_inspect_request_with_phonemes() -> void:
     if phoneme_id_sentences.size() == 1:
         var ids: PackedInt64Array = phoneme_id_sentences[0]
         assert_true(ids.size() >= 4, "inspect_request() should resolve raw phonemes to IDs")
+    var resolved_segments: Array = inspected.get("resolved_segments", [])
+    assert_equal(resolved_segments.size(), 1, "inspect_request() should expose a single resolved segment for raw phoneme input")
+    if resolved_segments.size() == 1:
+        var first_segment: Dictionary = resolved_segments[0]
+        assert_true(bool(first_segment.get("is_phoneme_input", false)), "raw phoneme inspection should mark resolved_segments as phoneme input")
 
     assert_equal(tts.get_last_inspection_result(), inspected, "inspect_request() should update get_last_inspection_result()")
     _cleanup_tts(tts)
@@ -798,6 +1112,125 @@ func test_synthesize_async() -> void:
 
     assert_true(_async_failed_error.is_empty(), "synthesize_async() should not emit synthesis_failed")
     assert_not_null(_async_completed_audio, "synthesize_async() should emit synthesis_completed")
+    _cleanup_tts(tts)
+
+func test_synthesize_async_request() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for synthesize_async_request")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_async_request") or not _require_method(tts, "get_last_synthesis_result"):
+        _cleanup_tts(tts)
+        return
+
+    _async_completed_audio = null
+    _async_failed_error = ""
+    tts.synthesis_completed.connect(_on_synthesis_completed_for_test)
+    tts.synthesis_failed.connect(_on_synthesis_failed_for_test)
+
+    assert_equal(tts.synthesize_async_request({
+        "phoneme_string": "a i",
+        "language_code": "en",
+    }), OK, "synthesize_async_request() should start successfully for raw phoneme input")
+
+    var deadline = Time.get_ticks_msec() + 15000
+    while _async_completed_audio == null and _async_failed_error.is_empty() and Time.get_ticks_msec() < deadline:
+        await Engine.get_main_loop().process_frame
+
+    if _async_completed_audio == null and _async_failed_error.is_empty():
+        await Engine.get_main_loop().process_frame
+
+    assert_true(_async_failed_error.is_empty(), "synthesize_async_request() should not emit synthesis_failed")
+    assert_not_null(_async_completed_audio, "synthesize_async_request() should emit synthesis_completed")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("input_mode", "")), "phoneme_string", "synthesize_async_request() should preserve phoneme_string input_mode")
+    var resolved_segments: Array = synth_result.get("resolved_segments", [])
+    assert_true(resolved_segments.size() > 0, "synthesize_async_request() should include resolved_segments")
+    if resolved_segments.size() > 0:
+        var first_segment: Dictionary = resolved_segments[0]
+        assert_true(bool(first_segment.get("is_phoneme_input", false)), "raw phoneme async synthesis should mark resolved_segments as phoneme input")
+    _cleanup_tts(tts)
+
+func test_synthesize_streaming_request() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var tree := Engine.get_main_loop() as SceneTree
+    if tree == null or tree.root == null:
+        skip("SceneTree is unavailable")
+        _cleanup_tts(tts)
+        return
+    tree.root.add_child(tts)
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for synthesize_streaming_request")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_streaming_request") or not _require_method(tts, "get_last_synthesis_result") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    var playback_setup := await _create_streaming_playback()
+    if playback_setup.is_empty():
+        skip("AudioStreamGeneratorPlayback is unavailable in this headless environment")
+        _cleanup_tts(tts)
+        return
+
+    if tree != null and tree.root != null and tts.get_parent() == null:
+        tree.root.add_child(tts)
+
+    _streaming_completed = false
+    tts.streaming_ended.connect(_on_streaming_ended_for_test)
+
+    var request := {
+        "text": "hello from godot",
+        "language_code": "en",
+    }
+    assert_equal(tts.synthesize_streaming_request(request, playback_setup["playback"]), OK, "synthesize_streaming_request() should start successfully")
+    assert_true(tts.get_last_error().is_empty(), "synthesize_streaming_request() should clear last_error after starting successfully")
+
+    var deadline = Time.get_ticks_msec() + 15000
+    while not _streaming_completed and Time.get_ticks_msec() < deadline:
+        await tree.process_frame
+
+    assert_true(_streaming_completed, "synthesize_streaming_request() should emit streaming_ended")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("input_mode", "")), "text", "streaming synthesis should record text input_mode")
+    assert_equal(String(synth_result.get("resolved_language_code", "")), "en", "streaming synthesis should expose the resolved language code")
+    assert_equal(int(synth_result.get("resolved_language_id", -1)), 1, "streaming synthesis should expose the resolved language_id")
+    assert_equal(String(synth_result.get("selection_mode", "")), "language_code_exact", "streaming synthesis should expose the selection mode")
+    assert_true((synth_result.get("resolved_segments", []) as Array).size() > 0, "streaming synthesis should expose resolved_segments")
+    assert_true(tts.get_last_error().is_empty(), "completed streaming synthesis should leave last_error empty")
+
+    var container = playback_setup.get("container")
+    if container != null and is_instance_valid(container):
+        container.queue_free()
     _cleanup_tts(tts)
 
 func test_audio_stream_format() -> void:

@@ -52,3 +52,12 @@ endif()
 # CTest registration
 include(GoogleTest)
 gtest_discover_tests(piper_plus_tests)
+
+if(Python3_EXECUTABLE)
+  add_test(
+    NAME multilingual_capability_matrix_codegen_check
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/tools/sync_multilingual_capability_matrix.py
+      --check
+  )
+endif()

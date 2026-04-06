@@ -74,6 +74,15 @@ func _ready() -> void:
 
 同期合成は `synthesize(text)`、request ベース制御は `synthesize_request(request)`、raw phoneme 入力は `synthesize_phoneme_string(phoneme_string)` を使います。検査用途では `inspect_*` API を使うと音声生成なしで phoneme と timing 関連の情報を取得できます。
 
+multilingual text input の現状サポートは capability matrix 基準です。
+
+- `ja` / `en`: preview auto / explicit 対応
+- `es` / `fr` / `pt`: experimental explicit-only adapter
+- `zh`: phoneme-only。text input では使えません。raw phoneme input を使ってください
+
+正本は `tests/fixtures/multilingual_capability_matrix.json`、人が読む投影は `docs/generated/multilingual_capability_matrix.md` です。詳細な support matrix はそちらを参照してください。
+runtime では `get_language_capabilities()` で loaded model の contract を取得でき、validation / routing failure は `get_last_error()` から machine-readable に確認できます。
+
 ## Editor ツール
 
 addon は次の editor command を登録します。
@@ -99,6 +108,8 @@ downloader は `res://addons/piper_plus/models/<model-name>/` と `res://addons/
 
 - 日本語 text input には `res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11` が必要です。
 - 英語 text input は同梱の `cmudict_data.json` を使います。
+- multilingual text input で `es` / `fr` / `pt` を使う場合は experimental explicit-only adapter です。
+- `zh` は multilingual model の capability には残せますが、text input では phonemize できません。
 - モデル file 自体は release archive に同梱せず、project 側で必要なものだけ配置する前提です。
 - `openjtalk_library_path` を空にするか無効な path を指定した場合は builtin OpenJTalk backend へ戻ります。
 - `EP_CUDA` は CUDA 対応 ONNX Runtime binary がある環境でのみ有効で、使えない場合は CPU fallback します。
