@@ -115,8 +115,9 @@ std::vector<Phoneme> parsePhonemeString(const std::string& phonemeStr, PhonemeTy
     while (iss >> token) {
         if (token.empty()) continue;
         
-        if (phonemeType == PHONEME_TYPE_OPENJTALK) {
-            // For Japanese, check if it's a multi-character phoneme
+        if (phonemeType == PHONEME_TYPE_OPENJTALK ||
+            phonemeType == PHONEME_TYPE_MULTILINGUAL) {
+            // Multilingual models reuse the Japanese PUA tokens for JA segments.
             auto it = japanesePhonemePUA.find(token);
             if (it != japanesePhonemePUA.end()) {
                 // Use the PUA codepoint directly
@@ -125,7 +126,7 @@ std::vector<Phoneme> parsePhonemeString(const std::string& phonemeStr, PhonemeTy
                 appendUtf8Token(token, phonemes);
             }
         } else {
-            // For espeak-ng and text phonemes
+            // For English/text phonemes, keep UTF-8 tokens as-is.
             if (token == "pau" || token == "_") {
                 // Pause marker
                 phonemes.push_back(static_cast<Phoneme>('_'));

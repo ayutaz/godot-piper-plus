@@ -21,8 +21,11 @@ env:
   ORT_VERSION: "1.24.3"
   ORT_ANDROID_SHA256: "67397e4a970e75617f765d2015ceaf911917e1d822276cfb5792744e8085cbce"
   ORT_IOS_SHA256: "b7eedc45932bac758ffd057cac0feb3f682269e47750b159e4c865145cbf0a8e"
-  GODOT_VERSION: "4.4-stable"
-  GODOT_LINUX_ZIP: "Godot_v4.4-stable_linux.x86_64.zip"
+  GODOT_VERSION: "4.4.1-stable"
+  GODOT_TEMPLATES_VERSION: "4.4.1.stable"
+  GODOT_LINUX_ZIP: "Godot_v4.4.1-stable_linux.x86_64.zip"
+  GODOT_MACOS_ZIP: "Godot_v4.4.1-stable_macos.universal.zip"
+  GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4.1-stable_export_templates.tpz"
 
 jobs:
   build-desktop:
@@ -32,9 +35,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON", parallel_level: 2 }
-          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON", parallel_level: 2 }
-          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, configure_args: "-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DCMAKE_OSX_ARCHITECTURES=arm64", parallel_level: 2 }
+          - { name: "Windows x86_64", os: windows-latest, platform: windows, arch: x86_64, extra_cmake_args: "", parallel_level: 2 }
+          - { name: "Linux x86_64", os: ubuntu-22.04, platform: linux, arch: x86_64, extra_cmake_args: "", parallel_level: 2 }
+          - { name: "macOS arm64", os: macos-latest, platform: macos, arch: arm64, extra_cmake_args: "-DCMAKE_OSX_ARCHITECTURES=arm64", parallel_level: 2 }
 
     steps:
       - name: Checkout repository
@@ -46,50 +49,69 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
-            build/h
-            build/he
-            build/o
-            build/oj
+            build-release/h
+            build-release/he
+            build-release/o
+            build-release/oj
+            build-debug/h
+            build-debug/he
+            build-debug/o
+            build-debug/oj
           key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
 
       - name: Cache ONNX Runtime
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: build/onnxruntime
+          path: |
+            build-release/onnxruntime
+            build-debug/onnxruntime
           key: ${{ matrix.platform }}-${{ matrix.arch }}-onnxruntime-${{ env.ORT_VERSION }}
 
-      - name: Configure desktop build
+      - name: Configure desktop release build
         shell: bash
-        run: cmake -B build ${{ matrix.configure_args }}
+        run: cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DGODOTCPP_TARGET=template_release ${{ matrix.extra_cmake_args }}
 
-      - name: Build desktop addon
+      - name: Build desktop release addon
         shell: bash
-        run: cmake --build build --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus
+        run: cmake --build build-release --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus
 
-      - name: Build desktop test target
+      - name: Build desktop release test target
         shell: bash
-        run: cmake --build build --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus_tests
+        run: cmake --build build-release --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus_tests
+
+      - name: Configure desktop debug build
+        shell: bash
+        run: cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=OFF -DGODOTCPP_TARGET=template_debug ${{ matrix.extra_cmake_args }}
+
+      - name: Build desktop debug addon
+        shell: bash
+        run: cmake --build build-debug --config Debug --parallel ${{ matrix.parallel_level }} --target piper_plus
 
       - name: Copy ONNX Runtime (Windows)
         if: matrix.platform == 'windows'
         shell: bash
-        run: cp build/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.windows.x86_64.dll
+        run: |
+          cp build-release/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.dll
+          cp build-release/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime.dll addons/piper_plus/bin/onnxruntime.windows.x86_64.dll
+          if [[ -f build-release/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime_providers_shared.dll ]]; then
+            cp build-release/onnxruntime/onnxruntime-win-x64-${ORT_VERSION}/lib/onnxruntime_providers_shared.dll addons/piper_plus/bin/onnxruntime_providers_shared.dll
+          fi
 
       - name: Copy ONNX Runtime (Linux)
         if: matrix.platform == 'linux'
         shell: bash
-        run: cp build/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.linux.x86_64.so
+        run: cp build-release/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.linux.x86_64.so
 
       - name: Copy ONNX Runtime (macOS)
         if: matrix.platform == 'macos'
         shell: bash
-        run: cp build/onnxruntime/onnxruntime-osx-arm64-${ORT_VERSION}/lib/libonnxruntime.dylib addons/piper_plus/bin/libonnxruntime.macos.arm64.dylib
+        run: cp build-release/onnxruntime/onnxruntime-osx-arm64-${ORT_VERSION}/lib/libonnxruntime.dylib addons/piper_plus/bin/libonnxruntime.macos.arm64.dylib
 
       - name: Collect C++ test binary
         shell: bash
         run: |
           mkdir -p ci/test-bin
-          test_bin="$(find build -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \) | head -n 1)"
+          test_bin="$(find build-release -type f \( -name 'piper_plus_tests' -o -name 'piper_plus_tests.exe' \) | head -n 1)"
           if [[ -z "$test_bin" ]]; then
             echo "piper_plus_tests binary not found" >&2
             exit 1
@@ -148,6 +170,7 @@ jobs:
   integration-linux:
     name: Linux Godot Headless Integration
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     needs:
       - build-desktop
       - test-desktop
@@ -172,13 +195,11 @@ jobs:
           grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
           sha512sum -c godot.sha512
           unzip -q "${GODOT_LINUX_ZIP}" -d /tmp/godot
-          chmod +x "/tmp/godot/Godot_v4.4-stable_linux.x86_64"
+          chmod +x "/tmp/godot/${GODOT_LINUX_ZIP%.zip}"
 
       - name: Run Linux Godot headless tests
         shell: bash
-        env:
-          GODOT: /tmp/godot/Godot_v4.4-stable_linux.x86_64
-        run: bash test/run-tests.sh
+        run: GODOT="/tmp/godot/${GODOT_LINUX_ZIP%.zip}" bash test/run-tests.sh
 
   build-mobile:
     name: Build Mobile (${{ matrix.name }})
@@ -200,10 +221,14 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
-            build/h
-            build/he
-            build/o
-            build/oj
+            build-release/h
+            build-release/he
+            build-release/o
+            build-release/oj
+            build-debug/h
+            build-debug/he
+            build-debug/o
+            build-debug/oj
           key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
 
       - name: Cache Android ONNX Runtime
@@ -245,35 +270,69 @@ jobs:
           cp ort-ios-extract/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime ort-ios/lib/libonnxruntime.a
           cp -r ort-ios-extract/Headers/* ort-ios/include/
 
-      - name: Configure Android build
+      - name: Configure Android release build
         if: matrix.platform == 'android'
         shell: bash
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+          cmake -B build-release -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-24 \
+            -DGODOTCPP_TARGET=template_release \
             -DONNXRUNTIME_DIR="$PWD/ort-android"
 
-      - name: Build Android
+      - name: Build Android release
         if: matrix.platform == 'android'
         shell: bash
-        run: cmake --build build --parallel ${{ matrix.parallel_level }} --target piper_plus
+        run: cmake --build build-release --parallel ${{ matrix.parallel_level }} --target piper_plus
 
-      - name: Configure iOS build
+      - name: Configure Android debug build
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DGODOTCPP_TARGET=template_debug \
+            -DONNXRUNTIME_DIR="$PWD/ort-android"
+
+      - name: Build Android debug
+        if: matrix.platform == 'android'
+        shell: bash
+        run: cmake --build build-debug --parallel ${{ matrix.parallel_level }} --target piper_plus
+
+      - name: Configure iOS release build
         if: matrix.platform == 'ios'
         shell: bash
         run: |
-          cmake -B build -G Xcode \
+          cmake -B build-release -G Xcode \
             -DCMAKE_TOOLCHAIN_FILE="$PWD/thirdparty/godot-cpp/cmake/ios.toolchain.cmake" \
             -DPLATFORM=OS64 \
             -DDEPLOYMENT_TARGET=15.0 \
+            -DGODOTCPP_TARGET=template_release \
             -DONNXRUNTIME_DIR="$PWD/ort-ios"
 
-      - name: Build iOS
+      - name: Build iOS release
         if: matrix.platform == 'ios'
         shell: bash
-        run: cmake --build build --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus
+        run: cmake --build build-release --config Release --parallel ${{ matrix.parallel_level }} --target piper_plus
+
+      - name: Configure iOS debug build
+        if: matrix.platform == 'ios'
+        shell: bash
+        run: |
+          cmake -B build-debug -G Xcode \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/thirdparty/godot-cpp/cmake/ios.toolchain.cmake" \
+            -DPLATFORM=OS64 \
+            -DDEPLOYMENT_TARGET=15.0 \
+            -DGODOTCPP_TARGET=template_debug \
+            -DONNXRUNTIME_DIR="$PWD/ort-ios"
+
+      - name: Build iOS debug
+        if: matrix.platform == 'ios'
+        shell: bash
+        run: cmake --build build-debug --config Debug --parallel ${{ matrix.parallel_level }} --target piper_plus
 
       - name: Copy ONNX Runtime (Android)
         if: matrix.platform == 'android'
@@ -309,7 +368,7 @@ jobs:
       - name: Prepare package
         shell: bash
         run: |
-          chmod +x scripts/ci/package-addon.sh scripts/ci/validate-addon-package.sh
+          chmod +x scripts/ci/package-addon.sh scripts/ci/validate-addon-package.sh scripts/ci/smoke-test-packaged-addon.sh
           scripts/ci/package-addon.sh artifacts package "$PWD/addons/piper_plus"
           scripts/ci/validate-addon-package.sh package/addons/piper_plus
           cd package
@@ -320,3 +379,170 @@ jobs:
         with:
           name: piper-plus-addon-package
           path: piper-plus-addon-package.zip
+
+  packaged-addon-windows:
+    name: Windows Packaged Addon Smoke Test
+    runs-on: windows-latest
+    needs: package-addon
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download packaged addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-addon-package
+          path: dist
+
+      - name: Extract packaged addon
+        shell: bash
+        run: unzip -q dist/piper-plus-addon-package.zip -d package
+
+      - name: Install Godot on Windows runner
+        shell: powershell
+        run: |
+          winget install --id GodotEngine.GodotEngine -e --accept-package-agreements --accept-source-agreements
+          "GODOT=$env:LOCALAPPDATA\\Microsoft\\WinGet\\Links\\godot_console.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run packaged addon smoke test
+        shell: bash
+        run: |
+          chmod +x scripts/ci/smoke-test-packaged-addon.sh
+          bash scripts/ci/smoke-test-packaged-addon.sh package/addons/piper_plus
+
+  packaged-addon-macos:
+    name: macOS Packaged Addon Smoke Test
+    runs-on: macos-latest
+    needs: package-addon
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download packaged addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-addon-package
+          path: dist
+
+      - name: Extract packaged addon
+        shell: bash
+        run: unzip -q dist/piper-plus-addon-package.zip -d package
+
+      - name: Download Godot macOS binary
+        shell: bash
+        run: |
+          curl -L -o "${GODOT_MACOS_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_MACOS_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_MACOS_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          shasum -a 512 -c godot.sha512
+          unzip -q "${GODOT_MACOS_ZIP}" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot.app/Contents/MacOS/Godot"
+
+      - name: Run packaged addon smoke test
+        shell: bash
+        env:
+          GODOT: ${{ runner.temp }}/godot/Godot.app/Contents/MacOS/Godot
+        run: |
+          chmod +x scripts/ci/smoke-test-packaged-addon.sh
+          bash scripts/ci/smoke-test-packaged-addon.sh package/addons/piper_plus
+
+  export-android:
+    name: Android Export Smoke
+    runs-on: ubuntu-22.04
+    needs: package-addon
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download packaged addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-addon-package
+          path: dist
+
+      - name: Extract packaged addon
+        shell: bash
+        run: unzip -q dist/piper-plus-addon-package.zip -d package
+
+      - name: Download Godot Linux binary
+        shell: bash
+        run: |
+          curl -L -o "${GODOT_LINUX_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          sha512sum -c godot.sha512
+          unzip -q "${GODOT_LINUX_ZIP}" -d /tmp/godot
+          chmod +x "/tmp/godot/${GODOT_LINUX_ZIP%.zip}"
+
+      - name: Install Godot export templates
+        shell: bash
+        run: |
+          chmod +x scripts/ci/install-godot-export-templates.sh
+          bash scripts/ci/install-godot-export-templates.sh
+
+      - name: Prepare Android SDK environment
+        shell: bash
+        run: |
+          if [[ -z "${ANDROID_SDK_ROOT:-}" && -d /usr/local/lib/android/sdk ]]; then
+            echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+            echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "${JAVA_HOME_17_X64:-}" ]]; then
+            echo "JAVA_HOME=${JAVA_HOME_17_X64}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run Android export smoke
+        shell: bash
+        run: |
+          chmod +x scripts/ci/export-android-smoke.sh
+          GODOT="/tmp/godot/${GODOT_LINUX_ZIP%.zip}" bash scripts/ci/export-android-smoke.sh package/addons/piper_plus
+
+  export-ios:
+    name: iOS Export Smoke
+    runs-on: macos-latest
+    needs: package-addon
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download packaged addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-addon-package
+          path: dist
+
+      - name: Extract packaged addon
+        shell: bash
+        run: unzip -q dist/piper-plus-addon-package.zip -d package
+
+      - name: Download Godot macOS binary
+        shell: bash
+        run: |
+          curl -L -o "${GODOT_MACOS_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_MACOS_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_MACOS_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          shasum -a 512 -c godot.sha512
+          unzip -q "${GODOT_MACOS_ZIP}" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot.app/Contents/MacOS/Godot"
+
+      - name: Install Godot export templates
+        shell: bash
+        run: |
+          chmod +x scripts/ci/install-godot-export-templates.sh
+          bash scripts/ci/install-godot-export-templates.sh
+
+      - name: Select Xcode
+        shell: bash
+        run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+
+      - name: Run iOS export smoke
+        shell: bash
+        env:
+          GODOT: ${{ runner.temp }}/godot/Godot.app/Contents/MacOS/Godot
+        run: |
+          chmod +x scripts/ci/export-ios-smoke.sh
+          bash scripts/ci/export-ios-smoke.sh package/addons/piper_plus

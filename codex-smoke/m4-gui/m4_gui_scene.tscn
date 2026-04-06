@@ -1,0 +1,62 @@
+[gd_scene format=3 uid="uid://c1bb0aq3l0bgb"]
+
+[ext_resource type="Script" uid="uid://byx2yfwwqikc" path="res://codex-smoke/m4-gui/m4_gui_scene.gd" id="1_eljmf"]
+
+[node name="M4GuiSmokeRoot" type="Control" unique_id=1076937399]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_eljmf")
+
+[node name="PlayButton" type="Button" parent="." unique_id=261443521]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 240.0
+offset_bottom = 120.0
+text = "Play Tone"
+
+[node name="StatusLabel" type="Label" parent="." unique_id=1395958045]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 150.0
+offset_right = 100.0
+offset_bottom = 173.0
+text = "booting"
+
+[node name="AudioPlayer" type="AudioStreamPlayer" parent="." unique_id=1794435990]
+
+[node name="PlayButton2" type="Button" parent="." unique_id=67717754]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 240.0
+offset_bottom = 120.0
+text = "Play Tone"
+
+[node name="StatusLabel2" type="Label" parent="." unique_id=1546108913]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 150.0
+offset_right = 100.0
+offset_bottom = 173.0
+text = "booting"
+
+[node name="AudioPlayer2" type="AudioStreamPlayer" parent="." unique_id=474556445]
+
+[node name="PlayButton3" type="Button" parent="." unique_id=222248762]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 240.0
+offset_bottom = 120.0
+text = "Play Tone"
+
+[node name="StatusLabel3" type="Label" parent="." unique_id=888318830]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 150.0
+offset_right = 100.0
+offset_bottom = 173.0
+text = "booting"
+
+[node name="AudioPlayer3" type="AudioStreamPlayer" parent="." unique_id=2055721164]

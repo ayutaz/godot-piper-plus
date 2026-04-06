@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://cgx7miy6ipgb5"]
+
+[ext_resource type="Script" uid="uid://dkbemos5lx7xl" path="res://codex-smoke/runtime-tts-ja-probe/runtime_tts_ja_probe.gd" id="1_83kjo"]
+
+[node name="RuntimeTtsJaProbeRoot" type="Control" unique_id=913334392]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_83kjo")
+
+[node name="StatusLabel" type="Label" parent="." unique_id=1556731671]
+layout_mode = 0
+text = "booting"
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=927339003]
+
+[node name="PiperTTS" type="PiperTTS" parent="." unique_id=829780314]

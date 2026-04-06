@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "pattern": "docker",
+      "replacement": "ドッカー"
+    },
+    {
+      "pattern": "GitHub",
+      "replacement": "ギットハブ"
+    }
+  ]
+}

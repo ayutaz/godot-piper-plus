@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://c5s213pnfqjjc"]
+
+[ext_resource type="Script" uid="uid://c3k0d6jgbpteu" path="res://codex-smoke/runtime-tts-check/runtime_tts_check.gd" id="1_ac1ja"]
+
+[node name="RuntimeTtsCheckRoot" type="Control" unique_id=180214344]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_ac1ja")
+
+[node name="StatusLabel" type="Label" parent="." unique_id=338623955]
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 23.0
+text = "booting"
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=158815496]
+
+[node name="PiperTTS" type="PiperTTS" parent="." unique_id=1738140012]

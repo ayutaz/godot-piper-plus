@@ -14,17 +14,32 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 
 const DOWNLOAD_ITEMS: Dictionary = {
+	"css10": {
+		"type": "model",
+		"description": "Default CSS10 6-language model (Japanese/English/Chinese/Spanish/French/Portuguese, ~40 MB)",
+		"dest": "res://addons/piper_plus/models/css10/",
+		"files": [
+			{
+				"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/css10-ja-6lang-fp16.onnx?download=true",
+				"filename": "css10-ja-6lang-fp16.onnx",
+			},
+			{
+				"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/config.json?download=true",
+				"filename": "config.json",
+			},
+		],
+	},
 	"ja_JP-test-medium": {
 		"type": "model",
 		"description": "Japanese test model (medium quality, ~60 MB)",
 		"dest": "res://addons/piper_plus/models/ja_JP-test-medium/",
 		"files": [
 			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/ja_JP-test-medium.onnx",
+				"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx?download=true",
 				"filename": "ja_JP-test-medium.onnx",
 			},
 			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/ja_JP-test-medium.onnx.json",
+				"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx.json?download=true",
 				"filename": "ja_JP-test-medium.onnx.json",
 			},
 		],
@@ -46,7 +61,7 @@ const DOWNLOAD_ITEMS: Dictionary = {
 	},
 	"en_US-ljspeech-medium": {
 		"type": "model",
-		"description": "English LJSpeech model (medium quality, ~60 MB) [NOT YET FUNCTIONAL - English G2P unimplemented]",
+		"description": "English LJSpeech model (medium quality, ~60 MB)",
 		"dest": "res://addons/piper_plus/models/en_US-ljspeech-medium/",
 		"files": [
 			{
@@ -65,13 +80,15 @@ const DOWNLOAD_ITEMS: Dictionary = {
 		"dest": "res://addons/piper_plus/dictionaries/",
 		"files": [
 			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/open_jtalk_dic_utf_8-1.11.zip",
+				"url": "https://huggingface.co/ccds/vits_onnx/resolve/main/open_jtalk_dic_utf_8-1.11.zip?download=true",
 				"filename": "open_jtalk_dic_utf_8-1.11.zip",
 				"extract": true,
 			},
 		],
 	},
 }
+
+const OPENJTALK_DICT_PATH := "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
 
 # ---------------------------------------------------------------------------
 # Internal state keys (used as node names / meta)
@@ -183,6 +200,56 @@ static func create_dialog() -> AcceptDialog:
 	return dialog
 
 
+static func list_item_keys() -> PackedStringArray:
+	var keys := PackedStringArray()
+	for key in DOWNLOAD_ITEMS.keys():
+		keys.append(String(key))
+	return keys
+
+
+static func list_model_item_keys() -> PackedStringArray:
+	var keys := PackedStringArray()
+	for key in DOWNLOAD_ITEMS.keys():
+		var item := Dictionary(DOWNLOAD_ITEMS[key])
+		if String(item.get("type", "")) == "model":
+			keys.append(String(key))
+	return keys
+
+
+static func get_item_definition(key: String) -> Dictionary:
+	if not DOWNLOAD_ITEMS.has(key):
+		return {}
+	return Dictionary(DOWNLOAD_ITEMS[key]).duplicate(true)
+
+
+static func get_primary_model_path(key: String) -> String:
+	var item := get_item_definition(key)
+	if item.is_empty() or String(item.get("type", "")) != "model":
+		return ""
+
+	var dest := String(item.get("dest", ""))
+	var files: Array = item.get("files", [])
+	for file_entry: Dictionary in files:
+		var filename := String(file_entry.get("filename", ""))
+		if filename.ends_with(".onnx"):
+			return dest + filename
+	return ""
+
+
+static func get_recommended_dictionary_path(key: String) -> String:
+	if key == "css10" or key == "ja_JP-test-medium" or key == "tsukuyomi-chan":
+		if _has_compiled_openjtalk_dictionary(OPENJTALK_DICT_PATH):
+			return OPENJTALK_DICT_PATH
+	return ""
+
+
+static func is_item_installed(key: String) -> bool:
+	var item := get_item_definition(key)
+	if item.is_empty():
+		return false
+	return _is_item_installed(key, item)
+
+
 # ---------------------------------------------------------------------------
 # Check if an item is already installed
 # ---------------------------------------------------------------------------
@@ -190,11 +257,9 @@ static func create_dialog() -> AcceptDialog:
 static func _is_item_installed(key: String, item: Dictionary) -> bool:
 	var dest: String = item["dest"]
 	var files: Array = item["files"]
-	# For zip-extracted dictionaries, check if the destination directory has content
+	# A Japanese dictionary is usable only after the compiled OpenJTalk files exist.
 	if item["type"] == "dictionary":
-		return DirAccess.dir_exists_absolute(
-			ProjectSettings.globalize_path(dest + "open_jtalk_dic_utf_8-1.11")
-		)
+		return _has_compiled_openjtalk_dictionary(dest + "open_jtalk_dic_utf_8-1.11")
 	# For models, check if all non-zip files exist
 	for file_entry: Dictionary in files:
 		var extract: bool = file_entry.get("extract", false)
@@ -203,6 +268,18 @@ static func _is_item_installed(key: String, item: Dictionary) -> bool:
 		var full_path: String = dest + file_entry["filename"]
 		if not FileAccess.file_exists(full_path):
 			return false
+	return true
+
+
+static func _has_compiled_openjtalk_dictionary(path: String) -> bool:
+	var absolute_path := ProjectSettings.globalize_path(path)
+	if not DirAccess.dir_exists_absolute(absolute_path):
+		return false
+
+	for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
+		if not FileAccess.file_exists(absolute_path.path_join(required_file)):
+			return false
+
 	return true
 
 

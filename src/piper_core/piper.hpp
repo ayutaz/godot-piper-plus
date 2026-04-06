@@ -5,8 +5,10 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <onnxruntime_cxx_api.h>
@@ -18,15 +20,19 @@ using json = nlohmann::json;
 
 namespace piper {
 
+class CustomDictionary;
+
 enum ExecutionProvider {
     EP_CPU = 0,
     EP_COREML = 1,
     EP_DIRECTML = 2,
     EP_NNAPI = 3,
     EP_AUTO = 4,
+    EP_CUDA = 5,
 };
 
 typedef int64_t SpeakerId;
+typedef int64_t LanguageId;
 
 struct PiperConfig {
   // Empty config - eSpeak and tashkeel removed for GDExtension
@@ -34,8 +40,13 @@ struct PiperConfig {
 
 enum PhonemeType {
   TextPhonemes = 0,
-  OpenJTalkPhonemes = 1
+  OpenJTalkPhonemes = 1,
+  MultilingualPhonemes = 2,
 };
+
+inline bool usesOpenJTalk(PhonemeType type) {
+  return type == OpenJTalkPhonemes || type == MultilingualPhonemes;
+}
 
 struct PhonemizeConfig {
   PhonemeType phonemeType = TextPhonemes;
@@ -62,16 +73,23 @@ struct SynthesisConfig {
   // Speaker id from 0 to numSpeakers - 1
   std::optional<SpeakerId> speakerId;
 
+  // Language id from 0 to numLanguages - 1
+  std::optional<LanguageId> languageId;
+
   // Extra silence
   float sentenceSilenceSeconds = 0.2f;
   std::optional<std::map<piper::Phoneme, float>> phonemeSilenceSeconds;
 };
 
 struct ModelConfig {
-  int numSpeakers;
+  int numSpeakers = 0;
+  int numLanguages = 1;
 
   // speaker name -> id
   std::optional<std::map<std::string, SpeakerId>> speakerIdMap;
+
+  // language code -> id
+  std::optional<std::map<std::string, LanguageId>> languageIdMap;
 };
 
 struct ModelSession {
@@ -82,6 +100,8 @@ struct ModelSession {
   bool hasDurationOutput = false;  // Whether model outputs duration information
   bool hasProsodyInput = false;    // Whether model accepts prosody_features input
   bool hasMultiSpeaker = false;    // Whether model has sid (speaker ID) input
+  bool hasLidInput = false;        // Whether model has lid (language ID) input
+  std::string lidInputName = "lid";
 
   ModelSession() : onnx(nullptr){};
 };
@@ -95,11 +115,18 @@ struct PhonemeInfo {
 };
 
 struct SynthesisResult {
-  double inferSeconds;
-  double audioSeconds;
-  double realTimeFactor;
+  double inferSeconds = 0.0;
+  double audioSeconds = 0.0;
+  double realTimeFactor = 0.0;
   std::vector<PhonemeInfo> phonemeTimings;  // Phoneme timing information
   bool hasTimingInfo = false;                // Whether timing info is available
+};
+
+struct InspectionResult {
+  std::vector<std::vector<Phoneme>> phonemeSentences;
+  std::vector<std::vector<PhonemeId>> phonemeIdSentences;
+  std::map<Phoneme, std::size_t> missingPhonemes;
+  std::optional<LanguageId> resolvedLanguageId;
 };
 
 struct Voice {
@@ -108,6 +135,8 @@ struct Voice {
   SynthesisConfig synthesisConfig;
   ModelConfig modelConfig;
   ModelSession session;
+  std::shared_ptr<CustomDictionary> customDictionary;
+  std::unordered_map<std::string, std::string> cmuDict;
 };
 
 // True if the string is a single UTF-8 codepoint
@@ -153,7 +182,8 @@ void terminate(PiperConfig &config);
 // Load Onnx model and JSON config file
 void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
-               std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU);
+               std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU,
+               int executionDeviceId = 0);
 
 // Phonemize text and synthesize audio
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,
@@ -166,6 +196,12 @@ void phonemesToAudio(PiperConfig &config, Voice &voice,
                      std::vector<int16_t> &audioBuffer,
                      SynthesisResult &result,
                      const std::function<void()> &audioCallback = nullptr);
+
+// Inspect phonemization and phoneme-id conversion without ONNX inference.
+void inspectText(PiperConfig &config, Voice &voice, std::string text,
+                 InspectionResult &result);
+void inspectPhonemes(Voice &voice, const std::vector<Phoneme> &phonemes,
+                     InspectionResult &result);
 
 } // namespace piper
 

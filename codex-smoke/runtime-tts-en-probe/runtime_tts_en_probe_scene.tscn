@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://bo6h0gfbqea1g"]
+
+[ext_resource type="Script" uid="uid://b13cvpntkexst" path="res://codex-smoke/runtime-tts-en-probe/runtime_tts_en_probe.gd" id="1_kox0j"]
+
+[node name="RuntimeTtsEnProbeRoot" type="Control" unique_id=1576275924]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_kox0j")
+
+[node name="PiperTTS" type="PiperTTS" parent="." unique_id=1132941785]
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1238439765]
+
+[node name="StatusLabel" type="Label" parent="." unique_id=1949320226]
+layout_mode = 0

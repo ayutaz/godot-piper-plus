@@ -1,0 +1,39 @@
+Third-Party Software Licenses
+=============================
+
+This addon package includes or links to the following third-party software:
+
+1. piper-plus
+   License: MIT
+   URL: https://github.com/ayutaz/piper-plus
+   Notes: Upstream TTS engine adapted for the Godot addon.
+
+2. ONNX Runtime
+   License: MIT
+   URL: https://github.com/microsoft/onnxruntime
+   Notes: Linked dynamically on desktop and Android. Linked statically on iOS.
+
+3. OpenJTalk
+   License: Modified BSD (3-clause)
+   URL: https://open-jtalk.sourceforge.net/
+   Notes: Used for Japanese grapheme-to-phoneme conversion.
+
+4. HTSEngine API
+   License: Modified BSD (3-clause)
+   URL: https://hts-engine.sourceforge.net/
+   Notes: Linked statically as part of the Japanese synthesis stack.
+
+5. godot-cpp
+   License: MIT
+   URL: https://github.com/godotengine/godot-cpp
+   Notes: Provides the GDExtension C++ bindings.
+
+6. nlohmann/json
+   License: MIT
+   URL: https://github.com/nlohmann/json
+   Notes: Used in the native implementation.
+
+7. UTF8-CPP
+   License: Boost Software License 1.0
+   URL: https://github.com/nemtrif/utfcpp
+   Notes: Used in the native implementation.

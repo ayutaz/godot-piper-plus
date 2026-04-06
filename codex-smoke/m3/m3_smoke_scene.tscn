@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://cqoql6kguitkn"]
+
+[node name="M3SmokeRoot" type="Node2D" unique_id=2126725583]
+
+[node name="FocusTarget" type="Node2D" parent="." unique_id=379052470]
