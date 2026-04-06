@@ -136,7 +136,7 @@ func _handle_message(message: Dictionary) -> void:
 func _handle_request(message: Dictionary) -> void:
 	var request_id := str(message.get("id", ""))
 	var method := str(message.get("method", ""))
-	var params := message.get("params", {})
+	var params: Variant = message.get("params", {})
 
 	match method:
 		"bridge.handshake.sync":
@@ -210,7 +210,7 @@ func _handle_response(message: Dictionary) -> void:
 
 	match str(pending.get("method", "")):
 		"bridge.handshake.hello":
-			var result := message.get("result", {})
+			var result: Variant = message.get("result", {})
 			if typeof(result) == TYPE_DICTIONARY:
 				_server_identity = result.duplicate(true)
 				if result.has("bridge"):
