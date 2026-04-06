@@ -21,41 +21,56 @@ offset_bottom = -20.0
 
 [node name="Label" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-text = "Piper Plus TTS Demo"
+text = "Piper Plus 音声合成デモ"
 
 [node name="StatusLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-text = "Status: Not initialized"
+text = "状態: 未初期化"
+
+[node name="LanguageLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "言語選択"
+
+[node name="LanguagePicker" type="OptionButton" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LanguageInfoLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+autowrap_mode = 3
+text = "言語を選ぶと、利用する音声合成経路を表示します。"
+
+[node name="TemplateLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "テンプレート選択"
+
+[node name="TemplatePicker" type="OptionButton" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="TextInput" type="LineEdit" parent="VBoxContainer"]
 layout_mode = 2
-placeholder_text = "Enter text to synthesize..."
-text = "こんにちは、世界"
+placeholder_text = "テキストを入力するか、テンプレートを選択してください..."
+size_flags_horizontal = 3
+text = ""
 
 [node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
 
 [node name="SynthesizeButton" type="Button" parent="VBoxContainer/HBoxContainer"]
 layout_mode = 2
-text = "Synthesize (Sync)"
+text = "音声合成（同期）"
 disabled = true
 
 [node name="AsyncButton" type="Button" parent="VBoxContainer/HBoxContainer"]
 layout_mode = 2
-text = "Synthesize (Async)"
+text = "音声合成（非同期）"
 disabled = true
 
 [node name="StopButton" type="Button" parent="VBoxContainer/HBoxContainer"]
 layout_mode = 2
-text = "Stop"
+text = "停止"
 disabled = true
-
-[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
-layout_mode = 2
-
-[node name="InitButton" type="Button" parent="VBoxContainer/HBoxContainer2"]
-layout_mode = 2
-text = "Initialize"
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 

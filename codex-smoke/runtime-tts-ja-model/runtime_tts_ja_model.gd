@@ -1,7 +1,7 @@
 extends Control
 
-const MODEL_PATH := "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx"
-const CONFIG_PATH := "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx.json"
+const MODEL_PATH := "res://addons/piper_plus/models/css10/css10-ja-6lang-fp16.onnx"
+const CONFIG_PATH := "res://addons/piper_plus/models/css10/config.json"
 const DICT_PATH := "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
 const TEXT_TO_SAY := "こんにちは、世界。こんにちは、世界。"
 
@@ -19,7 +19,7 @@ func _begin() -> void:
 	tts.model_path = MODEL_PATH
 	tts.config_path = CONFIG_PATH
 	tts.dictionary_path = DICT_PATH
-	tts.language_code = ""
+	tts.language_code = "ja"
 	var err := tts.initialize()
 	if err != OK:
 		status_label.text = "init_error:%d" % err

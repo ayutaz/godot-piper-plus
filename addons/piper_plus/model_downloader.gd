@@ -14,6 +14,21 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 
 const DOWNLOAD_ITEMS: Dictionary = {
+	"css10": {
+		"type": "model",
+		"description": "Default CSS10 6-language model (Japanese/English/Chinese/Spanish/French/Portuguese, ~40 MB)",
+		"dest": "res://addons/piper_plus/models/css10/",
+		"files": [
+			{
+				"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/css10-ja-6lang-fp16.onnx?download=true",
+				"filename": "css10-ja-6lang-fp16.onnx",
+			},
+			{
+				"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/config.json?download=true",
+				"filename": "config.json",
+			},
+		],
+	},
 	"ja_JP-test-medium": {
 		"type": "model",
 		"description": "Japanese test model (medium quality, ~60 MB)",
@@ -222,7 +237,7 @@ static func get_primary_model_path(key: String) -> String:
 
 
 static func get_recommended_dictionary_path(key: String) -> String:
-	if key == "ja_JP-test-medium" or key == "tsukuyomi-chan":
+	if key == "css10" or key == "ja_JP-test-medium" or key == "tsukuyomi-chan":
 		if _has_compiled_openjtalk_dictionary(OPENJTALK_DICT_PATH):
 			return OPENJTALK_DICT_PATH
 	return ""
