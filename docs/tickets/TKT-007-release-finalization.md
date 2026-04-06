@@ -4,7 +4,7 @@
 - 主マイルストーン: [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4)
 - 関連要求: `FR-9` `NFR-6` release 完了条件
-- 依存: `TKT-001` `TKT-002` `TKT-003` `TKT-004` `TKT-006`
+- 依存チケット: `TKT-001` `TKT-002` `TKT-003` `TKT-004` `TKT-006` `TKT-011`
 - 後続チケット: なし
 
 ## 進捗
@@ -23,6 +23,7 @@
 
 - `README.md`、addon README、`CHANGELOG.md`、license / third-party notice を最終状態へ更新する。
 - multilingual と Web のスコープ、platform の確定結果、既知制約を反映する。
+- `TKT-011` が確定した browser smoke 条件、custom template 前提、Web preview 制約を release 文書へ反映する。
 - package 生成手順と validator 条件を最終確認する。
 - Asset Library 向け説明文、同梱範囲、注意事項を固定する。
 
@@ -45,6 +46,7 @@
 
 - package validator が最終 package に対して通ること。
 - README と addon README が最終スコープと矛盾しないこと。
+- Web preview の前提が `TKT-011` の smoke 条件と一致していること。
 - サポート platform、未対応項目、既知制約が明記されていること。
 
 ## 実装する unit テスト
