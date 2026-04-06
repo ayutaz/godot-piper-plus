@@ -8,6 +8,7 @@ const BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
 
 var _async_completed_audio = null
 var _async_failed_error := ""
+var _streaming_completed := false
 
 func _addon_available() -> bool:
     return ClassDB.class_exists("PiperTTS")
@@ -20,6 +21,9 @@ func _create_tts():
 func _cleanup_tts(tts) -> void:
     if is_instance_valid(tts):
         tts.stop()
+        var parent: Node = tts.get_parent()
+        if parent != null:
+            parent.remove_child(tts)
         tts.free()
 
 func _has_property(object: Object, property_name: String) -> bool:
@@ -100,6 +104,41 @@ func _load_bundle_config(bundle: Dictionary) -> Dictionary:
 
     return parsed
 
+func _repo_root_path() -> String:
+    var current := ProjectSettings.globalize_path("res://")
+    for _i in range(8):
+        var candidate := current.path_join("tests/fixtures/multilingual_capability_matrix.json")
+        if FileAccess.file_exists(candidate):
+            return current
+        var parent := current.get_base_dir()
+        if parent == current or parent.is_empty():
+            break
+        current = parent
+    return ""
+
+func _load_multilingual_capability_matrix() -> Array:
+    var repo_root := _repo_root_path()
+    if repo_root.is_empty():
+        return []
+    var fixture_path := repo_root.path_join("tests/fixtures/multilingual_capability_matrix.json")
+    if not FileAccess.file_exists(fixture_path):
+        return []
+
+    var text := FileAccess.get_file_as_string(fixture_path)
+    if text.is_empty():
+        return []
+
+    var parsed = JSON.parse_string(text)
+    if typeof(parsed) != TYPE_ARRAY:
+        return []
+    return parsed
+
+func _matrix_row_by_code(rows: Array, language_code: String) -> Dictionary:
+    for row in rows:
+        if typeof(row) == TYPE_DICTIONARY and String(row.get("language_code", "")) == language_code:
+            return row
+    return {}
+
 func _preferred_test_language_code(bundle: Dictionary) -> String:
     var env_language := OS.get_environment("PIPER_TEST_LANGUAGE_CODE").strip_edges()
     if not env_language.is_empty():
@@ -127,6 +166,38 @@ func _on_synthesis_completed_for_test(audio) -> void:
 
 func _on_synthesis_failed_for_test(error: String) -> void:
     _async_failed_error = error
+
+func _on_streaming_ended_for_test() -> void:
+    _streaming_completed = true
+
+func _create_streaming_playback() -> Dictionary:
+    var tree := Engine.get_main_loop() as SceneTree
+    if tree == null or tree.root == null:
+        return {}
+
+    var container := Node.new()
+    tree.root.add_child(container)
+
+    var player := AudioStreamPlayer.new()
+    var generator := AudioStreamGenerator.new()
+    generator.mix_rate = 22050
+    generator.buffer_length = 0.1
+    player.stream = generator
+    container.add_child(player)
+    player.play()
+
+    for _i in range(30):
+        var playback = player.get_stream_playback()
+        if playback is AudioStreamGeneratorPlayback:
+            return {
+                "container": container,
+                "player": player,
+                "playback": playback,
+            }
+        await tree.process_frame
+
+    container.queue_free()
+    return {}
 
 func _configure_test_model(tts) -> bool:
     var bundle = _model_bundle()
@@ -223,6 +294,7 @@ func list_test_names() -> Array[String]:
         "test_synthesize_request_with_sentence_silence",
         "test_synthesize_async",
         "test_synthesize_async_request",
+        "test_synthesize_streaming_request",
         "test_audio_stream_format",
         "test_last_synthesis_result_timing",
     ]
@@ -233,6 +305,9 @@ func run_test(method_name: String) -> void:
         return
 
     if method_name == "test_synthesize_async" or method_name == "test_synthesize_async_request":
+        await Callable(self, method_name).call()
+        return
+    if method_name == "test_synthesize_streaming_request":
         await Callable(self, method_name).call()
         return
 
@@ -418,20 +493,45 @@ func test_language_capabilities() -> void:
     var auto_route_codes: PackedStringArray = capabilities.get("auto_route_language_codes", PackedStringArray())
     var explicit_only_codes: PackedStringArray = capabilities.get("explicit_only_language_codes", PackedStringArray())
     var phoneme_only_codes: PackedStringArray = capabilities.get("phoneme_only_language_codes", PackedStringArray())
+    var preview_codes: PackedStringArray = capabilities.get("preview_language_codes", PackedStringArray())
+    var experimental_codes: PackedStringArray = capabilities.get("experimental_language_codes", PackedStringArray())
+    var language_entries: Array = capabilities.get("languages", [])
 
     assert_true(bool(capabilities.get("has_language_id_map", false)), "get_language_capabilities() should report the multilingual model language_id_map")
-    assert_true(available_codes.has("ja"), "get_language_capabilities() should list ja as an available language")
-    assert_true(available_codes.has("en"), "get_language_capabilities() should list en as an available language")
-    assert_true(available_codes.has("zh"), "get_language_capabilities() should list zh as an available language")
-    assert_true(available_codes.has("es"), "get_language_capabilities() should list es as an available language")
-    assert_true(available_codes.has("fr"), "get_language_capabilities() should list fr as an available language")
-    assert_true(available_codes.has("pt"), "get_language_capabilities() should list pt as an available language")
-    assert_true(auto_route_codes.has("ja"), "get_language_capabilities() should include ja in auto_route_language_codes")
-    assert_true(auto_route_codes.has("en"), "get_language_capabilities() should include en in auto_route_language_codes")
-    assert_true(explicit_only_codes.has("es"), "get_language_capabilities() should include es in explicit_only_language_codes")
-    assert_true(explicit_only_codes.has("fr"), "get_language_capabilities() should include fr in explicit_only_language_codes")
-    assert_true(explicit_only_codes.has("pt"), "get_language_capabilities() should include pt in explicit_only_language_codes")
+    assert_true(bool(capabilities.get("supports_text_input", false)), "get_language_capabilities() should report that the multilingual model supports text input")
+    assert_equal(String(capabilities.get("default_language_code", "")), "en", "get_language_capabilities() should default the multilingual model to en")
+
+    var expected_languages := {
+        "ja": {"support_tier": "preview", "frontend_backend": "openjtalk", "routing_mode": "auto", "text_supported": true, "auto_supported": true},
+        "en": {"support_tier": "preview", "frontend_backend": "cmu_dict", "routing_mode": "auto", "text_supported": true, "auto_supported": true},
+        "es": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
+        "fr": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
+        "pt": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
+        "zh": {"support_tier": "phoneme_only", "frontend_backend": "raw_phoneme_only", "routing_mode": "phoneme_only", "text_supported": false, "auto_supported": false},
+    }
+
+    for language_code in expected_languages.keys():
+        var expected: Dictionary = expected_languages[language_code]
+        assert_true(available_codes.has(language_code), "get_language_capabilities() should list %s as an available language" % language_code)
+        var entry := _matrix_row_by_code(language_entries, language_code)
+        assert_false(entry.is_empty(), "get_language_capabilities().languages should include %s" % language_code)
+        if entry.is_empty():
+            continue
+        assert_equal(String(entry.get("support_tier", "")), String(expected.get("support_tier", "")), "get_language_capabilities().languages should expose support_tier for %s" % language_code)
+        assert_equal(String(entry.get("frontend_backend", "")), String(expected.get("frontend_backend", "")), "get_language_capabilities().languages should expose frontend_backend for %s" % language_code)
+        assert_equal(String(entry.get("routing_mode", "")), String(expected.get("routing_mode", "")), "get_language_capabilities().languages should expose routing_mode for %s" % language_code)
+        assert_equal(bool(entry.get("text_supported", false)), bool(expected.get("text_supported", false)), "get_language_capabilities().languages should expose text_supported for %s" % language_code)
+        assert_equal(bool(entry.get("auto_supported", false)), bool(expected.get("auto_supported", false)), "get_language_capabilities().languages should expose auto_supported for %s" % language_code)
+
+    for code in ["ja", "en"]:
+        assert_true(auto_route_codes.has(code), "get_language_capabilities() should include %s in auto_route_language_codes" % code)
+        assert_true(preview_codes.has(code), "get_language_capabilities() should include %s in preview_language_codes" % code)
+        assert_true(explicit_only_codes.has(code) == false, "get_language_capabilities() should not list %s in explicit_only_language_codes" % code)
+    for code in ["es", "fr", "pt"]:
+        assert_true(explicit_only_codes.has(code), "get_language_capabilities() should include %s in explicit_only_language_codes" % code)
+        assert_true(experimental_codes.has(code), "get_language_capabilities() should include %s in experimental_language_codes" % code)
     assert_true(phoneme_only_codes.has("zh"), "get_language_capabilities() should include zh in phoneme_only_language_codes")
+
     assert_true(tts.get_last_error().is_empty(), "successful get_language_capabilities() should not set last_error")
     _cleanup_tts(tts)
 
@@ -1064,6 +1164,73 @@ func test_synthesize_async_request() -> void:
     if resolved_segments.size() > 0:
         var first_segment: Dictionary = resolved_segments[0]
         assert_true(bool(first_segment.get("is_phoneme_input", false)), "raw phoneme async synthesis should mark resolved_segments as phoneme input")
+    _cleanup_tts(tts)
+
+func test_synthesize_streaming_request() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var tree := Engine.get_main_loop() as SceneTree
+    if tree == null or tree.root == null:
+        skip("SceneTree is unavailable")
+        _cleanup_tts(tts)
+        return
+    tree.root.add_child(tts)
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    if tts.initialize() != OK:
+        failures.append("initialize() failed for synthesize_streaming_request")
+        _cleanup_tts(tts)
+        return
+
+    if not _require_method(tts, "synthesize_streaming_request") or not _require_method(tts, "get_last_synthesis_result") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    var playback_setup := await _create_streaming_playback()
+    if playback_setup.is_empty():
+        skip("AudioStreamGeneratorPlayback is unavailable in this headless environment")
+        _cleanup_tts(tts)
+        return
+
+    if tree != null and tree.root != null and tts.get_parent() == null:
+        tree.root.add_child(tts)
+
+    _streaming_completed = false
+    tts.streaming_ended.connect(_on_streaming_ended_for_test)
+
+    var request := {
+        "text": "hello from godot",
+        "language_code": "en",
+    }
+    assert_equal(tts.synthesize_streaming_request(request, playback_setup["playback"]), OK, "synthesize_streaming_request() should start successfully")
+    assert_true(tts.get_last_error().is_empty(), "synthesize_streaming_request() should clear last_error after starting successfully")
+
+    var deadline = Time.get_ticks_msec() + 15000
+    while not _streaming_completed and Time.get_ticks_msec() < deadline:
+        await tree.process_frame
+
+    assert_true(_streaming_completed, "synthesize_streaming_request() should emit streaming_ended")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("input_mode", "")), "text", "streaming synthesis should record text input_mode")
+    assert_equal(String(synth_result.get("resolved_language_code", "")), "en", "streaming synthesis should expose the resolved language code")
+    assert_equal(int(synth_result.get("resolved_language_id", -1)), 1, "streaming synthesis should expose the resolved language_id")
+    assert_equal(String(synth_result.get("selection_mode", "")), "language_code_exact", "streaming synthesis should expose the selection mode")
+    assert_true((synth_result.get("resolved_segments", []) as Array).size() > 0, "streaming synthesis should expose resolved_segments")
+    assert_true(tts.get_last_error().is_empty(), "completed streaming synthesis should leave last_error empty")
+
+    var container = playback_setup.get("container")
+    if container != null and is_instance_valid(container):
+        container.queue_free()
     _cleanup_tts(tts)
 
 func test_audio_stream_format() -> void:

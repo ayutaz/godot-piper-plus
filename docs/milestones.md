@@ -17,7 +17,7 @@
 | 状態 | マイルストーン | 対象要求 | 関連チケット | 現状 |
 |---|---|---|---|---|
 | 完了 | M1 Runtime API 完成 | `FR-1` `FR-2` `FR-5` `FR-8` | - | 同期 / 非同期 / streaming、request / raw phoneme / inspection、timing / silence 制御、出力形式は実装済み |
-| 進行中 | M2 Language / Model / Backend 完成 | `FR-3` `FR-4` `FR-6` | [TKT-001](./tickets/TKT-001-multilingual-parity.md) | 日本語 / 英語 / `ja/en` の基本 contract、model 解決、backend fallback、GPU 指定までは完了。capability matrix と multilingual の explicit-only / phoneme-only 境界を整理中 |
+| 進行中 | M2 Language / Model / Backend 完成 | `FR-3` `FR-4` `FR-6` | [TKT-001](./tickets/TKT-001-multilingual-parity.md) | 日本語 / 英語 / `ja/en` の基本 contract、model 解決、backend fallback、GPU 指定までは完了。capability matrix は `tests/fixtures/` を正本、`docs/generated/` を投影として整理中 |
 | 完了 | M3 Editor Workflow 完成 | `FR-7` | - | downloader、dictionary editor、Inspector 拡張、test speech UI は実装済み |
 | 進行中 | M4 Packaging / Documentation 完成 | `FR-9` `NFR-6` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package assembly / validator と addon 文書は整備済み。最終反映は platform / Web / multilingual の結果待ち |
 | 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-001](./tickets/TKT-001-multilingual-parity.md) [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | C++ test、headless strict 化、package validator は整備済み。multilingual matrix と Web の追加要求分を gate に昇格させる作業が残る |
@@ -44,7 +44,7 @@
 - 関連チケット: [TKT-001 Multilingual Parity 拡張](./tickets/TKT-001-multilingual-parity.md)
 - 現状: 日本語 OpenJTalk、英語 CMU 辞書ベース G2P、`ja/en` 最小 multilingual ルーティング、`language_id` / `language_code`、`speaker_id`、model alias / config fallback、`openjtalk-native` fallback、`EP_CUDA` / `gpu_device_id` は入っています。
 - 残作業:
-  - capability matrix の正本を `docs/tickets/` と `tests/fixtures/` の双方で揃える
+  - capability matrix の正本を `tests/fixtures/` に固定し、`docs/generated/` と `docs/tickets/` を同一内容へ揃える
   - upstream の `language_id_map` と model config に追従した routing / selection / inspection 方針を explicit-only / phoneme-only に分けて定義する
   - 追加言語に対する runtime API と検証ケースを matrix-first で整備する
 - 完了条件:

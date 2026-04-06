@@ -77,10 +77,10 @@ func _ready() -> void:
 multilingual text input の現状サポートは capability matrix 基準です。
 
 - `ja` / `en`: preview auto / explicit 対応
-- `es` / `fr` / `pt`: explicit-only
+- `es` / `fr` / `pt`: experimental explicit-only adapter
 - `zh`: phoneme-only。text input では使えません。raw phoneme input を使ってください
 
-詳細な support matrix は `docs/tickets/TKT-001-multilingual-parity.md` を参照してください。
+正本は `tests/fixtures/multilingual_capability_matrix.json`、人が読む投影は `docs/generated/multilingual_capability_matrix.md` です。詳細な support matrix はそちらを参照してください。
 
 ## Editor ツール
 
@@ -107,7 +107,7 @@ downloader は `res://addons/piper_plus/models/<model-name>/` と `res://addons/
 
 - 日本語 text input には `res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11` が必要です。
 - 英語 text input は同梱の `cmudict_data.json` を使います。
-- multilingual text input で `es` / `fr` / `pt` を使う場合は explicit-only です。
+- multilingual text input で `es` / `fr` / `pt` を使う場合は experimental explicit-only adapter です。
 - `zh` は multilingual model の capability には残せますが、text input では phonemize できません。
 - モデル file 自体は release archive に同梱せず、project 側で必要なものだけ配置する前提です。
 - `openjtalk_library_path` を空にするか無効な path を指定した場合は builtin OpenJTalk backend へ戻ります。

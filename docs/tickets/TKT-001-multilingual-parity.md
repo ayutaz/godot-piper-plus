@@ -18,6 +18,7 @@
 
 - `ja/en` の最小 multilingual に止まっている現状を、capability-first の contract に置き換える。
 - upstream の `language_id_map` と model config から、explicit-only / auto / phoneme-only を説明可能に分ける。
+- `tests/fixtures/multilingual_capability_matrix.json` を正本にし、`docs/generated/multilingual_capability_matrix.md` を doc-readable projection として維持する。
 - `inspect_*` と `synthesize_*` が同じ language resolution 結果を共有し、unsupported input は silent skip ではなく明示 failure になる状態を作る。
 - 既存の `ja/en` 回帰を出さずに、対象言語の検証ケースを quality gate へ取り込む。
 
@@ -39,7 +40,7 @@
 ## 実装する内容の詳細
 
 - `language_id_map` を model capability の起点として扱い、`language_id` と `language_code` の正規化を capability table へ集約する。
-- language の扱いを `auto` `explicit-only` `phoneme-only` `unsupported` に分け、README / API 文書 / tests で同じ分類を使う。
+- language の扱いを `preview` `experimental explicit-only` `phoneme-only` `unsupported` に分け、README / API 文書 / tests で同じ分類を使う。
 - auto-routing は script で高信頼に切れる language に限定し、Latin 系の曖昧さは explicit-only に留める。
 - text phonemizer を持たない language は model に存在しても text input では読めない前提を明示する。
 - `inspect_*` と `get_last_inspection_result()` は resolved language と failure semantics を一貫させる。
@@ -60,7 +61,7 @@
 ## テスト項目
 
 - capability matrix にある language ごとの routing mode が docs と一致する。
-- explicit-only 言語は text input で明示指定したときだけ通る。
+- experimental explicit-only 言語は text adapter として通るが parity-grade ではない。
 - phoneme-only 言語は raw phoneme input でのみ通る。
 - unsupported language は説明可能な failure になる。
 - `inspect_*` の結果に resolved language 情報が載り、`synthesize_*` と整合する。
@@ -71,6 +72,7 @@
 - C++: `tests/fixtures/multilingual_capability_matrix.json` を読み、routing mode、text support、auto support、error semantics を検証する。
 - C++: explicit-only 言語の phonemizer smoke を matrix 由来の sample text で検証する。
 - C++: phoneme-only 言語の text support が存在しないことを確認する。
+- C++: `docs/generated/multilingual_capability_matrix.md` が JSON matrix と一致することを確認する。
 - GDScript: `language_code` 正規化、`inspect_text`、`inspect_request`、`synthesize_request` の case を matrix の contract に合わせて検証する。
 
 ## 実装する e2e テスト
@@ -90,7 +92,7 @@
 
 - capability matrix が README と API 文書で一致しているか。
 - unsupported language の扱いが silent skip ではなく説明可能な failure になっているか。
-- explicit-only と phoneme-only の境界が曖昧になっていないか。
+- experimental explicit-only と phoneme-only の境界が曖昧になっていないか。
 - `language_id_map` が無いモデルでの挙動が明確か。
 - unit / headless / packaged smoke の責務が混ざっていないか。
 

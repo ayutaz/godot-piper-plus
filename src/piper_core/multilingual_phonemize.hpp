@@ -20,6 +20,8 @@ struct MultilingualLanguageCapability {
 	std::string languageCode;
 	std::optional<LanguageId> languageId;
 	MultilingualTextRoutingMode routingMode = MultilingualTextRoutingMode::Unsupported;
+	std::string supportTier;
+	std::string frontendBackend;
 	bool autoRouteAllowed = false;
 	bool textPhonemizerAvailable = false;
 	bool phonemeOnly = true;
@@ -43,7 +45,9 @@ std::vector<MultilingualLanguageCapability> getMultilingualLanguageCapabilities(
 std::vector<std::string> getMultilingualAutoRouteLanguages(const Voice &voice);
 std::vector<std::string> getMultilingualTextLanguages(const Voice &voice);
 std::string getMultilingualDefaultLatinLanguage(
-		const Voice &voice, const std::vector<std::string> &languages);
+		const Voice &voice, const std::vector<std::string> &languages,
+		const std::optional<std::string> &explicitLanguageCode = std::nullopt,
+		const std::optional<LanguageId> &explicitLanguageId = std::nullopt);
 MultilingualRoutingPlan planMultilingualTextRouting(
 		const Voice &voice,
 		const std::string &text,

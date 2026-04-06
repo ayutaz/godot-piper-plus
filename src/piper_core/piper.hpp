@@ -196,20 +196,24 @@ void loadVoice(PiperConfig &config, std::string modelPath,
 
 // Phonemize text and synthesize audio
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,
+                 const SynthesisConfig &synthesisConfig,
                  std::vector<int16_t> &audioBuffer, SynthesisResult &result,
                  const std::function<void()> &audioCallback);
 
 // Synthesize audio directly from phonemes
 void phonemesToAudio(PiperConfig &config, Voice &voice,
                      const std::vector<Phoneme> &phonemes,
+                     const SynthesisConfig &synthesisConfig,
                      std::vector<int16_t> &audioBuffer,
                      SynthesisResult &result,
                      const std::function<void()> &audioCallback = nullptr);
 
 // Inspect phonemization and phoneme-id conversion without ONNX inference.
 void inspectText(PiperConfig &config, Voice &voice, std::string text,
+                 const SynthesisConfig &synthesisConfig,
                  InspectionResult &result);
 void inspectPhonemes(Voice &voice, const std::vector<Phoneme> &phonemes,
+                     const SynthesisConfig &synthesisConfig,
                      InspectionResult &result);
 
 } // namespace piper

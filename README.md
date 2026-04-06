@@ -42,7 +42,7 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 - `openjtalk_library_path` による `openjtalk-native` shared library 指定と builtin OpenJTalk fallback
 - `execution_provider = EP_CUDA` と `gpu_device_id` による GPU device 指定
 - Inspector 拡張、preset 適用、テスト発話 UI、モデル downloader、辞書 editor
-- multilingual text input の現状サポートは capability matrix 基準です。`ja` / `en` は auto / explicit 対応、`es` / `fr` / `pt` は explicit-only、`zh` は phoneme-only です。詳細は `docs/tickets/TKT-001-multilingual-parity.md` を参照してください
+- multilingual text input の現状サポートは capability matrix 基準です。`ja` / `en` は preview auto / explicit、`es` / `fr` / `pt` は experimental explicit-only、`zh` は phoneme-only です。正本は `tests/fixtures/multilingual_capability_matrix.json`、人が読む投影は `docs/generated/multilingual_capability_matrix.md` です
 - 英語 text input では `cmudict_data.json` が必要です。`addons/piper_plus/dictionaries/`、モデル同梱ディレクトリ、または config 同階層を探索します。
 - CUDA を使う場合は CUDA 対応 ONNX Runtime binary を別途用意してください。既定の CPU 向け binary では自動的に CPU fallback します。
 

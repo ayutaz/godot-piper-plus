@@ -13,6 +13,8 @@ struct CapabilityRow {
 	std::string model_family;
 	std::string language_code;
 	std::vector<std::string> aliases;
+	std::string support_tier;
+	std::string frontend_backend;
 	std::string routing_mode;
 	bool text_supported = false;
 	bool auto_supported = false;
@@ -78,6 +80,8 @@ std::vector<CapabilityRow> load_capability_matrix() {
 		CapabilityRow row;
 		row.model_family = item.value("model_family", "");
 		row.language_code = item.value("language_code", "");
+		row.support_tier = item.value("support_tier", "");
+		row.frontend_backend = item.value("frontend_backend", "");
 		row.routing_mode = item.value("routing_mode", "");
 		row.text_supported = item.value("text_supported", false);
 		row.auto_supported = item.value("auto_supported", false);
@@ -96,6 +100,56 @@ std::vector<CapabilityRow> load_capability_matrix() {
 	}
 
 	return rows;
+}
+
+std::filesystem::path find_generated_doc_path() {
+	const std::filesystem::path relative =
+			std::filesystem::path("docs") / "generated" / "multilingual_capability_matrix.md";
+	std::filesystem::path current = std::filesystem::current_path();
+	for (int depth = 0; depth < 8; ++depth) {
+		const std::filesystem::path candidate = current / relative;
+		if (std::filesystem::exists(candidate)) {
+			return candidate;
+		}
+
+		if (!current.has_parent_path()) {
+			break;
+		}
+		const std::filesystem::path parent = current.parent_path();
+		if (parent == current) {
+			break;
+		}
+		current = parent;
+	}
+
+	return {};
+}
+
+std::string read_generated_doc() {
+	const std::filesystem::path doc_path = find_generated_doc_path();
+	if (doc_path.empty()) {
+		return {};
+	}
+
+	std::ifstream input(doc_path);
+	if (!input.is_open()) {
+		return {};
+	}
+
+	return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
+std::string tier_label(const CapabilityRow &row) {
+	if (row.support_tier == "preview") {
+		return "preview";
+	}
+	if (row.support_tier == "experimental" && row.routing_mode == "explicit_only") {
+		return "experimental explicit-only";
+	}
+	if (row.support_tier == "phoneme_only") {
+		return "phoneme-only";
+	}
+	return row.support_tier;
 }
 
 const CapabilityRow *find_row(
@@ -186,6 +240,8 @@ TEST(MultilingualPhonemizeTest, SupportMatrixReflectsExpandedLanguages) {
 				row.text_supported) << row.language_code;
 		EXPECT_EQ(piper::supportsMultilingualAutoRouting(row.language_code),
 				row.auto_supported) << row.language_code;
+		EXPECT_FALSE(row.frontend_backend.empty()) << row.language_code;
+		EXPECT_FALSE(row.support_tier.empty()) << row.language_code;
 
 		if (!row.expected_error_contains.empty()) {
 			EXPECT_NE(piper::getMultilingualTextSupportError(row.language_code)
@@ -264,4 +320,26 @@ TEST(MultilingualPhonemizeTest, PhonemeOnlyLanguagesRejectTextInputCapability) {
 			piper::MultilingualTextRoutingMode::Unsupported);
 	EXPECT_NE(piper::getMultilingualTextSupportError(zh->language_code).find(
 					zh->expected_error_contains), std::string::npos);
+}
+
+TEST(MultilingualPhonemizeTest, GeneratedDocMatchesCapabilityMatrix) {
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const std::string generated_doc = read_generated_doc();
+	ASSERT_FALSE(generated_doc.empty()) << "docs/generated/multilingual_capability_matrix.md must be readable";
+
+	EXPECT_NE(generated_doc.find("Generated from `tests/fixtures/multilingual_capability_matrix.json`"),
+			std::string::npos);
+	EXPECT_NE(generated_doc.find("experimental explicit-only"), std::string::npos);
+	EXPECT_NE(generated_doc.find("phoneme-only"), std::string::npos);
+
+	for (const auto &row : rows) {
+		const std::string language_tag = "`" + row.language_code + "`";
+		const std::string tier_tag = "`" + tier_label(row) + "`";
+		const std::string backend_tag = "`" + row.frontend_backend + "`";
+		EXPECT_NE(generated_doc.find(language_tag), std::string::npos) << row.language_code;
+		EXPECT_NE(generated_doc.find(tier_tag), std::string::npos) << row.language_code;
+		EXPECT_NE(generated_doc.find(backend_tag), std::string::npos) << row.language_code;
+	}
 }

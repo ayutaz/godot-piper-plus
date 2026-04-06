@@ -19,5 +19,6 @@
 ## 運用メモ
 
 - `TKT-001` と `TKT-002` は新規要求の設計と実装を閉じるための feature チケットです。
+- `TKT-001` の multilingual contract は `tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として扱います。
 - `TKT-003` から `TKT-006` は platform verification の結果確定チケットです。
 - `TKT-007` は release 完了条件の最終集約チケットで、他チケットの結果を取り込みます。

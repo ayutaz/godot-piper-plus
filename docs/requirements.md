@@ -53,7 +53,9 @@
 - bilingual / multilingual モデルに対して `ja/en` の最小自動ルーティングを提供すること
 - `ja/en` を超える広い multilingual parity 拡張を行い、upstream の model config / `language_id_map` に応じた追加言語の routing、language selection、inspection を扱えること
 - multilingual parity の最低保証は explicit selection と inspection parity であり、auto-routing は capability matrix で明示した言語に限定すること
-- phoneme-only language は raw phoneme input で扱い、text input では説明可能な failure を返すこと
+- `tests/fixtures/multilingual_capability_matrix.json` を正本にし、`docs/generated/multilingual_capability_matrix.md` を doc-readable projection として維持すること
+- `es` / `fr` / `pt` は experimental explicit-only adapter として扱い、parity-grade と誤認しないこと
+- `zh` は phoneme-only として扱い、text input では説明可能な failure を返すこと
 - `language_id` と `language_code` による言語選択を提供すること
 - `speaker_id` による multi-speaker モデル選択を提供すること
 

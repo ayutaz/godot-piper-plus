@@ -750,6 +750,19 @@ std::vector<MultilingualLanguageCapability> getMultilingualLanguageCapabilities(
 		capability.languageCode = code;
 		capability.languageId = languageId;
 		capability.routingMode = getMultilingualTextRoutingMode(code);
+		if (code == "ja") {
+			capability.supportTier = "preview";
+			capability.frontendBackend = "openjtalk";
+		} else if (code == "en") {
+			capability.supportTier = "preview";
+			capability.frontendBackend = "cmu_dict";
+		} else if (code == "es" || code == "fr" || code == "pt") {
+			capability.supportTier = "experimental";
+			capability.frontendBackend = "rule_based";
+		} else {
+			capability.supportTier = "phoneme_only";
+			capability.frontendBackend = "raw_phoneme_only";
+		}
 		capability.autoRouteAllowed =
 				capability.routingMode == MultilingualTextRoutingMode::AutoDetect;
 		capability.textPhonemizerAvailable =
@@ -811,21 +824,28 @@ std::vector<std::string> getMultilingualTextLanguages(const Voice &voice) {
 }
 
 std::string getMultilingualDefaultLatinLanguage(
-		const Voice &voice, const std::vector<std::string> &languages) {
-	std::string selectedLanguage;
-	if (voice.synthesisConfig.languageId.has_value() &&
-			voice.modelConfig.languageIdMap) {
+		const Voice &voice, const std::vector<std::string> &languages,
+		const std::optional<std::string> &explicitLanguageCode,
+		const std::optional<LanguageId> &explicitLanguageId) {
+	if (explicitLanguageCode.has_value() &&
+			isMultilingualLatinLanguage(*explicitLanguageCode) &&
+			supportsMultilingualTextPhonemization(*explicitLanguageCode) &&
+			std::find(languages.begin(), languages.end(), *explicitLanguageCode) !=
+					languages.end()) {
+		return *explicitLanguageCode;
+	}
+
+	if (explicitLanguageId.has_value() && voice.modelConfig.languageIdMap) {
 		for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
-			if (id == *voice.synthesisConfig.languageId) {
-				selectedLanguage = code;
+			if (id == *explicitLanguageId) {
+				if (isMultilingualLatinLanguage(code) &&
+						supportsMultilingualTextPhonemization(code) &&
+						std::find(languages.begin(), languages.end(), code) != languages.end()) {
+					return code;
+				}
 				break;
 			}
 		}
-	}
-	if (isMultilingualLatinLanguage(selectedLanguage) &&
-			supportsMultilingualTextPhonemization(selectedLanguage) &&
-			std::find(languages.begin(), languages.end(), selectedLanguage) != languages.end()) {
-		return selectedLanguage;
 	}
 
 	for (const char *preferredLanguage : {"en", "es", "fr", "pt"}) {
@@ -903,7 +923,8 @@ MultilingualRoutingPlan planMultilingualTextRouting(
 		languages.push_back(resolvedExplicitLanguageCode);
 	}
 
-	const std::string defaultLatin = getMultilingualDefaultLatinLanguage(voice, languages);
+	const std::string defaultLatin = getMultilingualDefaultLatinLanguage(
+			voice, languages, explicitLanguageCode, explicitLanguageId);
 	plan.segments = segmentMultilingualText(text, languages, defaultLatin);
 
 	if (!resolvedExplicitLanguageCode.empty()) {

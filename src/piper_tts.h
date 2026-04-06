@@ -22,6 +22,7 @@
 // Forward declarations
 namespace piper {
 struct PiperConfig;
+struct SynthesisConfig;
 struct SynthesisResult;
 struct Voice;
 } // namespace piper
@@ -91,14 +92,16 @@ private:
 
 	// Async internal methods (called via call_deferred from worker thread)
 	void _synthesis_thread_func(std::string text_str, std::string phoneme_string,
-			bool has_phoneme_string, uint32_t generation);
+			bool has_phoneme_string, piper::SynthesisConfig synthesis_config,
+			uint32_t generation);
 	void _on_synthesis_raw_done(const PackedByteArray &pcm_data, int sample_rate, uint32_t generation);
 	void _on_synthesis_failed(const String &error_msg, uint32_t generation);
 	void _join_worker_thread();
 
 	// Streaming internal methods (M6)
 	void _streaming_thread_func(std::string text_str, std::string phoneme_string,
-			bool has_phoneme_string, uint32_t generation);
+			bool has_phoneme_string, piper::SynthesisConfig synthesis_config,
+			uint32_t generation);
 	void _push_pending_samples();
 
 protected:
