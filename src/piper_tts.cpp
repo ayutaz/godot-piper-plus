@@ -10,6 +10,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "piper_core/custom_dictionary.hpp"
+#include "piper_core/multilingual_phonemize.hpp"
 #include "piper_core/phoneme_parser.hpp"
 #include "piper_core/piper.hpp"
 
@@ -259,6 +260,32 @@ String language_code_from_id(const piper::Voice &voice,
 	}
 
 	return String();
+}
+
+Error validate_text_language_support(
+		const piper::Voice &voice, const EffectiveRequest &effective_request,
+		String &error_message) {
+	if (!effective_request.has_text ||
+			voice.phonemizeConfig.phonemeType != piper::MultilingualPhonemes) {
+		return OK;
+	}
+
+	const std::string resolved_language_code =
+			normalize_language_code(
+					language_code_from_id(voice, voice.synthesisConfig.languageId));
+	if (resolved_language_code.empty()) {
+		return OK;
+	}
+
+	if (!piper::supportsMultilingualTextPhonemization(resolved_language_code)) {
+		error_message = String("PiperTTS: ") +
+				String::utf8(
+						piper::getMultilingualTextSupportError(resolved_language_code)
+								.c_str());
+		return ERR_INVALID_PARAMETER;
+	}
+
+	return OK;
 }
 
 Array phoneme_timings_to_dictionary_array(
@@ -864,9 +891,14 @@ Error apply_effective_request_to_voice(
 		return silence_error;
 	}
 
-	return apply_requested_language(
+	Error language_error = apply_requested_language(
 			voice, effective_request.language_id, effective_request.language_code,
 			error_message);
+	if (language_error != OK) {
+		return language_error;
+	}
+
+	return validate_text_language_support(voice, effective_request, error_message);
 }
 
 std::vector<piper::Phoneme> parse_effective_phoneme_string(

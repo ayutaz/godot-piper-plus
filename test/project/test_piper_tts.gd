@@ -205,6 +205,8 @@ func list_test_names() -> Array[String]:
         "test_initialize_with_model",
         "test_directory_model_path_resolution",
         "test_language_code_normalization",
+        "test_multilingual_explicit_language_variants",
+        "test_multilingual_unsupported_language_rejected_for_text",
         "test_gpu_device_id_clamp",
         "test_invalid_openjtalk_library_path_falls_back",
         "test_initialize_with_config_fallback",
@@ -409,6 +411,71 @@ func test_language_code_normalization() -> void:
     var inspected: Dictionary = tts.inspect_text(DEFAULT_EN_TEST_TEXT)
     assert_equal(String(inspected.get("resolved_language_code", "")), "en", "inspect_text() should resolve language_code aliases to the canonical code")
     assert_equal(int(inspected.get("resolved_language_id", -1)), 1, "inspect_text() should resolve EN_us to language_id=1 for the bundled multilingual model")
+    _cleanup_tts(tts)
+
+func test_multilingual_explicit_language_variants() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    tts.language_code = " FR_fr "
+    assert_equal(tts.initialize(), OK, "initialize() should accept normalized French language_code aliases")
+
+    if not _require_method(tts, "inspect_text"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_text("salut ami")
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_true(phoneme_sentences.size() > 0, "inspect_text() should return phonemes for explicit French text routing")
+    assert_equal(String(inspected.get("resolved_language_code", "")), "fr", "inspect_text() should resolve FR_fr to the canonical French language code")
+    assert_equal(int(inspected.get("resolved_language_id", -1)), 4, "inspect_text() should resolve FR_fr to language_id=4 for the bundled multilingual model")
+
+    var audio = tts.synthesize("salut ami")
+    assert_not_null(audio, "synthesize() should work for explicit French text routing")
+    _cleanup_tts(tts)
+
+func test_multilingual_unsupported_language_rejected_for_text() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    assert_equal(tts.initialize(), OK, "initialize() should still succeed when no explicit language is preconfigured")
+
+    if not _require_method(tts, "inspect_request"):
+        _cleanup_tts(tts)
+        return
+    var inspected: Dictionary = tts.inspect_request({
+        "text": "你好",
+        "language_code": "zh",
+    })
+    assert_true(inspected.is_empty(), "inspect_request() should reject unsupported multilingual text routing for zh")
+    assert_true(tts.get_last_inspection_result().is_empty(), "failed multilingual inspection should not update get_last_inspection_result()")
+
+    var audio = tts.synthesize_request({
+        "text": "你好",
+        "language_code": "zh",
+    })
+    assert_true(audio == null, "synthesize_request() should reject unsupported multilingual text routing for zh")
     _cleanup_tts(tts)
 
 func test_gpu_device_id_clamp() -> void:

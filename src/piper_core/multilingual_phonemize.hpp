@@ -5,8 +5,29 @@
 #include <vector>
 
 #include "language_detector.hpp"
+#include "piper.hpp"
 
 namespace piper {
+
+enum class MultilingualTextRoutingMode {
+	Unsupported = 0,
+	ExplicitOnly = 1,
+	AutoDetect = 2,
+};
+
+MultilingualTextRoutingMode getMultilingualTextRoutingMode(
+		const std::string &languageCode);
+bool supportsMultilingualTextPhonemization(const std::string &languageCode);
+bool supportsMultilingualAutoRouting(const std::string &languageCode);
+bool isMultilingualLatinLanguage(const std::string &languageCode);
+std::string getMultilingualTextSupportError(const std::string &languageCode);
+
+void phonemize_spanish(const std::string &text,
+		std::vector<std::vector<Phoneme>> &phonemes);
+void phonemize_french(const std::string &text,
+		std::vector<std::vector<Phoneme>> &phonemes);
+void phonemize_portuguese(const std::string &text,
+		std::vector<std::vector<Phoneme>> &phonemes);
 
 std::vector<LangSegment> segmentMultilingualText(
 		const std::string &utf8Text,
