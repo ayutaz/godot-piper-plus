@@ -1,9 +1,28 @@
+#include <filesystem>
+#include <fstream>
+
 #include <gtest/gtest.h>
 
+#include "json.hpp"
 #include "language_detector.hpp"
 #include "multilingual_phonemize.hpp"
 
 namespace {
+
+struct CapabilityRow {
+	std::string model_family;
+	std::string language_code;
+	std::vector<std::string> aliases;
+	std::string routing_mode;
+	bool text_supported = false;
+	bool auto_supported = false;
+	int expected_language_id = -1;
+	std::string default_latin_language = "en";
+	std::string sample_text;
+	std::string sample_segment_text;
+	std::string expected_phoneme_preview;
+	std::string expected_error_contains;
+};
 
 std::string sentence_to_utf8(const std::vector<piper::Phoneme> &sentence) {
 	std::string result;
@@ -11,6 +30,95 @@ std::string sentence_to_utf8(const std::vector<piper::Phoneme> &sentence) {
 		result += piper::phonemeToString(phoneme);
 	}
 	return result;
+}
+
+std::filesystem::path find_fixture_path() {
+	const std::filesystem::path relative =
+			std::filesystem::path("tests") / "fixtures" / "multilingual_capability_matrix.json";
+	std::filesystem::path current = std::filesystem::current_path();
+	for (int depth = 0; depth < 8; ++depth) {
+		const std::filesystem::path candidate = current / relative;
+		if (std::filesystem::exists(candidate)) {
+			return candidate;
+		}
+
+		if (!current.has_parent_path()) {
+			break;
+		}
+		const std::filesystem::path parent = current.parent_path();
+		if (parent == current) {
+			break;
+		}
+		current = parent;
+	}
+
+	return {};
+}
+
+std::vector<CapabilityRow> load_capability_matrix() {
+	const std::filesystem::path fixture_path = find_fixture_path();
+	if (fixture_path.empty()) {
+		return {};
+	}
+
+	std::ifstream input(fixture_path);
+	if (!input.is_open()) {
+		return {};
+	}
+
+	nlohmann::json root;
+	input >> root;
+	if (!root.is_array()) {
+		return {};
+	}
+
+	std::vector<CapabilityRow> rows;
+	rows.reserve(root.size());
+	for (const auto &item : root) {
+		CapabilityRow row;
+		row.model_family = item.value("model_family", "");
+		row.language_code = item.value("language_code", "");
+		row.routing_mode = item.value("routing_mode", "");
+		row.text_supported = item.value("text_supported", false);
+		row.auto_supported = item.value("auto_supported", false);
+		row.expected_language_id = item.value("expected_language_id", -1);
+		row.default_latin_language = item.value("default_latin_language", "en");
+		row.sample_text = item.value("sample_text", "");
+		row.sample_segment_text = item.value("sample_segment_text", "");
+		row.expected_phoneme_preview = item.value("expected_phoneme_preview", "");
+		row.expected_error_contains = item.value("expected_error_contains", "");
+		if (item.contains("aliases") && item["aliases"].is_array()) {
+			for (const auto &alias : item["aliases"]) {
+				row.aliases.push_back(alias.get<std::string>());
+			}
+		}
+		rows.push_back(std::move(row));
+	}
+
+	return rows;
+}
+
+const CapabilityRow *find_row(
+		const std::vector<CapabilityRow> &rows, const std::string &language_code) {
+	for (const auto &row : rows) {
+		if (row.language_code == language_code) {
+			return &row;
+		}
+	}
+	return nullptr;
+}
+
+std::vector<std::vector<piper::Phoneme>> phonemize_by_language(
+		const std::string &language_code, const std::string &text) {
+	std::vector<std::vector<piper::Phoneme>> phonemes;
+	if (language_code == "es") {
+		piper::phonemize_spanish(text, phonemes);
+	} else if (language_code == "fr") {
+		piper::phonemize_french(text, phonemes);
+	} else if (language_code == "pt") {
+		piper::phonemize_portuguese(text, phonemes);
+	}
+	return phonemes;
 }
 
 } // namespace
@@ -40,7 +148,14 @@ TEST(LanguageDetectorTest, DominantLanguagePrefersMajority) {
 }
 
 TEST(MultilingualPhonemizeTest, WrapperUsesJaEnDefaults) {
-	auto segments = piper::segmentMultilingualText("abcこんにちはDEF");
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const CapabilityRow *ja = find_row(rows, "ja");
+	ASSERT_NE(ja, nullptr);
+
+	auto segments = piper::segmentMultilingualText(
+			ja->sample_segment_text, {"ja", "en"}, ja->default_latin_language);
 
 	ASSERT_EQ(segments.size(), 3u);
 	EXPECT_EQ(segments[0].lang, "en");
@@ -49,23 +164,46 @@ TEST(MultilingualPhonemizeTest, WrapperUsesJaEnDefaults) {
 }
 
 TEST(MultilingualPhonemizeTest, SupportMatrixReflectsExpandedLanguages) {
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode("ja"),
-			piper::MultilingualTextRoutingMode::AutoDetect);
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode("en"),
-			piper::MultilingualTextRoutingMode::AutoDetect);
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode("es"),
-			piper::MultilingualTextRoutingMode::ExplicitOnly);
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode("fr"),
-			piper::MultilingualTextRoutingMode::ExplicitOnly);
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode("pt"),
-			piper::MultilingualTextRoutingMode::ExplicitOnly);
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode("zh"),
-			piper::MultilingualTextRoutingMode::Unsupported);
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	for (const auto &row : rows) {
+		const auto routing_mode = piper::getMultilingualTextRoutingMode(row.language_code);
+		if (row.routing_mode == "auto") {
+			EXPECT_EQ(routing_mode, piper::MultilingualTextRoutingMode::AutoDetect)
+					<< row.language_code;
+		} else if (row.routing_mode == "explicit_only") {
+			EXPECT_EQ(routing_mode, piper::MultilingualTextRoutingMode::ExplicitOnly)
+					<< row.language_code;
+		} else if (row.routing_mode == "phoneme_only") {
+			EXPECT_EQ(routing_mode, piper::MultilingualTextRoutingMode::Unsupported)
+					<< row.language_code;
+		} else {
+			FAIL() << "Unknown routing_mode in capability matrix: " << row.routing_mode;
+		}
+
+		EXPECT_EQ(piper::supportsMultilingualTextPhonemization(row.language_code),
+				row.text_supported) << row.language_code;
+		EXPECT_EQ(piper::supportsMultilingualAutoRouting(row.language_code),
+				row.auto_supported) << row.language_code;
+
+		if (!row.expected_error_contains.empty()) {
+			EXPECT_NE(piper::getMultilingualTextSupportError(row.language_code)
+					.find(row.expected_error_contains), std::string::npos)
+					<< row.language_code;
+		}
+	}
 }
 
 TEST(MultilingualPhonemizeTest, WrapperUsesConfiguredLatinDefaultLanguage) {
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const CapabilityRow *fr = find_row(rows, "fr");
+	ASSERT_NE(fr, nullptr);
+
 	auto segments = piper::segmentMultilingualText(
-			"salutこんにちは", {"ja", "en", "fr"}, "fr");
+			fr->sample_segment_text, {"ja", "en", "fr"}, fr->default_latin_language);
 
 	ASSERT_EQ(segments.size(), 2u);
 	EXPECT_EQ(segments[0].lang, "fr");
@@ -75,25 +213,55 @@ TEST(MultilingualPhonemizeTest, WrapperUsesConfiguredLatinDefaultLanguage) {
 }
 
 TEST(MultilingualPhonemizeTest, SpanishRuleBasedPhonemizerProducesPhonemes) {
-	std::vector<std::vector<piper::Phoneme>> phonemes;
-	piper::phonemize_spanish("hola amigo", phonemes);
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const CapabilityRow *es = find_row(rows, "es");
+	ASSERT_NE(es, nullptr);
+
+	const auto phonemes = phonemize_by_language(es->language_code, es->sample_text);
 
 	ASSERT_EQ(phonemes.size(), 1u);
-	EXPECT_EQ(sentence_to_utf8(phonemes[0]), "ola amigo");
+	EXPECT_EQ(sentence_to_utf8(phonemes[0]), es->expected_phoneme_preview);
 }
 
 TEST(MultilingualPhonemizeTest, FrenchRuleBasedPhonemizerProducesPhonemes) {
-	std::vector<std::vector<piper::Phoneme>> phonemes;
-	piper::phonemize_french("salut ami", phonemes);
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const CapabilityRow *fr = find_row(rows, "fr");
+	ASSERT_NE(fr, nullptr);
+
+	const auto phonemes = phonemize_by_language(fr->language_code, fr->sample_text);
 
 	ASSERT_EQ(phonemes.size(), 1u);
-	EXPECT_EQ(sentence_to_utf8(phonemes[0]), "saly ami");
+	EXPECT_EQ(sentence_to_utf8(phonemes[0]), fr->expected_phoneme_preview);
 }
 
 TEST(MultilingualPhonemizeTest, PortugueseRuleBasedPhonemizerProducesPhonemes) {
-	std::vector<std::vector<piper::Phoneme>> phonemes;
-	piper::phonemize_portuguese("olá mundo", phonemes);
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const CapabilityRow *pt = find_row(rows, "pt");
+	ASSERT_NE(pt, nullptr);
+
+	const auto phonemes = phonemize_by_language(pt->language_code, pt->sample_text);
 
 	ASSERT_EQ(phonemes.size(), 1u);
-	EXPECT_EQ(sentence_to_utf8(phonemes[0]), "ola mundo");
+	EXPECT_EQ(sentence_to_utf8(phonemes[0]), pt->expected_phoneme_preview);
+}
+
+TEST(MultilingualPhonemizeTest, PhonemeOnlyLanguagesRejectTextInputCapability) {
+	const auto rows = load_capability_matrix();
+	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
+
+	const CapabilityRow *zh = find_row(rows, "zh");
+	ASSERT_NE(zh, nullptr);
+
+	EXPECT_FALSE(piper::supportsMultilingualTextPhonemization(zh->language_code));
+	EXPECT_FALSE(piper::supportsMultilingualAutoRouting(zh->language_code));
+	EXPECT_EQ(piper::getMultilingualTextRoutingMode(zh->language_code),
+			piper::MultilingualTextRoutingMode::Unsupported);
+	EXPECT_NE(piper::getMultilingualTextSupportError(zh->language_code).find(
+					zh->expected_error_contains), std::string::npos);
 }

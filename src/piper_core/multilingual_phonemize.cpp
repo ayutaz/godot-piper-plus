@@ -1,6 +1,9 @@
 #include "multilingual_phonemize.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <functional>
+#include <optional>
 #include <utility>
 
 #include "utf8.h"
@@ -735,6 +738,209 @@ std::string getMultilingualTextSupportError(const std::string &languageCode) {
 
 	return "Multilingual text phonemization for language_code '" + languageCode +
 		   "' is not implemented. Use raw phoneme input or a supported text language.";
+}
+
+std::vector<MultilingualLanguageCapability> getMultilingualLanguageCapabilities(
+		const Voice &voice) {
+	std::vector<MultilingualLanguageCapability> capabilities;
+
+	auto append_capability = [&capabilities](const std::string &code,
+			std::optional<LanguageId> languageId) {
+		MultilingualLanguageCapability capability;
+		capability.languageCode = code;
+		capability.languageId = languageId;
+		capability.routingMode = getMultilingualTextRoutingMode(code);
+		capability.autoRouteAllowed =
+				capability.routingMode == MultilingualTextRoutingMode::AutoDetect;
+		capability.textPhonemizerAvailable =
+				capability.routingMode != MultilingualTextRoutingMode::Unsupported;
+		capability.phonemeOnly = !capability.textPhonemizerAvailable;
+		capabilities.push_back(std::move(capability));
+	};
+
+	if (voice.modelConfig.languageIdMap && !voice.modelConfig.languageIdMap->empty()) {
+		std::vector<std::pair<LanguageId, std::string>> sortedLanguages;
+		sortedLanguages.reserve(voice.modelConfig.languageIdMap->size());
+		for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+			sortedLanguages.emplace_back(id, code);
+		}
+		std::sort(sortedLanguages.begin(), sortedLanguages.end(),
+				[](const auto &lhs, const auto &rhs) {
+					return lhs.first < rhs.first;
+				});
+
+		for (const auto &[id, code] : sortedLanguages) {
+			append_capability(code, id);
+		}
+		return capabilities;
+	}
+
+	append_capability("ja", std::nullopt);
+	append_capability("en", std::nullopt);
+	return capabilities;
+}
+
+std::vector<std::string> getMultilingualAutoRouteLanguages(const Voice &voice) {
+	std::vector<std::string> languages;
+	for (const auto &capability : getMultilingualLanguageCapabilities(voice)) {
+		if (capability.autoRouteAllowed) {
+			languages.push_back(capability.languageCode);
+		}
+	}
+
+	if (languages.empty()) {
+		languages = {"ja", "en"};
+	}
+
+	return languages;
+}
+
+std::vector<std::string> getMultilingualTextLanguages(const Voice &voice) {
+	std::vector<std::string> languages;
+	for (const auto &capability : getMultilingualLanguageCapabilities(voice)) {
+		if (capability.textPhonemizerAvailable) {
+			languages.push_back(capability.languageCode);
+		}
+	}
+
+	if (languages.empty()) {
+		languages = {"ja", "en"};
+	}
+
+	return languages;
+}
+
+std::string getMultilingualDefaultLatinLanguage(
+		const Voice &voice, const std::vector<std::string> &languages) {
+	std::string selectedLanguage;
+	if (voice.synthesisConfig.languageId.has_value() &&
+			voice.modelConfig.languageIdMap) {
+		for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+			if (id == *voice.synthesisConfig.languageId) {
+				selectedLanguage = code;
+				break;
+			}
+		}
+	}
+	if (isMultilingualLatinLanguage(selectedLanguage) &&
+			supportsMultilingualTextPhonemization(selectedLanguage) &&
+			std::find(languages.begin(), languages.end(), selectedLanguage) != languages.end()) {
+		return selectedLanguage;
+	}
+
+	for (const char *preferredLanguage : {"en", "es", "fr", "pt"}) {
+		if (std::find(languages.begin(), languages.end(), preferredLanguage) != languages.end() &&
+				supportsMultilingualTextPhonemization(preferredLanguage)) {
+			return preferredLanguage;
+		}
+	}
+
+	for (const std::string &language : languages) {
+		if (isMultilingualLatinLanguage(language) &&
+				supportsMultilingualTextPhonemization(language)) {
+			return language;
+		}
+	}
+
+	return {};
+}
+
+std::string normalizeMultilingualLanguageCode(const std::string &languageCode) {
+	std::string normalized = languageCode;
+	auto is_not_space = [](unsigned char ch) { return !std::isspace(ch); };
+	normalized.erase(normalized.begin(),
+			std::find_if(normalized.begin(), normalized.end(), is_not_space));
+	normalized.erase(std::find_if(normalized.rbegin(), normalized.rend(), is_not_space).base(),
+			normalized.end());
+	std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+			[](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+	std::replace(normalized.begin(), normalized.end(), '_', '-');
+	return normalized;
+}
+
+std::optional<LanguageId> resolveLanguageIdForCode(
+		const Voice &voice, const std::string &languageCode) {
+	if (!voice.modelConfig.languageIdMap) {
+		return std::nullopt;
+	}
+
+	const std::string normalizedCode = normalizeMultilingualLanguageCode(languageCode);
+	for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+		if (normalizeMultilingualLanguageCode(code) == normalizedCode) {
+			return id;
+		}
+	}
+
+	return std::nullopt;
+}
+
+MultilingualRoutingPlan planMultilingualTextRouting(
+		const Voice &voice,
+		const std::string &text,
+		const std::optional<std::string> &explicitLanguageCode,
+		const std::optional<LanguageId> &explicitLanguageId) {
+	MultilingualRoutingPlan plan;
+	plan.hasExplicitLanguageSelection =
+			(explicitLanguageCode.has_value() && !explicitLanguageCode->empty()) ||
+			explicitLanguageId.has_value();
+
+	std::string resolvedExplicitLanguageCode;
+	if (explicitLanguageCode.has_value() && !explicitLanguageCode->empty()) {
+		resolvedExplicitLanguageCode = normalizeMultilingualLanguageCode(*explicitLanguageCode);
+	} else if (explicitLanguageId.has_value() && voice.modelConfig.languageIdMap) {
+		for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+			if (id == *explicitLanguageId) {
+				resolvedExplicitLanguageCode = normalizeMultilingualLanguageCode(code);
+				break;
+			}
+		}
+	}
+
+	std::vector<std::string> languages = getMultilingualAutoRouteLanguages(voice);
+	if (!resolvedExplicitLanguageCode.empty() &&
+			std::find(languages.begin(), languages.end(), resolvedExplicitLanguageCode) ==
+					languages.end()) {
+		languages.push_back(resolvedExplicitLanguageCode);
+	}
+
+	const std::string defaultLatin = getMultilingualDefaultLatinLanguage(voice, languages);
+	plan.segments = segmentMultilingualText(text, languages, defaultLatin);
+
+	if (!resolvedExplicitLanguageCode.empty()) {
+		plan.resolvedLanguageCode = resolvedExplicitLanguageCode;
+	} else if (!text.empty()) {
+		plan.resolvedLanguageCode =
+				detectMultilingualDominantLanguage(text, languages, defaultLatin);
+	}
+
+	plan.resolvedLanguageId = resolveLanguageIdForCode(voice, plan.resolvedLanguageCode);
+	return plan;
+}
+
+bool containsHanWithoutKana(const std::string &utf8Text) {
+	if (!utf8::is_valid(utf8Text.begin(), utf8Text.end())) {
+		return false;
+	}
+
+	bool hasKana = false;
+	bool hasHan = false;
+	auto it = utf8Text.begin();
+	while (it != utf8Text.end()) {
+		uint32_t cp = utf8::unchecked::next(it);
+		if ((cp >= 0x3040 && cp <= 0x309F) ||
+				(cp >= 0x30A0 && cp <= 0x30FF) ||
+				(cp >= 0x31F0 && cp <= 0x31FF) ||
+				(cp >= 0xFF65 && cp <= 0xFF9F)) {
+			hasKana = true;
+		}
+		if ((cp >= 0x4E00 && cp <= 0x9FFF) ||
+				(cp >= 0x3400 && cp <= 0x4DBF) ||
+				(cp >= 0xF900 && cp <= 0xFAFF)) {
+			hasHan = true;
+		}
+	}
+
+	return hasHan && !hasKana;
 }
 
 void phonemize_spanish(const std::string &text,

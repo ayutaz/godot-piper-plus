@@ -114,12 +114,20 @@ struct PhonemeInfo {
   int end_frame;           // End frame index
 };
 
+struct ResolvedSegment {
+  std::string text;
+  std::string languageCode;
+  std::optional<LanguageId> languageId;
+  bool isPhonemeInput = false;
+};
+
 struct SynthesisResult {
   double inferSeconds = 0.0;
   double audioSeconds = 0.0;
   double realTimeFactor = 0.0;
   std::vector<PhonemeInfo> phonemeTimings;  // Phoneme timing information
   bool hasTimingInfo = false;                // Whether timing info is available
+  std::vector<ResolvedSegment> resolvedSegments;
 };
 
 struct InspectionResult {
@@ -127,6 +135,7 @@ struct InspectionResult {
   std::vector<std::vector<PhonemeId>> phonemeIdSentences;
   std::map<Phoneme, std::size_t> missingPhonemes;
   std::optional<LanguageId> resolvedLanguageId;
+  std::vector<ResolvedSegment> resolvedSegments;
 };
 
 struct Voice {

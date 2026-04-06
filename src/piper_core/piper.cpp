@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -83,22 +84,70 @@ std::string language_code_from_id(const Voice &voice,
   return {};
 }
 
-std::vector<std::string> get_multilingual_languages(const Voice &voice) {
-  std::vector<std::string> languages;
-  if (voice.modelConfig.languageIdMap && !voice.modelConfig.languageIdMap->empty()) {
-    std::vector<std::pair<LanguageId, std::string>> sortedLanguages;
-    sortedLanguages.reserve(voice.modelConfig.languageIdMap->size());
-    for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
-      sortedLanguages.emplace_back(id, code);
-    }
-    std::sort(sortedLanguages.begin(), sortedLanguages.end(),
-              [](const auto &lhs, const auto &rhs) {
-                return lhs.first < rhs.first;
-              });
+std::string normalize_language_code(const std::string &code) {
+  std::string normalized = code;
+  auto is_not_space = [](unsigned char ch) { return !std::isspace(ch); };
+  normalized.erase(normalized.begin(),
+                   std::find_if(normalized.begin(), normalized.end(), is_not_space));
+  normalized.erase(std::find_if(normalized.rbegin(), normalized.rend(), is_not_space).base(),
+                   normalized.end());
+  std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                 [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+  std::replace(normalized.begin(), normalized.end(), '_', '-');
+  return normalized;
+}
 
-    languages.reserve(sortedLanguages.size());
-    for (const auto &[id, code] : sortedLanguages) {
-      languages.push_back(code);
+std::optional<LanguageId> language_id_from_code(const Voice &voice,
+                                                const std::string &languageCode) {
+  if (!voice.modelConfig.languageIdMap) {
+    return std::nullopt;
+  }
+
+  const std::string normalizedCode = normalize_language_code(languageCode);
+  for (const auto &[code, id] : *voice.modelConfig.languageIdMap) {
+    if (normalize_language_code(code) == normalizedCode) {
+      return id;
+    }
+  }
+
+  return std::nullopt;
+}
+
+bool is_han_codepoint(char32_t cp) {
+  return (cp >= 0x4E00 && cp <= 0x9FFF) ||
+         (cp >= 0x3400 && cp <= 0x4DBF) ||
+         (cp >= 0xF900 && cp <= 0xFAFF);
+}
+
+bool is_kana_codepoint(char32_t cp) {
+  return (cp >= 0x3040 && cp <= 0x309F) ||
+         (cp >= 0x30A0 && cp <= 0x30FF) ||
+         (cp >= 0x31F0 && cp <= 0x31FF) ||
+         (cp >= 0xFF65 && cp <= 0xFF9F);
+}
+
+bool contains_han_without_kana(const std::string &text) {
+  if (!utf8::is_valid(text.begin(), text.end())) {
+    return false;
+  }
+
+  bool hasHan = false;
+  bool hasKana = false;
+  auto it = text.begin();
+  while (it != text.end()) {
+    const uint32_t cp = utf8::unchecked::next(it);
+    hasHan = hasHan || is_han_codepoint(static_cast<char32_t>(cp));
+    hasKana = hasKana || is_kana_codepoint(static_cast<char32_t>(cp));
+  }
+
+  return hasHan && !hasKana;
+}
+
+std::vector<std::string> get_multilingual_auto_languages(const Voice &voice) {
+  std::vector<std::string> languages;
+  for (const auto &capability : piper::getMultilingualLanguageCapabilities(voice)) {
+    if (capability.autoRouteAllowed) {
+      languages.push_back(capability.languageCode);
     }
   }
 
@@ -109,8 +158,16 @@ std::vector<std::string> get_multilingual_languages(const Voice &voice) {
   return languages;
 }
 
-std::string get_default_latin_language(const Voice &voice,
-                                       const std::vector<std::string> &languages) {
+std::string get_default_latin_language(
+    const Voice &voice, const std::vector<std::string> &languages,
+    const std::optional<std::string> &explicitLanguageCode = std::nullopt) {
+  if (explicitLanguageCode.has_value() &&
+      piper::isMultilingualLatinLanguage(*explicitLanguageCode) &&
+      piper::supportsMultilingualTextPhonemization(*explicitLanguageCode) &&
+      std::find(languages.begin(), languages.end(), *explicitLanguageCode) != languages.end()) {
+    return *explicitLanguageCode;
+  }
+
   const std::string selectedLanguage =
       language_code_from_id(voice, voice.synthesisConfig.languageId);
   if (isMultilingualLatinLanguage(selectedLanguage) &&
@@ -154,119 +211,86 @@ struct MultilingualSegmentResult {
   std::vector<ProsodyFeature> prosody;
 };
 
-void append_non_japanese_phonemes(
-    const std::vector<std::vector<Phoneme>> &languagePhonemes,
-    bool useProsody,
-    std::vector<Phoneme> &combinedPhonemes,
-    std::vector<ProsodyFeature> &combinedProsody) {
-  for (const auto &sentence : languagePhonemes) {
-    combinedPhonemes.insert(combinedPhonemes.end(), sentence.begin(), sentence.end());
-    if (useProsody) {
-      auto zeroProsody = make_zero_prosody(sentence.size());
-      combinedProsody.insert(combinedProsody.end(),
-                             zeroProsody.begin(), zeroProsody.end());
-    }
-  }
-}
-
 MultilingualSegmentResult phonemize_multilingual_segment(
-    Voice &voice, const std::string &text, bool useProsody,
-    bool hasExplicitLanguageSelection) {
-  const std::vector<std::string> languages = get_multilingual_languages(voice);
-  const std::string defaultLatin = get_default_latin_language(voice, languages);
-  UnicodeLanguageDetector detector(languages, defaultLatin);
-  std::vector<LangSegment> languageSegments = detector.segmentText(text);
+    Voice &voice, const std::string &languageCode, const std::string &text,
+    bool useProsody) {
+  MultilingualSegmentResult result;
+  std::vector<std::vector<Phoneme>> languagePhonemes;
+  std::vector<std::vector<ProsodyFeature>> languageProsody;
 
-  MultilingualSegmentResult combinedResult;
-  for (const auto &languageSegment : languageSegments) {
-    std::vector<std::vector<Phoneme>> languagePhonemes;
-    std::vector<std::vector<ProsodyFeature>> languageProsody;
+  if (languageCode == "ja") {
+    if (useProsody) {
+      phonemize_openjtalk_with_prosody(text, languagePhonemes, languageProsody);
+    } else {
+      phonemize_openjtalk(text, languagePhonemes);
+    }
 
-    if (languageSegment.lang == "ja") {
-      if (useProsody) {
-        phonemize_openjtalk_with_prosody(languageSegment.text, languagePhonemes,
-                                         languageProsody);
-      } else {
-        phonemize_openjtalk(languageSegment.text, languagePhonemes);
-      }
+    if (languagePhonemes.empty() && !text.empty()) {
+      throw std::runtime_error(
+          "OpenJTalk is not available or failed to process Japanese text. "
+          "Cannot synthesize Japanese without OpenJTalk.");
+    }
 
-      if (languagePhonemes.empty() && !languageSegment.text.empty()) {
-        throw std::runtime_error(
-            "OpenJTalk is not available or failed to process Japanese text. "
-            "Cannot synthesize Japanese without OpenJTalk.");
-      }
+    for (std::size_t sentenceIndex = 0; sentenceIndex < languagePhonemes.size();
+         ++sentenceIndex) {
+      const auto &jaSentence = languagePhonemes[sentenceIndex];
+      const auto &jaProsody =
+          sentenceIndex < languageProsody.size()
+              ? languageProsody[sentenceIndex]
+              : make_zero_prosody(jaSentence.size());
 
-      for (std::size_t sentenceIndex = 0; sentenceIndex < languagePhonemes.size();
-           ++sentenceIndex) {
-        const auto &jaSentence = languagePhonemes[sentenceIndex];
-        const auto &jaProsody =
-            sentenceIndex < languageProsody.size()
-                ? languageProsody[sentenceIndex]
-                : make_zero_prosody(jaSentence.size());
+      for (std::size_t phonemeIndex = 0; phonemeIndex < jaSentence.size();
+           ++phonemeIndex) {
+        if (is_openjtalk_boundary_token(jaSentence[phonemeIndex])) {
+          continue;
+        }
 
-        for (std::size_t phonemeIndex = 0; phonemeIndex < jaSentence.size();
-             ++phonemeIndex) {
-          if (is_openjtalk_boundary_token(jaSentence[phonemeIndex])) {
-            continue;
-          }
-
-          combinedResult.phonemes.push_back(jaSentence[phonemeIndex]);
-          if (useProsody) {
-            if (phonemeIndex < jaProsody.size()) {
-              combinedResult.prosody.push_back(jaProsody[phonemeIndex]);
-            } else {
-              combinedResult.prosody.push_back({0, 0, 0});
-            }
+        result.phonemes.push_back(jaSentence[phonemeIndex]);
+        if (useProsody) {
+          if (phonemeIndex < jaProsody.size()) {
+            result.prosody.push_back(jaProsody[phonemeIndex]);
+          } else {
+            result.prosody.push_back({0, 0, 0});
           }
         }
       }
-      continue;
     }
 
-    if (languageSegment.lang == "en") {
-      if (voice.cmuDict.empty()) {
-        throw std::runtime_error(
-            "English CMU dictionary is not loaded. Provide cmudict_data.json next "
-            "to the model, config, or addons/piper_plus/dictionaries.");
-      }
-      phonemize_english(languageSegment.text, languagePhonemes, voice.cmuDict);
-    } else if (languageSegment.lang == "es") {
-      phonemize_spanish(languageSegment.text, languagePhonemes);
-    } else if (languageSegment.lang == "fr") {
-      phonemize_french(languageSegment.text, languagePhonemes);
-    } else if (languageSegment.lang == "pt") {
-      phonemize_portuguese(languageSegment.text, languagePhonemes);
-    } else {
-      throw std::runtime_error(getMultilingualTextSupportError(languageSegment.lang));
-    }
-
-    if (languagePhonemes.empty() && !languageSegment.text.empty()) {
-      throw std::runtime_error("Multilingual phonemization failed for language '" +
-                               languageSegment.lang + "'.");
-    }
-
-    append_non_japanese_phonemes(languagePhonemes, useProsody,
-                                 combinedResult.phonemes, combinedResult.prosody);
+    return result;
   }
 
-  if (!languageSegments.empty() && !hasExplicitLanguageSelection &&
-      voice.modelConfig.languageIdMap) {
-    const std::string dominantLanguage =
-        detectDominantLanguage(text, detector);
-    auto langIt = voice.modelConfig.languageIdMap->find(dominantLanguage);
-    if (langIt != voice.modelConfig.languageIdMap->end()) {
-      voice.synthesisConfig.languageId = langIt->second;
-      spdlog::debug("Auto-selected dominant language '{}' (lid={})",
-                    dominantLanguage, langIt->second);
+  if (languageCode == "en") {
+    if (voice.cmuDict.empty()) {
+      throw std::runtime_error(
+          "English CMU dictionary is not loaded. Provide cmudict_data.json next "
+          "to the model, config, or addons/piper_plus/dictionaries.");
+    }
+    phonemize_english(text, languagePhonemes, voice.cmuDict);
+  } else if (languageCode == "es") {
+    phonemize_spanish(text, languagePhonemes);
+  } else if (languageCode == "fr") {
+    phonemize_french(text, languagePhonemes);
+  } else if (languageCode == "pt") {
+    phonemize_portuguese(text, languagePhonemes);
+  } else {
+    throw std::runtime_error(getMultilingualTextSupportError(languageCode));
+  }
+
+  if (languagePhonemes.empty() && !text.empty()) {
+    throw std::runtime_error("Multilingual phonemization failed for language '" +
+                             languageCode + "'.");
+  }
+
+  for (const auto &sentence : languagePhonemes) {
+    result.phonemes.insert(result.phonemes.end(), sentence.begin(), sentence.end());
+    if (useProsody) {
+      auto zeroProsody = make_zero_prosody(sentence.size());
+      result.prosody.insert(result.prosody.end(),
+                            zeroProsody.begin(), zeroProsody.end());
     }
   }
 
-  if (combinedResult.phonemes.empty() && !text.empty()) {
-    throw std::runtime_error(
-        "Multilingual phonemization produced no phonemes for non-empty input.");
-  }
-
-  return combinedResult;
+  return result;
 }
 
 std::vector<std::filesystem::path> get_cmudict_candidates(
@@ -541,7 +565,8 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
                 SynthesisConfig &synthesisConfig, ModelSession &session,
                 std::vector<int16_t> &audioBuffer, SynthesisResult &result,
                 Voice *voice = nullptr,
-                std::vector<int64_t> *prosodyFeatures = nullptr) {
+                std::vector<int64_t> *prosodyFeatures = nullptr,
+                std::optional<LanguageId> languageIdOverride = std::nullopt) {
   spdlog::debug("Synthesizing audio for {} phoneme id(s)", phonemeIds.size());
 
   auto memoryInfo = Ort::MemoryInfo::CreateCpu(
@@ -578,8 +603,10 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
       (int64_t)synthesisConfig.speakerId.value_or(0)};
   std::vector<int64_t> speakerIdShape{(int64_t)speakerId.size()};
 
+  const std::optional<LanguageId> effectiveLanguageId =
+      languageIdOverride.has_value() ? languageIdOverride : synthesisConfig.languageId;
   int64_t resolvedLanguageId =
-      static_cast<int64_t>(synthesisConfig.languageId.value_or(0));
+      static_cast<int64_t>(effectiveLanguageId.value_or(0));
   if (voice != nullptr &&
       (resolvedLanguageId < 0 ||
        resolvedLanguageId >= static_cast<int64_t>(voice->modelConfig.numLanguages))) {
@@ -717,12 +744,12 @@ void synthesize(std::vector<PhonemeId> &phonemeIds,
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,
                  std::vector<int16_t> &audioBuffer, SynthesisResult &result,
                  const std::function<void()> &audioCallback) {
-  ScopedLanguageIdRestore languageIdRestore(voice);
   result.inferSeconds = 0.0;
   result.audioSeconds = 0.0;
   result.realTimeFactor = 0.0;
   result.phonemeTimings.clear();
   result.hasTimingInfo = false;
+  result.resolvedSegments.clear();
 
   if (voice.customDictionary) {
     text = applyCustomDictionaryToTextSegments(text, voice.customDictionary.get());
@@ -741,11 +768,27 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
   // Phonemes for each sentence
   spdlog::debug("Phonemizing text: {}", text);
   std::vector<std::vector<Phoneme>> phonemes;
+  std::vector<std::optional<LanguageId>> sentenceLanguageIds;
 
   // Prosody features for each sentence (only used for OpenJTalk with prosody-enabled models)
   std::vector<std::vector<ProsodyFeature>> allProsodyFeatures;
   bool useProsody = voice.session.hasProsodyInput &&
                     usesOpenJTalk(voice.phonemizeConfig.phonemeType);
+  const std::vector<std::string> multilingualAutoLanguages =
+      get_multilingual_auto_languages(voice);
+  const std::string explicitMultilingualLanguageCode =
+      language_code_from_id(voice, voice.synthesisConfig.languageId);
+  std::vector<std::string> multilingualLanguages = multilingualAutoLanguages;
+  if (!explicitMultilingualLanguageCode.empty() &&
+      std::find(multilingualLanguages.begin(), multilingualLanguages.end(),
+                explicitMultilingualLanguageCode) == multilingualLanguages.end()) {
+    multilingualLanguages.push_back(explicitMultilingualLanguageCode);
+  }
+  const std::string multilingualDefaultLatin =
+      get_default_latin_language(voice, multilingualLanguages,
+                                 explicitMultilingualLanguageCode.empty()
+                                     ? std::optional<std::string>()
+                                     : std::make_optional(explicitMultilingualLanguageCode));
 
   // Process each segment
   for (const auto& segment : textSegments) {
@@ -756,6 +799,13 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
 
       // Add as a single "sentence"
       phonemes.push_back(parsedPhonemes);
+      sentenceLanguageIds.push_back(voice.synthesisConfig.languageId);
+      result.resolvedSegments.push_back({
+          segment.text,
+          language_code_from_id(voice, voice.synthesisConfig.languageId),
+          voice.synthesisConfig.languageId,
+          true,
+      });
 
       // Add empty prosody features for direct phoneme input
       if (useProsody) {
@@ -781,6 +831,14 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
           throw std::runtime_error("OpenJTalk is not available or failed to process Japanese text. "
                                    "Cannot synthesize Japanese without OpenJTalk.");
         }
+        if (!segment.text.empty()) {
+          result.resolvedSegments.push_back({
+              segment.text,
+              "ja",
+              language_id_from_code(voice, "ja"),
+              false,
+          });
+        }
       } else if (voice.phonemizeConfig.phonemeType == TextPhonemes) {
         if (voice.cmuDict.empty()) {
           throw std::runtime_error("English CMU dictionary is not loaded. Provide cmudict_data.json next to the model or config.");
@@ -790,14 +848,40 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
         if (segmentPhonemes.empty() && !segment.text.empty()) {
           throw std::runtime_error("English phonemization failed for non-empty input.");
         }
+        if (!segment.text.empty()) {
+          result.resolvedSegments.push_back({
+              segment.text,
+              "en",
+              language_id_from_code(voice, "en"),
+              false,
+          });
+        }
       } else if (voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
-        MultilingualSegmentResult combinedResult =
-            phonemize_multilingual_segment(
-                voice, segment.text, useProsody,
-                languageIdRestore.original().has_value());
-        segmentPhonemes.push_back(std::move(combinedResult.phonemes));
-        if (useProsody) {
-          segmentProsody.push_back(std::move(combinedResult.prosody));
+        if (!voice.synthesisConfig.languageId.has_value() &&
+            contains_han_without_kana(segment.text)) {
+          throw std::runtime_error(
+              "Multilingual text containing Han characters without Kana is ambiguous. "
+              "Please set language_code explicitly.");
+        }
+
+        UnicodeLanguageDetector detector(multilingualLanguages, multilingualDefaultLatin);
+        std::vector<LangSegment> languageSegments = detector.segmentText(segment.text);
+
+        for (const auto &languageSegment : languageSegments) {
+          MultilingualSegmentResult combinedResult =
+              phonemize_multilingual_segment(
+                  voice, languageSegment.lang, languageSegment.text, useProsody);
+          segmentPhonemes.push_back(std::move(combinedResult.phonemes));
+          sentenceLanguageIds.push_back(language_id_from_code(voice, languageSegment.lang));
+          result.resolvedSegments.push_back({
+              languageSegment.text,
+              languageSegment.lang,
+              language_id_from_code(voice, languageSegment.lang),
+              false,
+          });
+          if (useProsody) {
+            segmentProsody.push_back(std::move(combinedResult.prosody));
+          }
         }
       } else {
         throw std::runtime_error("Unsupported phoneme type.");
@@ -806,6 +890,9 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
       // Add all sentences from this segment
       for (size_t i = 0; i < segmentPhonemes.size(); i++) {
         phonemes.push_back(std::move(segmentPhonemes[i]));
+        if (sentenceLanguageIds.size() < phonemes.size()) {
+          sentenceLanguageIds.push_back(voice.synthesisConfig.languageId);
+        }
 
         if (useProsody) {
           if (i < segmentProsody.size()) {
@@ -997,7 +1084,10 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
       std::vector<int16_t> phraseAudioBuffer;
       synthesize(phonemeIds, voice.synthesisConfig, voice.session,
                  phraseAudioBuffer, phraseResults[phraseIdx], &voice,
-                 prosodyPtr);
+                 prosodyPtr,
+                 sentenceIdx < sentenceLanguageIds.size()
+                     ? sentenceLanguageIds[sentenceIdx]
+                     : std::optional<LanguageId>());
       audioBuffer.insert(audioBuffer.end(), phraseAudioBuffer.begin(),
                          phraseAudioBuffer.end());
 
@@ -1069,11 +1159,11 @@ void textToAudio(PiperConfig &config, Voice &voice, std::string text,
 
 void inspectText(PiperConfig &config, Voice &voice, std::string text,
                  InspectionResult &result) {
-  ScopedLanguageIdRestore languageIdRestore(voice);
   result.phonemeSentences.clear();
   result.phonemeIdSentences.clear();
   result.missingPhonemes.clear();
   result.resolvedLanguageId.reset();
+  result.resolvedSegments.clear();
 
   if (voice.customDictionary) {
     text = applyCustomDictionaryToTextSegments(text, voice.customDictionary.get());
@@ -1082,11 +1172,32 @@ void inspectText(PiperConfig &config, Voice &voice, std::string text,
   auto textSegments = parsePhonemeNotation(text);
   bool useProsody = voice.session.hasProsodyInput &&
                     usesOpenJTalk(voice.phonemizeConfig.phonemeType);
+  const std::vector<std::string> multilingualAutoLanguages =
+      get_multilingual_auto_languages(voice);
+  const std::string explicitMultilingualLanguageCode =
+      language_code_from_id(voice, voice.synthesisConfig.languageId);
+  std::vector<std::string> multilingualLanguages = multilingualAutoLanguages;
+  if (!explicitMultilingualLanguageCode.empty() &&
+      std::find(multilingualLanguages.begin(), multilingualLanguages.end(),
+                explicitMultilingualLanguageCode) == multilingualLanguages.end()) {
+    multilingualLanguages.push_back(explicitMultilingualLanguageCode);
+  }
+  const std::string multilingualDefaultLatin =
+      get_default_latin_language(voice, multilingualLanguages,
+                                 explicitMultilingualLanguageCode.empty()
+                                     ? std::optional<std::string>()
+                                     : std::make_optional(explicitMultilingualLanguageCode));
 
   for (const auto &segment : textSegments) {
     if (segment.isPhonemes) {
       result.phonemeSentences.push_back(parsePhonemeString(
           segment.text, static_cast<int>(voice.phonemizeConfig.phonemeType)));
+      result.resolvedSegments.push_back({
+          segment.text,
+          language_code_from_id(voice, voice.synthesisConfig.languageId),
+          voice.synthesisConfig.languageId,
+          true,
+      });
       continue;
     }
 
@@ -1103,6 +1214,14 @@ void inspectText(PiperConfig &config, Voice &voice, std::string text,
       if (segmentPhonemes.empty() && !segment.text.empty()) {
         throw std::runtime_error("OpenJTalk is not available or failed to process Japanese text.");
       }
+      if (!segment.text.empty()) {
+        result.resolvedSegments.push_back({
+            segment.text,
+            "ja",
+            language_id_from_code(voice, "ja"),
+            false,
+        });
+      }
     } else if (voice.phonemizeConfig.phonemeType == TextPhonemes) {
       if (voice.cmuDict.empty()) {
         throw std::runtime_error("English CMU dictionary is not loaded. Provide cmudict_data.json next to the model or config.");
@@ -1112,12 +1231,36 @@ void inspectText(PiperConfig &config, Voice &voice, std::string text,
       if (segmentPhonemes.empty() && !segment.text.empty()) {
         throw std::runtime_error("English phonemization failed for non-empty input.");
       }
+      if (!segment.text.empty()) {
+        result.resolvedSegments.push_back({
+            segment.text,
+            "en",
+            language_id_from_code(voice, "en"),
+            false,
+        });
+      }
     } else if (voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
-      MultilingualSegmentResult combinedResult =
-          phonemize_multilingual_segment(
-              voice, segment.text, useProsody,
-              languageIdRestore.original().has_value());
-      segmentPhonemes.push_back(std::move(combinedResult.phonemes));
+      if (!voice.synthesisConfig.languageId.has_value() &&
+          contains_han_without_kana(segment.text)) {
+        throw std::runtime_error(
+            "Multilingual text containing Han characters without Kana is ambiguous. "
+            "Please set language_code explicitly.");
+      }
+
+      UnicodeLanguageDetector detector(multilingualLanguages, multilingualDefaultLatin);
+      std::vector<LangSegment> languageSegments = detector.segmentText(segment.text);
+      for (const auto &languageSegment : languageSegments) {
+        MultilingualSegmentResult combinedResult =
+            phonemize_multilingual_segment(
+                voice, languageSegment.lang, languageSegment.text, useProsody);
+        segmentPhonemes.push_back(std::move(combinedResult.phonemes));
+        result.resolvedSegments.push_back({
+            languageSegment.text,
+            languageSegment.lang,
+            language_id_from_code(voice, languageSegment.lang),
+            false,
+        });
+      }
     } else {
       throw std::runtime_error("Unsupported phoneme type.");
     }
@@ -1128,6 +1271,13 @@ void inspectText(PiperConfig &config, Voice &voice, std::string text,
   }
 
   result.resolvedLanguageId = voice.synthesisConfig.languageId;
+  if (!result.resolvedLanguageId.has_value() &&
+      voice.phonemizeConfig.phonemeType == MultilingualPhonemes &&
+      !text.empty()) {
+    const std::string dominantLanguage = detectMultilingualDominantLanguage(
+        text, multilingualLanguages, multilingualDefaultLatin);
+    result.resolvedLanguageId = language_id_from_code(voice, dominantLanguage);
+  }
 
   PhonemeIdConfig idConfig;
   idConfig.phonemeIdMap =
@@ -1154,6 +1304,13 @@ void phonemesToAudio(PiperConfig &config, Voice &voice,
   result.realTimeFactor = 0.0;
   result.phonemeTimings.clear();
   result.hasTimingInfo = false;
+  result.resolvedSegments.clear();
+  result.resolvedSegments.push_back({
+      "",
+      language_code_from_id(voice, voice.synthesisConfig.languageId),
+      voice.synthesisConfig.languageId,
+      true,
+  });
 
   std::size_t sentenceSilenceSamples = 0;
   if (voice.synthesisConfig.sentenceSilenceSeconds > 0) {
@@ -1272,6 +1429,13 @@ void inspectPhonemes(Voice &voice, const std::vector<Phoneme> &phonemes,
   result.phonemeIdSentences.clear();
   result.missingPhonemes.clear();
   result.resolvedLanguageId = voice.synthesisConfig.languageId;
+  result.resolvedSegments.clear();
+  result.resolvedSegments.push_back({
+      "",
+      language_code_from_id(voice, voice.synthesisConfig.languageId),
+      voice.synthesisConfig.languageId,
+      true,
+  });
 
   result.phonemeSentences.push_back(phonemes);
 

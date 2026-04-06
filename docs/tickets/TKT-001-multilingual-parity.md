@@ -1,6 +1,6 @@
 # TKT-001 multilingual parity 拡張
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M2 Language / Model / Backend 完成](../milestones.md#m2)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5), [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-3` `FR-4` `FR-6` `NFR-5`
@@ -9,81 +9,101 @@
 
 ## 進捗
 
-- [ ] 対象言語と routing 方針を確定する
-- [ ] runtime 実装を拡張する
-- [ ] unit test / headless test を追加する
-- [ ] README / API 文書へ反映する
+- [ ] capability matrix を正本化する
+- [ ] MVP と stretch の境界を固定する
+- [ ] matrix-first の C++ / headless test を追加する
+- [ ] README / API 文書 / milestone を capability-based に揃える
 
 ## タスク目的とゴール
 
-- `ja/en` 最小対応で止まっている multilingual 実装を、要求定義に沿って `ja/en` を超える parity へ拡張する。
-- upstream の `language_id_map` を持つモデルで、追加言語の routing、`language_id` / `language_code` 解決、inspection が一貫して動く状態を作る。
-- 現行の `ja/en` 回帰を出さずに、対象言語の検証ケースを quality gate へ取り込む。
+- `ja/en` の最小 multilingual に止まっている現状を、capability-first の contract に置き換える。
+- upstream の `language_id_map` と model config から、explicit-only / auto / phoneme-only を説明可能に分ける。
+- `inspect_*` と `synthesize_*` が同じ language resolution 結果を共有し、unsupported input は silent skip ではなく明示 failure になる状態を作る。
+- 既存の `ja/en` 回帰を出さずに、対象言語の検証ケースを quality gate へ取り込む。
+
+## MVP
+
+- 1 つの multilingual model に対して capability matrix を正本として読み込めること。
+- `language_code` の正規化と `language_id` の解決が、model config / `language_id_map` と整合すること。
+- `inspect_*` が resolved language 情報を返し、`synthesize_*` と同じ前処理結果を使うこと。
+- `explicit-only` 言語は明示指定で通り、`phoneme-only` 言語は raw phoneme input でのみ通ること。
+- unsupported language は説明可能な failure を返し、silent skip をしないこと。
+
+## Stretch
+
+- `ja/en` 以外で auto-routing を許可する言語を、script 判定と golden test が揃った範囲に限定して追加する。
+- 複数の upstream model family をまたぐ capability matrix を追加する。
+- packaged addon smoke や broader CI matrix を multilingual contract の昇格条件として扱う。
+- `zh` のような phoneme-only 言語を text phonemizer 対応へ昇格させるのは別 ticket に分離する。
 
 ## 実装する内容の詳細
 
-- `src/piper_core/piper.cpp` の `kSupportedMultilingualLanguages = {"ja", "en"}` 前提を見直し、対象言語を config 主導で扱える構造へ置き換える。
-- `addons/piper_plus/models/css10/config.json` の `language_id_map` を基準候補として、少なくとも `zh` `es` `fr` `pt` を評価対象に入れる。
-- `src/piper_core/language_detector.cpp` と `src/piper_core/multilingual_phonemize.*` の分割方針を整理し、script だけで判定可能な言語と、明示指定前提の言語を分ける。
-- `src/piper_tts.cpp` の `language_code` 正規化と `language_id_map` 解決を追加言語でも通るように拡張する。
-- `inspect_*` と `get_last_inspection_result()` が追加言語でも `resolved_language_id` / `resolved_language_code` を返すようにする。
-- `doc_classes/PiperTTS.xml`、`README.md`、`addons/piper_plus/README.md` に supported language matrix と制約を書き出す。
+- `language_id_map` を model capability の起点として扱い、`language_id` と `language_code` の正規化を capability table へ集約する。
+- language の扱いを `auto` `explicit-only` `phoneme-only` `unsupported` に分け、README / API 文書 / tests で同じ分類を使う。
+- auto-routing は script で高信頼に切れる language に限定し、Latin 系の曖昧さは explicit-only に留める。
+- text phonemizer を持たない language は model に存在しても text input では読めない前提を明示する。
+- `inspect_*` と `get_last_inspection_result()` は resolved language と failure semantics を一貫させる。
+- release 前の pass / fail は `M5` の quality gate に分離し、この ticket では contract の固定に集中する。
 
 ## 実装するために必要なエージェントチームの役割と人数
 
-- `runtime / phonemizer engineer` x2: multilingual segmentation、phonemizer routing、fallback 制御を実装する。
-- `API / test engineer` x1: `PiperTTS` 側の `language_code` / `language_id` 契約と GDScript test を拡張する。
-- `docs / QA engineer` x1: 対象言語マトリクス、制約、検証項目を文書へ反映する。
+- `capability / runtime engineer` x2: capability table、language resolution、routing boundary を設計する。
+- `API / test engineer` x1: `PiperTTS` 側の contract と matrix-first test を整備する。
+- `docs / QA engineer` x1: supported matrix、制約、検証項目を文書へ反映する。
 
 ## 提供範囲
 
-- コード: `src/piper_core/`, `src/piper_tts.cpp`
-- テスト: `test/project/test_piper_tts.gd`, 必要なら C++ test
-- 文書: `doc_classes/PiperTTS.xml`, `README.md`, `addons/piper_plus/README.md`, `docs/milestones.md`
+- テスト: `tests/fixtures/`, `tests/test_language_detector.cpp`, 必要なら `test/project/test_piper_tts.gd`
+- 文書: `README.md`, `addons/piper_plus/README.md`, `docs/requirements.md`, `docs/milestones.md`, `docs/tickets/README.md`
 - 対象外: voice model 自体の追加同梱、クラウド翻訳や外部言語判定サービスの導入
 
 ## テスト項目
 
-- `language_id_map` を持つ multilingual model で追加言語が解決できる。
-- `language_code` の別表記や大小文字混在が canonical code へ正規化される。
-- auto-routing 対象言語は混在文を適切に sentence / segment へ分割できる。
-- explicit 指定が必要な言語は silent skip ではなく説明可能な failure か明示 route を返す。
-- `inspect_*` の結果に `resolved_language_id` / `resolved_language_code` が正しく載る。
+- capability matrix にある language ごとの routing mode が docs と一致する。
+- explicit-only 言語は text input で明示指定したときだけ通る。
+- phoneme-only 言語は raw phoneme input でのみ通る。
+- unsupported language は説明可能な failure になる。
+- `inspect_*` の結果に resolved language 情報が載り、`synthesize_*` と整合する。
 - 既存の `ja/en`、`openjtalk-native` fallback、GPU fallback が回帰していない。
 
 ## 実装する unit テスト
 
-- C++: multilingual language set の抽出、unsupported language の扱い、segment routing の分岐をテストする。
-- GDScript: `test/project/test_piper_tts.gd` に追加言語の `language_code` 正規化、`inspect_text`、`inspect_request`、`synthesize_request` のケースを追加する。
-- GDScript: explicit `language_id` / `language_code` と auto-routing の優先順位を検証する。
+- C++: `tests/fixtures/multilingual_capability_matrix.json` を読み、routing mode、text support、auto support、error semantics を検証する。
+- C++: explicit-only 言語の phonemizer smoke を matrix 由来の sample text で検証する。
+- C++: phoneme-only 言語の text support が存在しないことを確認する。
+- GDScript: `language_code` 正規化、`inspect_text`、`inspect_request`、`synthesize_request` の case を matrix の contract に合わせて検証する。
 
 ## 実装する e2e テスト
 
-- headless の `test/project` で multilingual model を使い、追加言語ごとの inspection と最小合成を流す。
-- packaged addon でも multilingual model が load できることを smoke に反映する。
+- headless の `test/project` で multilingual model を使い、capability matrix に沿った inspection と最小合成を流す。
+- packaged addon smoke では addon load と 1 つの explicit-only path、1 つの unsupported path を確認する。
 - release 前に対象言語マトリクスを CI の pass/fail 条件へ組み込む。
 
 ## 実装に関する懸念事項
 
 - Latin script を共有する `en` `es` `fr` `pt` は自動判定の誤検出が起きやすい。
 - upstream model ごとに phoneme inventory や `language_id_map` が異なる可能性がある。
-- 対象言語を広げすぎると、モデル依存差分とテスト資産不足で品質保証が崩れる。
+- text phonemizer を持たない language を text support と誤認すると、後続の quality gate が崩れる。
+- 仕様を docs と tests の両方へ反映しないと、また実装・検証・文書が分離する。
 
 ## レビューをする項目
 
-- 追加言語のサポート範囲が `README` と API 文書で一致しているか。
+- capability matrix が README と API 文書で一致しているか。
 - unsupported language の扱いが silent skip ではなく説明可能な failure になっているか。
-- 既存 `ja/en` の挙動と test の pass 条件を壊していないか。
+- explicit-only と phoneme-only の境界が曖昧になっていないか。
 - `language_id_map` が無いモデルでの挙動が明確か。
+- unit / headless / packaged smoke の責務が混ざっていないか。
 
-## ここまでのタスクで一から作り直すとしたらどうするか
+## Clean-slate review
 
 - 最初から `language_id_map` 駆動の capability table を `PiperTTS` 初期化時に構築し、`ja/en` ハードコードを作らない。
-- auto-routing と explicit language selection を分離し、script で自動判定できる言語だけを auto に入れる。
-- テストモデルと supported language matrix を同時に整備してから API を固定する。
+- auto-routing と explicit selection を分離し、script で自信を持って切れる言語だけを auto に入れる。
+- `language_id_map` と text frontend capability は別概念として扱い、phoneme-only language を隠さない。
+- `inspect_*` と `synthesize_*` は同じ `ResolvedRequest` を共有し、結果差分は inference 以降だけに限定する。
+- capability matrix を仕様の正本にし、docs と tests はそこから派生させる。
 
 ## 後続のタスクに連絡する内容
 
-- `TKT-007` には、最終的に採用した対象言語一覧、auto-routing 対象、explicit 指定必須言語、既知の制約を引き渡す。
-- `M5` には、multilingual の pass 条件と skip 許容条件を明示して渡す。
+- `TKT-007` には、最終的に採用した対象言語一覧、auto-routing 対象、explicit 指定必須言語、phoneme-only language、既知の制約を引き渡す。
+- `M5` には、multilingual の pass 条件と skip 許容条件を capability matrix ベースで明示して渡す。
 - `TKT-002` と競合する場合は、Web でサポートしない言語や backend 制約も同時に整理する。
