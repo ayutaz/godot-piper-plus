@@ -31,6 +31,10 @@ test/project/addons/piper_plus/bin/*
 # ONNX Runtime (downloaded)
 onnxruntime/
 
+# Piper Plus downloaded assets
+/addons/piper_plus/models/
+/addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11/
+
 # Godot generated cache and editor state
 /.godot/
 /test/project/.godot/
