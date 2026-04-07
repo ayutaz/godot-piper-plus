@@ -5,6 +5,7 @@
 #include <filesystem>
 
 #include <godot_cpp/classes/project_settings.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/packed_int64_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -861,6 +862,7 @@ void PiperTTS::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_last_synthesis_result"), &PiperTTS::get_last_synthesis_result);
 	ClassDB::bind_method(D_METHOD("get_last_inspection_result"), &PiperTTS::get_last_inspection_result);
 	ClassDB::bind_method(D_METHOD("get_language_capabilities"), &PiperTTS::get_language_capabilities);
+	ClassDB::bind_method(D_METHOD("get_runtime_contract"), &PiperTTS::get_runtime_contract);
 	ClassDB::bind_method(D_METHOD("get_last_error"), &PiperTTS::get_last_error);
 
 	// --- Methods (M3: async) ---
@@ -1346,6 +1348,32 @@ Error PiperTTS::initialize() {
 #endif
 		}
 
+#if defined(__EMSCRIPTEN__)
+		if (ep != EP_CPU) {
+			const String message =
+					"PiperTTS: Web export supports only EP_CPU execution_provider.";
+			UtilityFunctions::push_error(message);
+			set_last_error(last_error_, "ERR_UNSUPPORTED_EXECUTION_PROVIDER",
+					message, "initialize");
+			piper::terminate(*piper_config);
+			voice->customDictionary.reset();
+			emit_signal("initialized", false);
+			return ERR_UNAVAILABLE;
+		}
+
+		if (!openjtalk_library_path.is_empty()) {
+			const String message =
+					"PiperTTS: Web export does not support openjtalk-native shared libraries.";
+			UtilityFunctions::push_error(message);
+			set_last_error(last_error_, "ERR_OPENJTALK_NATIVE_UNSUPPORTED",
+					message, "initialize");
+			piper::terminate(*piper_config);
+			voice->customDictionary.reset();
+			emit_signal("initialized", false);
+			return ERR_UNAVAILABLE;
+		}
+#endif
+
 		piper::loadVoice(*piper_config, model_str, config_str,
 				*voice, sid, ep, gpu_device_id);
 
@@ -1681,6 +1709,25 @@ Dictionary PiperTTS::get_language_capabilities() const {
 	}
 	clear_last_error(const_cast<PiperTTS *>(this)->last_error_);
 	return build_language_capabilities(*voice);
+}
+
+Dictionary PiperTTS::get_runtime_contract() const {
+	Dictionary contract;
+	const bool is_web_export = OS::get_singleton() && OS::get_singleton()->has_feature("web");
+
+	contract["is_web_export"] = is_web_export;
+	contract["execution_provider_policy"] = is_web_export ? "cpu_only" : "multi_provider";
+	contract["supports_non_cpu_execution_provider"] = !is_web_export;
+	contract["supports_openjtalk_native"] = !is_web_export;
+	contract["supports_openjtalk_library_path"] = !is_web_export;
+	contract["resource_path_mode"] = "globalize_path";
+	contract["model_path"] = model_path;
+	contract["config_path"] = config_path;
+	contract["dictionary_path"] = dictionary_path;
+	contract["openjtalk_library_path"] = openjtalk_library_path;
+	contract["custom_dictionary_path"] = custom_dictionary_path;
+	contract["execution_provider"] = execution_provider;
+	return contract;
 }
 
 Dictionary PiperTTS::get_last_error() const {

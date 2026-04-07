@@ -1,6 +1,6 @@
 # TKT-010 Web runtime adaptation / ORT Web 対応
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `FR-4` `FR-6` `NFR-2` `NFR-4` `NFR-5`
@@ -10,9 +10,9 @@
 
 ## 進捗
 
-- [ ] `FindOnnxRuntime.cmake` に Web static-lib 分岐を追加する
+- [x] `FindOnnxRuntime.cmake` に Web static-lib 分岐を追加する
 - [ ] model / config / `cmudict_data.json` を含む dictionary 読み込みを path 非依存の形へ分離する
-- [ ] Web で unsupported な backend や optional native backend の扱いを固定する
+- [x] Web で unsupported な backend や optional native backend の扱いを固定する
 - [ ] Phase 1 の最小 synthesize と除外機能の境界を整理する
 
 ## タスク目的とゴール

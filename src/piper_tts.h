@@ -169,6 +169,7 @@ public:
 	Dictionary get_last_synthesis_result() const;
 	Dictionary get_last_inspection_result() const;
 	Dictionary get_language_capabilities() const;
+	Dictionary get_runtime_contract() const;
 	Dictionary get_last_error() const;
 
 	// Methods (M3: async)

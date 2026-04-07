@@ -10,6 +10,12 @@ var _async_completed_audio = null
 var _async_failed_error := ""
 var _streaming_completed := false
 
+func _is_web_runtime() -> bool:
+    return OS.has_feature("web")
+
+func _is_web_smoke() -> bool:
+    return OS.has_feature("web_smoke")
+
 func _addon_available() -> bool:
     return ClassDB.class_exists("PiperTTS")
 
@@ -263,11 +269,25 @@ func _expected_sample_rate(bundle: Dictionary) -> int:
     return 22050
 
 func list_test_names() -> Array[String]:
+    if _is_web_smoke():
+        return [
+            "test_node_creation",
+            "test_properties",
+            "test_execution_provider_enum",
+            "test_runtime_contract",
+            "test_initialize_with_model",
+            "test_initialize_with_config_fallback",
+            "test_web_non_cpu_execution_provider_rejected",
+            "test_web_openjtalk_native_rejected",
+            "test_synthesize_basic",
+        ]
+
     return [
         "test_node_creation",
         "test_properties",
         "test_speech_rate_range",
         "test_execution_provider_enum",
+        "test_runtime_contract",
         "test_initialize_without_model",
         "test_synthesize_without_init",
         "test_synthesize_async_without_init",
@@ -283,6 +303,8 @@ func list_test_names() -> Array[String]:
         "test_multilingual_language_selector_conflict_rejected",
         "test_gpu_device_id_clamp",
         "test_invalid_openjtalk_library_path_falls_back",
+        "test_web_non_cpu_execution_provider_rejected",
+        "test_web_openjtalk_native_rejected",
         "test_initialize_with_config_fallback",
         "test_inspect_text",
         "test_inspect_request_with_phonemes",
@@ -382,6 +404,39 @@ func test_execution_provider_enum() -> void:
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_AUTO"), 4, "EP_AUTO should match the bound enum")
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_CUDA"), 5, "EP_CUDA should match the bound enum")
     await Engine.get_main_loop().process_frame
+
+func test_runtime_contract() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+
+    if not _require_method(tts, "get_runtime_contract"):
+        _cleanup_tts(tts)
+        return
+
+    var contract: Dictionary = tts.get_runtime_contract()
+    assert_true(contract.has("is_web_export"), "get_runtime_contract() should expose is_web_export")
+    assert_true(contract.has("execution_provider_policy"), "get_runtime_contract() should expose execution_provider_policy")
+    assert_true(contract.has("supports_non_cpu_execution_provider"), "get_runtime_contract() should expose supports_non_cpu_execution_provider")
+    assert_true(contract.has("supports_openjtalk_native"), "get_runtime_contract() should expose supports_openjtalk_native")
+    assert_true(contract.has("resource_path_mode"), "get_runtime_contract() should expose resource_path_mode")
+    assert_equal(String(contract.get("resource_path_mode", "")), "globalize_path", "runtime contract should describe the current path strategy")
+
+    if OS.has_feature("web"):
+        assert_true(bool(contract.get("is_web_export", false)), "web builds should report is_web_export=true")
+        assert_equal(String(contract.get("execution_provider_policy", "")), "cpu_only", "web builds should report a CPU-only execution policy")
+        assert_false(bool(contract.get("supports_non_cpu_execution_provider", true)), "web builds should reject non-CPU execution providers")
+        assert_false(bool(contract.get("supports_openjtalk_native", true)), "web builds should reject openjtalk-native")
+        assert_false(bool(contract.get("supports_openjtalk_library_path", true)), "web builds should reject openjtalk-native library paths")
+    else:
+        assert_false(bool(contract.get("is_web_export", true)), "native builds should report is_web_export=false")
+        assert_equal(String(contract.get("execution_provider_policy", "")), "multi_provider", "native builds should report multi-provider execution policy")
+        assert_true(bool(contract.get("supports_non_cpu_execution_provider", false)), "native builds should allow non-CPU execution providers")
+        assert_true(bool(contract.get("supports_openjtalk_native", false)), "native builds should allow openjtalk-native")
+        assert_true(bool(contract.get("supports_openjtalk_library_path", false)), "native builds should allow openjtalk-native library paths")
+
+    _cleanup_tts(tts)
 
 func test_initialize_without_model() -> void:
     var tts = _create_tts()
@@ -782,6 +837,54 @@ func test_initialize_with_config_fallback() -> void:
     tts.config_path = ""
     assert_equal(tts.initialize(), OK, "initialize() should resolve config_path from the model path")
     assert_true(tts.is_ready(), "PiperTTS should be ready after fallback config resolution")
+    _cleanup_tts(tts)
+
+func test_web_non_cpu_execution_provider_rejected() -> void:
+    if not _is_web_runtime():
+        skip("web runtime only")
+        return
+
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    tts.execution_provider = ClassDB.class_get_integer_constant("PiperTTS", "EP_CUDA")
+    assert_equal(tts.initialize(), ERR_UNAVAILABLE, "Web initialize() should reject non-CPU execution providers")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_UNSUPPORTED_EXECUTION_PROVIDER", "Web initialize() should expose an unsupported execution provider error code")
+    assert_equal(String(last_error.get("stage", "")), "initialize", "Web initialize() should report the failure stage")
+    _cleanup_tts(tts)
+
+func test_web_openjtalk_native_rejected() -> void:
+    if not _is_web_runtime():
+        skip("web runtime only")
+        return
+
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    tts.openjtalk_library_path = "res://addons/piper_plus/bin/openjtalk_native.js"
+    assert_equal(tts.initialize(), ERR_UNAVAILABLE, "Web initialize() should reject openjtalk-native shared libraries")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_OPENJTALK_NATIVE_UNSUPPORTED", "Web initialize() should expose an unsupported openjtalk-native error code")
+    assert_equal(String(last_error.get("stage", "")), "initialize", "Web initialize() should report the failure stage")
     _cleanup_tts(tts)
 
 func test_inspect_text() -> void:

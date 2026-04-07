@@ -1,6 +1,6 @@
 # TKT-009 Web manifest / package / export preset 整備
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -10,11 +10,11 @@
 
 ## 進捗
 
-- [ ] `web.*` 向け `.gdextension` entry を addon 本体と test project の両方へ追加する
-- [ ] package script と validator に Web side module 成果物の扱いを追加する
-- [ ] test project の Web export preset を追加し、custom template 前提を反映する
-- [ ] `TKT-008` で固定した thread / no-thread artifact matrix を package / manifest / export preset へ反映する
-- [ ] Web artifact を追加しても model / `naist-jdic` / `openjtalk-native` を package に含めない境界を固定する
+- [x] `web.*` 向け `.gdextension` entry を addon 本体と test project の両方へ追加する
+- [x] package script と validator に Web side module 成果物の扱いを追加する
+- [x] test project の Web export preset を追加し、custom template 前提を反映する
+- [x] `TKT-008` で固定した thread / no-thread artifact matrix を package / manifest / export preset へ反映する
+- [x] Web artifact を追加しても model / `naist-jdic` / `openjtalk-native` を package に含めない境界を固定する
 
 ## タスク目的とゴール
 

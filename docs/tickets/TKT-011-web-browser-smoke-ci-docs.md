@@ -1,6 +1,6 @@
 # TKT-011 Web browser smoke / CI / 文書反映
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -10,16 +10,21 @@
 
 ## 進捗
 
-- [ ] Web export と browser smoke を CI job と local 再現 script に落とす
-- [ ] COOP / COEP 前提の static server 条件を固定する
-- [ ] smoke の pass / fail 判定とログ採取方法を addon load と最小モデル synthesize まで含めて固定する
-- [ ] `test/project` と packaged addon を使う fixture 手順を既存 test 基盤へ接続する
-- [ ] README と addon README に Web preview の前提と制約を反映する
+- [x] Web export と browser smoke を CI job と local 再現 script に落とす
+- [x] COOP / COEP 前提の static server 条件を固定する
+- [x] smoke の pass / fail 判定とログ採取方法を addon load と最小モデル synthesize まで含めて固定する
+- [x] `test/project` と packaged addon を使う fixture 手順を既存 test 基盤へ接続する
+- [x] README と addon README に Web preview の前提と制約を反映する
 
 ## タスク目的とゴール
 
 - Web preview support の最終 gate として browser smoke、CI、利用者向け文書を閉じ、Web の可否を CI と local の両方で再現可能にする。
 - ゴールは、Web export 後に browser 上で addon load と最小モデル synthesize の成否を CI で判定でき、同じ script を local でも再実行でき、README でも前提条件と制約が一致していること。
+
+## 実装メモ
+
+- `build-web` job、`scripts/ci/export-web-smoke.sh`、`scripts/ci/web-smoke-server.mjs`、`scripts/ci/run-web-smoke.mjs`、`test/project` の `web_smoke` fixture は追加済みです。
+- 現時点で未完了なのは、重い Web build/export/browser smoke を CI runner と local emsdk 環境で実行して初回結果を確定することです。
 
 ## 実装する内容の詳細
 

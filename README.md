@@ -25,6 +25,7 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 - カスタム辞書エディタと runtime 適用（`custom_dictionary_path`）
 - CUDA 実行プロバイダと `gpu_device_id` 指定
 - オフライン動作（クラウド不要）
+- Web preview support は `CPU-only` 前提で、custom Web export template が必要です
 
 ## 現在の対応状況
 
@@ -71,9 +72,30 @@ Godotプロジェクトとして開く場合は、このリポジトリのルー
 | macOS | arm64 (Apple Silicon) | CI build と C++ test 済み | packaged addon smoke の CI job を追加済み。初回実行結果は未確認 |
 | Android | arm64-v8a | CI build / package gate / export smoke job 追加済み | debug / release binary は validator 対象。初回 CI 結果と runtime 可否の確定待ち |
 | iOS | arm64 | CI build / package gate / export-link smoke job 追加済み | debug / release binary は validator 対象。初回 CI 結果の確定待ち |
-| Web | - | 未対応 | `web.*` GDExtension entry と build/export 導線がありません |
+| Web | wasm32 | preview support | custom Web export template と `EP_CPU` 前提です。`openjtalk-native` は未対応です |
 
-release package をそのまま「全 platform で使える addon」と言い切るにはまだ早く、残っている主作業は macOS packaged runtime の確認と Android/iOS export smoke の初回結果確認、必要ならその場で出る export/link 問題の修正です。
+release package をそのまま「全 platform で使える addon」と言い切るにはまだ早く、残っている主作業は macOS packaged runtime の確認、Android/iOS export smoke の初回結果確認、Web preview smoke / CI の初回確認、必要ならその場で出る export/link 問題の修正です。
+
+## Web Preview
+
+Web は preview support です。前提は次のとおりです。
+
+- custom Web export template が必要です
+- toolchain は Godot 4.4.1 向けに `emsdk 3.1.62` を前提にしています
+- 実行プロバイダは `EP_CPU` 固定です
+- `openjtalk-native` shared library は Web では使えません
+- ブラウザ実行には `COOP` / `COEP` を付けた static server が必要です
+
+ローカル smoke は次の流れで実行します。
+
+```bash
+GODOT_SOURCE_DIR=/path/to/godot-source INSTALL_TO_EXPORT_TEMPLATES=1 bash scripts/ci/build-godot-web-templates.sh /tmp/godot-web-templates
+bash scripts/ci/build-onnxruntime-web.sh /path/to/onnxruntime-source /tmp/ort-web
+ONNXRUNTIME_DIR=/tmp/ort-web bash scripts/ci/build-web-side-module.sh /tmp/web-artifacts
+GODOT=/path/to/godot bash scripts/ci/export-web-smoke.sh
+```
+
+`run-web-smoke.mjs` は Node.js と Playwright が必要です。ローカルでは `npm install --no-save playwright` の後に `npx playwright install chromium` を実行してください。
 
 ## 対応モデル
 

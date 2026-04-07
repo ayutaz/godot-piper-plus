@@ -328,6 +328,12 @@ void loadModel(std::string modelPath, ModelSession &session,
 
   // Try to append GPU EP
   bool using_gpu_ep = false;
+#if defined(__EMSCRIPTEN__)
+  if (executionProvider != EP_CPU) {
+    throw std::runtime_error(
+        "Web build supports only EP_CPU execution_provider.");
+  }
+#else
   if (executionProvider != EP_CPU) {
     std::string ep_name;
     std::unordered_map<std::string, std::string> ep_options;
@@ -372,6 +378,7 @@ void loadModel(std::string modelPath, ModelSession &session,
       }
     }
   }
+#endif
 
   // Configure session options
   if (using_gpu_ep) {

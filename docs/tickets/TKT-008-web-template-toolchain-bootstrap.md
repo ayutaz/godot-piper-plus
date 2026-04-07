@@ -1,6 +1,6 @@
 # TKT-008 Web custom template / toolchain bootstrap
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `NFR-5`
@@ -10,16 +10,21 @@
 
 ## 進捗
 
-- [ ] custom Web export template の build 前提と採用する Godot / Emscripten 条件を固定する
-- [ ] `dlink_enabled=yes` 前提の build bootstrap を再現可能な形にする
-- [ ] addon 側の thread / no-thread binary 方針と命名規約を固定する
-- [ ] custom template artifact の出力配置と後続チケットが参照するパス契約を固定する
-- [ ] 後続チケットへ渡す toolchain 前提と artifact 規約を文書化する
+- [x] custom Web export template の build 前提と採用する Godot / Emscripten 条件を固定する
+- [x] `dlink_enabled=yes` 前提の build bootstrap を再現可能な形にする
+- [x] addon 側の thread / no-thread binary 方針と命名規約を固定する
+- [x] custom template artifact の出力配置と後続チケットが参照するパス契約を固定する
+- [x] 後続チケットへ渡す toolchain 前提と artifact 規約を文書化する
 
 ## タスク目的とゴール
 
 - custom Web export template と addon side module build の入口を作り、Web 実装を実際に着手できる土台を整える。
 - ゴールは、`dlink_enabled=yes` 前提の custom template と Emscripten build の再現条件が固定され、後続チケットがその前提で実装を進められること。
+
+## 実装メモ
+
+- `build-web` workflow では Godot 4.4 系に合わせて `EMSDK_VERSION=3.1.62` を固定しました。
+- `scripts/ci/build-godot-web-templates.sh`、`scripts/ci/build-web-side-module.sh`、`scripts/ci/install-godot-export-templates.sh`、README の local smoke 手順で、custom template artifact 名と配置契約を後続チケットへ共有しています。
 
 ## 実装する内容の詳細
 

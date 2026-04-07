@@ -26,6 +26,8 @@ env:
   GODOT_LINUX_ZIP: "Godot_v4.4.1-stable_linux.x86_64.zip"
   GODOT_MACOS_ZIP: "Godot_v4.4.1-stable_macos.universal.zip"
   GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4.1-stable_export_templates.tpz"
+  EMSDK_VERSION: "3.1.62"
+  NODE_VERSION: "20"
 
 jobs:
   build-desktop:
@@ -347,11 +349,90 @@ jobs:
           path: addons/piper_plus/bin/
           if-no-files-found: ignore
 
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Set up emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build ONNX Runtime Web static library
+        shell: bash
+        run: |
+          git clone --recursive --depth 1 --branch "v${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "$RUNNER_TEMP/onnxruntime"
+          chmod +x scripts/ci/build-onnxruntime-web.sh
+          bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web"
+
+      - name: Build Godot Web export templates
+        shell: bash
+        run: |
+          git clone --depth 1 --branch "$GODOT_VERSION" https://github.com/godotengine/godot.git "$RUNNER_TEMP/godot-source"
+          chmod +x scripts/ci/build-godot-web-templates.sh scripts/ci/install-godot-export-templates.sh
+          GODOT_SOURCE_DIR="$RUNNER_TEMP/godot-source" INSTALL_TO_EXPORT_TEMPLATES=1 bash scripts/ci/build-godot-web-templates.sh "$RUNNER_TEMP/godot-web-templates"
+
+      - name: Download Godot Linux binary
+        shell: bash
+        run: |
+          curl -L -o "${GODOT_LINUX_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          sha512sum -c godot.sha512
+          unzip -q "${GODOT_LINUX_ZIP}" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/${GODOT_LINUX_ZIP%.zip}"
+          echo "GODOT=$RUNNER_TEMP/godot/${GODOT_LINUX_ZIP%.zip}" >> "$GITHUB_ENV"
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Build Web addon binaries
+        shell: bash
+        run: |
+          chmod +x scripts/ci/build-web-side-module.sh
+          ONNXRUNTIME_DIR="$RUNNER_TEMP/onnxruntime-web" bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
+
+      - name: Run Web smoke
+        shell: bash
+        run: |
+          chmod +x scripts/ci/export-web-smoke.sh
+          bash scripts/ci/export-web-smoke.sh "$RUNNER_TEMP/web-smoke"
+
+      - name: Upload Web addon bin artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-bin-web-wasm32
+          path: addons/piper_plus/bin/
+          if-no-files-found: ignore
+
   package-addon:
     name: Package Complete Addon
     runs-on: ubuntu-22.04
     needs:
       - build-mobile
+      - build-web
       - test-desktop
       - integration-linux
 

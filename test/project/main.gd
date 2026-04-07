@@ -3,6 +3,11 @@ extends Node
 const END_STRING := "==== TESTS FINISHED ===="
 const FAILURE_STRING := "******** FAILED ********"
 const RESULT_PREFIX := "RESULT"
+const WEB_SMOKE_PREFIX := "WEB_SMOKE"
+const SUMMARY_OUTPUT_PATH := "user://web_smoke_summary.json"
+
+signal smoke_summary_ready(summary: Dictionary)
+signal smoke_finished(success: bool)
 
 var _failures: Array[String] = []
 var _suites: Array = []
@@ -46,6 +51,31 @@ func _print_summary() -> void:
         _skip_count,
     ])
 
+func _print_web_smoke_status() -> void:
+    if not OS.has_feature("web_smoke"):
+        return
+    print("%s status=%s" % [WEB_SMOKE_PREFIX, "pass" if _failures.is_empty() else "fail"])
+
+func _build_summary() -> Dictionary:
+    return {
+        "total": _total_count,
+        "pass": _pass_count,
+        "fail": _failures.size(),
+        "skip": _skip_count,
+        "failures": _failures.duplicate(),
+        "result_prefix": RESULT_PREFIX,
+        "end_string": END_STRING,
+        "failure_string": FAILURE_STRING,
+    }
+
+func _write_summary_file(summary: Dictionary) -> void:
+    var file := FileAccess.open(SUMMARY_OUTPUT_PATH, FileAccess.WRITE)
+    if file == null:
+        push_error("Failed to write %s" % SUMMARY_OUTPUT_PATH)
+        return
+    file.store_string(JSON.stringify(summary, "\t"))
+    file.flush()
+
 func _ready() -> void:
     _strict_skip_patterns = _parse_env_list("PIPER_FAIL_ON_SKIP_PATTERNS")
     _require_pass = _env_flag("PIPER_REQUIRE_PASS")
@@ -57,6 +87,10 @@ func _ready() -> void:
         print(_failures[0])
         _print_summary()
         print(END_STRING)
+        var load_summary := _build_summary()
+        _write_summary_file(load_summary)
+        smoke_summary_ready.emit(load_summary)
+        smoke_finished.emit(false)
         get_tree().quit(1)
         return
 
@@ -67,12 +101,20 @@ func _ready() -> void:
         print(_failures[0])
         _print_summary()
         print(END_STRING)
+        var instantiate_summary := _build_summary()
+        _write_summary_file(instantiate_summary)
+        smoke_summary_ready.emit(instantiate_summary)
+        smoke_finished.emit(false)
         get_tree().quit(1)
         return
 
     _suites = [suite]
     await get_tree().process_frame
     await _run_all()
+    var summary := _build_summary()
+    _write_summary_file(summary)
+    smoke_summary_ready.emit(summary)
+    smoke_finished.emit(_failures.is_empty())
     get_tree().quit(0 if _failures.is_empty() else 1)
 
 func _run_all() -> void:
@@ -111,6 +153,7 @@ func _run_all() -> void:
         _failures.append("No tests passed")
 
     _print_summary()
+    _print_web_smoke_status()
 
     if _failures.is_empty():
         print(END_STRING)

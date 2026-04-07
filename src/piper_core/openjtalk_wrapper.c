@@ -8,6 +8,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__EMSCRIPTEN__)
+#define PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED 1
 #else
 #include <dlfcn.h>
 #include <pthread.h>
@@ -56,10 +58,11 @@ typedef struct {
     void (*free_prosody_result)(OpenJTalkNativeProsodyResult* result);
 } OpenJTalkNativeApi;
 
-// Thread-safe custom path storage
-#ifdef _WIN32
 static char g_custom_dict_path[OPENJTALK_MAX_PATH] = {0};
 static char g_native_library_path[OPENJTALK_MAX_PATH] = {0};
+
+// Thread-safe custom path storage
+#ifdef _WIN32
 static CRITICAL_SECTION g_config_mutex;
 static BOOL g_config_mutex_initialized = FALSE;
 
@@ -76,9 +79,10 @@ static void ensure_config_mutex_initialized(void) {
         EnterCriticalSection(&g_config_mutex); \
     } while (0)
 #define CONFIG_MUTEX_UNLOCK() LeaveCriticalSection(&g_config_mutex)
+#elif defined(PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED)
+#define CONFIG_MUTEX_LOCK()   do { } while (0)
+#define CONFIG_MUTEX_UNLOCK() do { } while (0)
 #else
-static char g_custom_dict_path[OPENJTALK_MAX_PATH] = {0};
-static char g_native_library_path[OPENJTALK_MAX_PATH] = {0};
 static pthread_mutex_t g_config_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define CONFIG_MUTEX_LOCK() pthread_mutex_lock(&g_config_mutex)
@@ -110,6 +114,7 @@ static void copy_path_buffer(char* destination, size_t destination_size,
 }
 
 static void unload_native_api_locked(void) {
+#if !defined(PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED)
     if (g_native_api.library) {
 #ifdef _WIN32
         FreeLibrary(g_native_api.library);
@@ -117,6 +122,7 @@ static void unload_native_api_locked(void) {
         dlclose(g_native_api.library);
 #endif
     }
+#endif
 
     memset(&g_native_api, 0, sizeof(g_native_api));
     g_native_load_attempted = 0;
@@ -125,6 +131,12 @@ static void unload_native_api_locked(void) {
 
 static int load_native_symbol(OpenJTalkNativeLibraryHandle library,
                               const char* symbol_name, void** destination) {
+#ifdef PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED
+    (void)library;
+    (void)symbol_name;
+    (void)destination;
+    return 0;
+#else
 #ifdef _WIN32
     FARPROC symbol = GetProcAddress(library, symbol_name);
     if (!symbol) {
@@ -139,9 +151,14 @@ static int load_native_symbol(OpenJTalkNativeLibraryHandle library,
     *destination = symbol;
 #endif
     return 1;
+#endif
 }
 
 static int try_load_native_library(const char* library_path) {
+#ifdef PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED
+    (void)library_path;
+    return 0;
+#else
     OpenJTalkNativeLibraryHandle library = NULL;
 
 #ifdef _WIN32
@@ -182,9 +199,17 @@ static int try_load_native_library(const char* library_path) {
     fprintf(stderr, "OpenJTalk: using openjtalk-native backend (%s)\n",
             library_path);
     return 1;
+#endif
 }
 
 static int ensure_native_backend_loaded(void) {
+#ifdef PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED
+    CONFIG_MUTEX_LOCK();
+    g_native_load_attempted = 1;
+    g_native_backend_available = 0;
+    CONFIG_MUTEX_UNLOCK();
+    return 0;
+#else
     char configured_path[OPENJTALK_MAX_PATH];
     char env_path[OPENJTALK_MAX_PATH];
     const char* default_candidates[] = {
@@ -243,6 +268,7 @@ static int ensure_native_backend_loaded(void) {
     g_native_backend_available = 0;
     CONFIG_MUTEX_UNLOCK();
     return 0;
+#endif
 }
 
 // Get the effective dictionary path (custom or default)

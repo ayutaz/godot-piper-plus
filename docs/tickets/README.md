@@ -15,10 +15,10 @@
 | 進行中 | [TKT-005](TKT-005-windows-android-export-error.md) | Windows local Android export error 切り分け | - | `M6` `M5` | - | `TKT-004` `TKT-007` |
 | 要確認 | [TKT-006](TKT-006-ios-export-link-smoke.md) | iOS arm64 export / link smoke 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-007](TKT-007-release-finalization.md) | package / 文書 / Asset Library 最終化 | - | `M4` `M8` | `TKT-001` `TKT-002` `TKT-003` `TKT-004` `TKT-006` `TKT-011` | - |
-| 未着手 | [TKT-008](TKT-008-web-template-toolchain-bootstrap.md) | Web custom template / toolchain bootstrap | `TKT-002` | `M7` `M5` | - | `TKT-009` `TKT-010` |
-| 未着手 | [TKT-009](TKT-009-web-manifest-package-export-preset.md) | Web manifest / package / export preset 整備 | `TKT-002` | `M7` `M4` `M5` | `TKT-008` | `TKT-010` `TKT-011` |
-| 未着手 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
-| 未着手 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
+| 進行中 | [TKT-008](TKT-008-web-template-toolchain-bootstrap.md) | Web custom template / toolchain bootstrap | `TKT-002` | `M7` `M5` | - | `TKT-009` `TKT-010` |
+| 進行中 | [TKT-009](TKT-009-web-manifest-package-export-preset.md) | Web manifest / package / export preset 整備 | `TKT-002` | `M7` `M4` `M5` | `TKT-008` | `TKT-010` `TKT-011` |
+| 進行中 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
+| 進行中 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
 
 ## 運用メモ
 
