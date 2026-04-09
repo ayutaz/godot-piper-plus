@@ -4,7 +4,7 @@
 - 主マイルストーン: [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4)
 - 関連要求: `FR-9` `NFR-6` release 完了条件
-- 依存チケット: `TKT-001` `TKT-002` `TKT-003` `TKT-004` `TKT-006` `TKT-011`
+- 依存チケット: `TKT-002` `TKT-003` `TKT-004` `TKT-006` `TKT-011`
 - 後続チケット: なし
 
 ## 進捗

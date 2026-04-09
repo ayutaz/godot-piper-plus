@@ -1,6 +1,6 @@
 # マイルストーン管理
 
-更新日: 2026-04-07
+更新日: 2026-04-09
 
 この文書は `docs/requirements.md` を基準に、要求から release 完了までの到達状況を管理するための文書です。要求定義側では「何を完成とみなすか」を固定し、この文書では「今どこまで進んでいるか」「何を次に閉じるか」を扱います。
 実行単位のチケットは [docs/tickets/README.md](./tickets/README.md) で管理します。
@@ -17,13 +17,13 @@
 | 状態 | マイルストーン | 対象要求 | 関連チケット | 現状 |
 |---|---|---|---|---|
 | 完了 | M1 Runtime API 完成 | `FR-1` `FR-2` `FR-5` `FR-8` | - | 同期 / 非同期 / streaming、request / raw phoneme / inspection、timing / silence 制御、出力形式は実装済み |
-| 完了 | M2 Language / Model / Backend 完成 | `FR-3` `FR-4` `FR-6` | [TKT-001](./tickets/TKT-001-multilingual-parity.md) | multilingual capability contract、`language_code` / `language_id` 解決、matrix-first 検証、backend fallback、GPU 指定まで完了。正本は `tests/fixtures/`、投影は `docs/generated/` に固定済み |
+| 完了 | M2 Language / Model / Backend 完成 | `FR-3` `FR-4` `FR-6` | - | multilingual capability contract、`language_code` / `language_id` 解決、matrix-first 検証、backend fallback、GPU 指定まで完了。正本は `tests/fixtures/`、投影は `docs/generated/` に固定済み |
 | 完了 | M3 Editor Workflow 完成 | `FR-7` | - | downloader、dictionary editor、Inspector 拡張、test speech UI は実装済み |
 | 進行中 | M4 Packaging / Documentation 完成 | `FR-9` `NFR-6` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package assembly / validator と addon 文書は整備済み。multilingual contract は反映済みで、残りは platform / Web 結果の最終反映 |
-| 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-001](./tickets/TKT-001-multilingual-parity.md) [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証、Web Phase 1 の受け入れ条件固定までは整備済み。残りは Web と platform smoke の最終 gate 化 |
+| 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証、Web Phase 1 の受け入れ条件固定までは整備済み。残りは Web と platform smoke の最終 gate 化 |
 | 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) | Windows / Linux は概ね確定。macOS / Android / iOS は初回結果の確認と必要修正が残る |
 | 進行中 | M7 Web Support 完成 | `FR-10` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | `W0` feasibility / scope 固定は完了。残りは `W1` custom template / toolchain、`W2` manifest / package、`W3` runtime adaptation、`W4` browser smoke / 文書反映 |
-| 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-001](./tickets/TKT-001-multilingual-parity.md) [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package / README / changelog の基礎と multilingual 反映は完了。残りは platform / Web 結果の最終反映と申請導線の確定 |
+| 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package / README / changelog の基礎と multilingual 反映は完了。残りは platform / Web 結果の最終反映と申請導線の確定 |
 
 ## マイルストーン詳細
 
@@ -41,7 +41,7 @@
 
 - 対象要求: `FR-3` `FR-4` `FR-6`
 - 状態: `完了`
-- 関連チケット: [TKT-001 Multilingual Parity 拡張](./tickets/TKT-001-multilingual-parity.md)
+- 関連チケット: なし
 - 現状: 日本語 OpenJTalk、英語 CMU 辞書ベース G2P、multilingual capability-first routing、`language_id` / `language_code` / `speaker_id` 解決、model alias / config fallback、`openjtalk-native` fallback、`EP_CUDA` / `gpu_device_id` は実装済みです。`tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として固定し、`get_language_capabilities()` / `get_last_error()` / `resolved_segments` を含む API contract と matrix-first の C++ / headless 検証も反映済みです。
 - 残作業: 現時点なし。release package への最終反映は `M4` と `M8` で管理します。
 - 完了条件:
@@ -79,7 +79,7 @@
 
 - 対象要求: `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5`
 - 状態: `進行中`
-- 関連チケット: [TKT-001 Multilingual Parity 拡張](./tickets/TKT-001-multilingual-parity.md) [TKT-002 Web Platform 対応](./tickets/TKT-002-web-platform.md) [TKT-003 macOS Packaged Smoke 確認](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) [TKT-006 iOS Export / Link Smoke 確認](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-008 Web custom template / toolchain bootstrap](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009 Web manifest / package / export preset 整備](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010 Web runtime adaptation / ORT Web 対応](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
+- 関連チケット: [TKT-002 Web Platform 対応](./tickets/TKT-002-web-platform.md) [TKT-003 macOS Packaged Smoke 確認](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) [TKT-006 iOS Export / Link Smoke 確認](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-008 Web custom template / toolchain bootstrap](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009 Web manifest / package / export preset 整備](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010 Web runtime adaptation / ORT Web 対応](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
 - 現状: `compatibility_minimum = 4.4`、オフライン runtime 前提、C++ unit test 継続実行、Godot headless strict 化、package validator による binary / dependency 検証、multilingual matrix-first の C++ / headless 検証までは整っています。
 - 残作業:
   - `M7` の Web build / export / runtime 検証を quality gate に組み込む
@@ -149,7 +149,7 @@
 - 対象要求: release 完了条件の最終集約
 - 状態: `進行中`
 - 依存: `M2` `M4` `M5` `M6` `M7`
-- 関連チケット: [TKT-001 Multilingual Parity 拡張](./tickets/TKT-001-multilingual-parity.md) [TKT-002 Web Platform 対応](./tickets/TKT-002-web-platform.md) [TKT-003 macOS Packaged Smoke 確認](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-006 iOS Export / Link Smoke 確認](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
+- 関連チケット: [TKT-002 Web Platform 対応](./tickets/TKT-002-web-platform.md) [TKT-003 macOS Packaged Smoke 確認](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-006 iOS Export / Link Smoke 確認](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
 - 現状: package / validator / README 類の基礎と multilingual の反映は完了しています。残るのは platform verification と Web 要求の確定待ちです。
 - 残作業:
   - `M6` `M7` の結果を package / README / license / changelog に反映する
@@ -181,4 +181,4 @@
 - runtime API、editor workflow、package assembly / validator の基礎実装は概ね完了しています。
 - Windows packaged addon smoke と Linux headless strict CI は整備済みです。
 - Android / iOS 向け export smoke script と CI job は追加済みで、残りは実結果の確定です。
-- multilingual contract、capability matrix、matrix-first 検証、runtime capability/error API は `TKT-001` で完了しました。
+- multilingual contract、capability matrix、matrix-first 検証、runtime capability/error API は完了済みで、成果は `tests/fixtures/` と `docs/generated/` に反映済みです。
