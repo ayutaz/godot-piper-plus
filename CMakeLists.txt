@@ -37,6 +37,16 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(GODOTCPP_THREADS "${PIPER_PLUS_WEB_THREADS}" CACHE BOOL "" FORCE)
   endif()
   set(PIPER_PLUS_USE_PTHREADS "${PIPER_PLUS_WEB_THREADS}")
+
+  # Side modules are produced via -sSIDE_MODULE=1. Leaving the generic shared
+  # library driver flag enabled causes em++ to wrap every input archive in
+  # --whole-archive, which explodes with our static OpenJTalk/HTSEngine/ORT libs.
+  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "")
+  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "")
+  set(CMAKE_SHARED_MODULE_CREATE_C_FLAGS "")
+  set(CMAKE_SHARED_MODULE_CREATE_CXX_FLAGS "")
+  set(CMAKE_SHARED_LIBRARY_SONAME_C_FLAG "")
+  set(CMAKE_SHARED_LIBRARY_SONAME_CXX_FLAG "")
 endif()
 
 # External CMake args propagation for ExternalProject builds
@@ -176,6 +186,16 @@ if(CMAKE_MAKE_PROGRAM)
 endif()
 
 add_subdirectory(thirdparty/godot-cpp)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  get_target_property(_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS godot-cpp INTERFACE_LINK_OPTIONS)
+  if(_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS)
+    list(REMOVE_ITEM _PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS -shared)
+    set_target_properties(godot-cpp PROPERTIES
+      INTERFACE_LINK_OPTIONS "${_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS}"
+    )
+  endif()
+endif()
 
 # ---- External dependencies ----
 # Japanese G2P: OpenJTalk (Modified BSD) + HTSEngine (Modified BSD)
