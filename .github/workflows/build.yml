@@ -389,6 +389,7 @@ jobs:
         run: |
           git clone --recursive --shallow-submodules --depth 1 --branch "v${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "$RUNNER_TEMP/onnxruntime"
           chmod +x scripts/ci/build-onnxruntime-web.sh
+          ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
           ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --enable_wasm_threads --skip_tests --config Release --skip_submodule_sync" \
           bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web"
 

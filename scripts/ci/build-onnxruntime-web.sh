@@ -27,6 +27,7 @@ ORT_SOURCE_DIR="${1:-${ORT_SOURCE_DIR:-}}"
 STAGING_ROOT="${2:-${PIPER_ONNXRUNTIME_WEB_STAGING_ROOT:-$REPO_ROOT/artifacts/onnxruntime-web}}"
 ORT_BUILD_FLAGS="${ORT_BUILD_FLAGS:---build_wasm_static_lib --enable_wasm_simd --enable_wasm_threads --skip_tests --config Release}"
 ORT_BUILD_PARALLEL="${ORT_BUILD_PARALLEL:-$(detect_parallel_level)}"
+ORT_EMSDK_VERSION="${ORT_EMSDK_VERSION:-}"
 
 if [[ -z "$ORT_SOURCE_DIR" ]]; then
   echo "ERROR: ORT_SOURCE_DIR is required" >&2
@@ -56,8 +57,11 @@ mkdir -p "$STAGING_ROOT/lib" "$STAGING_ROOT/include"
   if [[ " ${ort_build_args[*]} " != *" --parallel "* ]]; then
     ort_build_args+=(--parallel "$ORT_BUILD_PARALLEL")
   fi
+  if [[ -n "$ORT_EMSDK_VERSION" && " ${ort_build_args[*]} " != *" --emsdk_version "* ]]; then
+    ort_build_args+=(--emsdk_version "$ORT_EMSDK_VERSION")
+  fi
 
-  echo "Building ONNX Runtime Web static library with parallel=$ORT_BUILD_PARALLEL"
+  echo "Building ONNX Runtime Web static library with parallel=$ORT_BUILD_PARALLEL emsdk=${ORT_EMSDK_VERSION:-default}"
   ./build.sh "${ort_build_args[@]}"
 )
 
