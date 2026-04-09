@@ -399,6 +399,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-
 
       - name: Build ONNX Runtime Web static library packages
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true' || steps.cache-ort-web-threads.outputs.cache-hit != 'true'
