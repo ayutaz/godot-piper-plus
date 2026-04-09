@@ -25,10 +25,10 @@ detect_parallel_level() {
 
 ORT_SOURCE_DIR="${1:-${ORT_SOURCE_DIR:-}}"
 STAGING_ROOT="${2:-${PIPER_ONNXRUNTIME_WEB_STAGING_ROOT:-$REPO_ROOT/artifacts/onnxruntime-web}}"
-ORT_BUILD_FLAGS="${ORT_BUILD_FLAGS:---build_wasm_static_lib --enable_wasm_simd --enable_wasm_threads --skip_tests --config Release}"
+ORT_BUILD_FLAGS="${ORT_BUILD_FLAGS:---build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release}"
 ORT_BUILD_PARALLEL="${ORT_BUILD_PARALLEL:-$(detect_parallel_level)}"
 ORT_EMSDK_VERSION="${ORT_EMSDK_VERSION:-}"
-ORT_BUILD_TARGET="${ORT_BUILD_TARGET:-onnxruntime_webassembly}"
+ORT_BUILD_TARGET="${ORT_BUILD_TARGET:-}"
 
 if [[ -z "$ORT_SOURCE_DIR" ]]; then
   echo "ERROR: ORT_SOURCE_DIR is required" >&2
