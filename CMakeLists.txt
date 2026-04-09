@@ -126,10 +126,6 @@ else()
   set(EXTERNAL_CMAKE_ARGS "")
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  include(${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/godot-cpp/cmake/emsdkHack.cmake)
-endif()
-
 # ---- godot-cpp ----
 # Default to editor-compatible binaries for local multi-config builds.
 # CI/package builds can still override this explicitly with -DGODOTCPP_TARGET=template_release.
