@@ -376,29 +376,52 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore ONNX Runtime Web static library cache
-        id: cache-ort-web
+      - name: Restore ONNX Runtime Web no-thread cache
+        id: cache-ort-web-nothreads
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: ${{ runner.temp }}/onnxruntime-web
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
 
-      - name: Build ONNX Runtime Web static library
-        if: steps.cache-ort-web.outputs.cache-hit != 'true'
+      - name: Restore ONNX Runtime Web threads cache
+        id: cache-ort-web-threads
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-threads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+
+      - name: Build ONNX Runtime Web static library packages
+        if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true' || steps.cache-ort-web-threads.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          git clone --recursive --shallow-submodules --depth 1 --branch "v${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "$RUNNER_TEMP/onnxruntime"
+          if [[ ! -d "$RUNNER_TEMP/onnxruntime" ]]; then
+            git clone --recursive --shallow-submodules --depth 1 --branch "v${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "$RUNNER_TEMP/onnxruntime"
+          fi
           chmod +x scripts/ci/build-onnxruntime-web.sh
-          ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
-          ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
-          bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web"
+          if [[ "${{ steps.cache-ort-web-nothreads.outputs.cache-hit }}" != "true" ]]; then
+            ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
+            ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --build_dir build-wasm-static-nothreads --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
+            bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web-nothreads"
+          fi
+          if [[ "${{ steps.cache-ort-web-threads.outputs.cache-hit }}" != "true" ]]; then
+            ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
+            ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --enable_wasm_threads --skip_tests --disable_rtti --config Release --build_dir build-wasm-static-threads --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
+            bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web-threads"
+          fi
 
-      - name: Save ONNX Runtime Web static library cache
-        if: steps.cache-ort-web.outputs.cache-hit != 'true'
+      - name: Save ONNX Runtime Web no-thread cache
+        if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: ${{ runner.temp }}/onnxruntime-web
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+
+      - name: Save ONNX Runtime Web threads cache
+        if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-threads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
 
       - name: Restore custom Godot Web export templates cache
         id: cache-godot-web-templates
@@ -434,7 +457,9 @@ jobs:
         shell: bash
         run: |
           chmod +x scripts/ci/build-web-side-module.sh
-          ONNXRUNTIME_DIR="$RUNNER_TEMP/onnxruntime-web" bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
+          ONNXRUNTIME_DIR_NOTHREADS="$RUNNER_TEMP/onnxruntime-web-nothreads" \
+          ONNXRUNTIME_DIR_THREADS="$RUNNER_TEMP/onnxruntime-web-threads" \
+          bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
 
       - name: Download Godot Linux binary
         shell: bash

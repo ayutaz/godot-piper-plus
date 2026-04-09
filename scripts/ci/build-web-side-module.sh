@@ -29,7 +29,11 @@ PARALLEL_LEVEL="${PIPER_PLUS_WEB_PARALLEL_LEVEL:-$(detect_parallel_level)}"
 THREAD_MATRIX="${PIPER_PLUS_WEB_THREAD_MATRIX:-threads,nothreads}"
 CONFIG_MATRIX="${PIPER_PLUS_WEB_CONFIG_MATRIX:-Debug,Release}"
 ONNXRUNTIME_DIR="${ONNXRUNTIME_DIR:-${PIPER_PLUS_WEB_ONNXRUNTIME_DIR:-}}"
+ONNXRUNTIME_DIR_THREADS="${ONNXRUNTIME_DIR_THREADS:-${PIPER_PLUS_WEB_ONNXRUNTIME_DIR_THREADS:-}}"
+ONNXRUNTIME_DIR_NOTHREADS="${ONNXRUNTIME_DIR_NOTHREADS:-${PIPER_PLUS_WEB_ONNXRUNTIME_DIR_NOTHREADS:-}}"
 ONNXRUNTIME_WEB_STATIC_LIB="${ONNXRUNTIME_WEB_STATIC_LIB:-}"
+ONNXRUNTIME_WEB_STATIC_LIB_THREADS="${ONNXRUNTIME_WEB_STATIC_LIB_THREADS:-}"
+ONNXRUNTIME_WEB_STATIC_LIB_NOTHREADS="${ONNXRUNTIME_WEB_STATIC_LIB_NOTHREADS:-}"
 
 if ! command -v emcmake >/dev/null 2>&1; then
   echo "ERROR: emcmake is not available. Activate emsdk before running this script." >&2
@@ -38,20 +42,6 @@ fi
 
 if ! command -v cmake >/dev/null 2>&1; then
   echo "ERROR: cmake is not available." >&2
-  exit 1
-fi
-
-if [[ -z "$ONNXRUNTIME_DIR" ]]; then
-  echo "ERROR: ONNXRUNTIME_DIR is required for Web builds and must point to a package containing lib/libonnxruntime_webassembly.a." >&2
-  exit 1
-fi
-
-if [[ -z "$ONNXRUNTIME_WEB_STATIC_LIB" ]]; then
-  ONNXRUNTIME_WEB_STATIC_LIB="$ONNXRUNTIME_DIR/lib/libonnxruntime_webassembly.a"
-fi
-
-if [[ ! -f "$ONNXRUNTIME_WEB_STATIC_LIB" ]]; then
-  echo "ERROR: ONNXRUNTIME_WEB_STATIC_LIB was not found: $ONNXRUNTIME_WEB_STATIC_LIB" >&2
   exit 1
 fi
 
@@ -79,11 +69,67 @@ expected_output_name() {
   printf 'libpiper_plus.web.%s.wasm32%s.wasm\n' "$target_suffix" "$thread_suffix"
 }
 
+resolve_onnxruntime_dir() {
+  local thread_mode="$1"
+
+  case "$thread_mode" in
+    threads)
+      if [[ -n "$ONNXRUNTIME_DIR_THREADS" ]]; then
+        printf '%s\n' "$ONNXRUNTIME_DIR_THREADS"
+        return
+      fi
+      ;;
+    nothreads)
+      if [[ -n "$ONNXRUNTIME_DIR_NOTHREADS" ]]; then
+        printf '%s\n' "$ONNXRUNTIME_DIR_NOTHREADS"
+        return
+      fi
+      ;;
+  esac
+
+  if [[ -n "$ONNXRUNTIME_DIR" ]]; then
+    printf '%s\n' "$ONNXRUNTIME_DIR"
+    return
+  fi
+
+  echo "ERROR: ONNXRUNTIME_DIR is required for Web builds. Set ONNXRUNTIME_DIR or mode-specific ONNXRUNTIME_DIR_THREADS / ONNXRUNTIME_DIR_NOTHREADS." >&2
+  exit 1
+}
+
+resolve_onnxruntime_static_lib() {
+  local thread_mode="$1"
+  local onnxruntime_dir="$2"
+
+  case "$thread_mode" in
+    threads)
+      if [[ -n "$ONNXRUNTIME_WEB_STATIC_LIB_THREADS" ]]; then
+        printf '%s\n' "$ONNXRUNTIME_WEB_STATIC_LIB_THREADS"
+        return
+      fi
+      ;;
+    nothreads)
+      if [[ -n "$ONNXRUNTIME_WEB_STATIC_LIB_NOTHREADS" ]]; then
+        printf '%s\n' "$ONNXRUNTIME_WEB_STATIC_LIB_NOTHREADS"
+        return
+      fi
+      ;;
+  esac
+
+  if [[ -n "$ONNXRUNTIME_WEB_STATIC_LIB" ]]; then
+    printf '%s\n' "$ONNXRUNTIME_WEB_STATIC_LIB"
+    return
+  fi
+
+  printf '%s\n' "$onnxruntime_dir/lib/libonnxruntime_webassembly.a"
+}
+
 build_variant() {
   local build_type="$1"
   local thread_mode="$2"
   local godot_target="template_release"
   local godot_threads="ON"
+  local onnxruntime_dir=""
+  local onnxruntime_static_lib=""
   local build_dir="$BUILD_ROOT/${build_type,,}-${thread_mode}"
   local staging_dir="$STAGING_ROOT/piper-plus-bin-web-wasm32-${thread_mode}-${build_type,,}/bin"
   local output_name=""
@@ -97,6 +143,13 @@ build_variant() {
   fi
 
   output_name="$(expected_output_name "$build_type" "$thread_mode")"
+  onnxruntime_dir="$(resolve_onnxruntime_dir "$thread_mode")"
+  onnxruntime_static_lib="$(resolve_onnxruntime_static_lib "$thread_mode" "$onnxruntime_dir")"
+
+  if [[ ! -f "$onnxruntime_static_lib" ]]; then
+    echo "ERROR: ONNXRUNTIME_WEB_STATIC_LIB was not found for thread mode '$thread_mode': $onnxruntime_static_lib" >&2
+    exit 1
+  fi
 
   mkdir -p "$build_dir" "$staging_dir"
 
@@ -104,8 +157,8 @@ build_variant() {
     -DCMAKE_BUILD_TYPE="$build_type" \
     -DGODOTCPP_TARGET="$godot_target" \
     -DGODOTCPP_THREADS="$godot_threads" \
-    -DONNXRUNTIME_DIR="$ONNXRUNTIME_DIR" \
-    -DONNXRUNTIME_WEB_STATIC_LIB="$ONNXRUNTIME_WEB_STATIC_LIB"
+    -DONNXRUNTIME_DIR="$onnxruntime_dir" \
+    -DONNXRUNTIME_WEB_STATIC_LIB="$onnxruntime_static_lib"
 
   cmake --build "$build_dir" --config "$build_type" --parallel "$PARALLEL_LEVEL" --target piper_plus
 
