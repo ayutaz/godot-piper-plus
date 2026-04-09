@@ -126,6 +126,10 @@ else()
   set(EXTERNAL_CMAKE_ARGS "")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/godot-cpp/cmake/emsdkHack.cmake)
+endif()
+
 # ---- godot-cpp ----
 # Default to editor-compatible binaries for local multi-config builds.
 # CI/package builds can still override this explicitly with -DGODOTCPP_TARGET=template_release.
@@ -266,6 +270,22 @@ elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT C
   target_link_libraries(piper_plus PRIVATE pthread dl)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   message(STATUS "Web build detected (threads=${PIPER_PLUS_USE_PTHREADS})")
+  target_compile_definitions(piper_plus PRIVATE WEB_ENABLED UNIX_ENABLED)
+  target_compile_options(piper_plus PRIVATE
+    -sSIDE_MODULE=1
+    -sSUPPORT_LONGJMP=wasm
+  )
+  target_link_options(piper_plus PRIVATE
+    -sSIDE_MODULE=1
+    -sWASM_BIGINT
+    -sSUPPORT_LONGJMP=wasm
+    -fvisibility=hidden
+    -shared
+  )
+  if(PIPER_PLUS_USE_PTHREADS)
+    target_compile_options(piper_plus PRIVATE -sUSE_PTHREADS=1)
+    target_link_options(piper_plus PRIVATE -sUSE_PTHREADS=1)
+  endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
   # Android: RPATH not applicable, pthread linked automatically by NDK
 endif()

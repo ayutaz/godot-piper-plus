@@ -193,6 +193,13 @@ if(UNIX)
     target_link_libraries(openjtalk PUBLIC Threads::Threads)
   endif()
 
+  if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND PIPER_PLUS_USE_PTHREADS)
+    target_compile_options(mecab PRIVATE -sUSE_PTHREADS=1)
+    target_compile_options(openjtalk PRIVATE -sUSE_PTHREADS=1)
+    target_link_options(mecab PUBLIC -sUSE_PTHREADS=1)
+    target_link_options(openjtalk PUBLIC -sUSE_PTHREADS=1)
+  endif()
+
   # Add math library (not needed on macOS, libm is part of libSystem)
   if(NOT APPLE)
     target_link_libraries(openjtalk PUBLIC m)
