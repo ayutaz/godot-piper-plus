@@ -1,6 +1,6 @@
 # TKT-010 Web runtime adaptation / ORT Web 対応
 
-- 状態: `進行中`
+- 状態: `要確認`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `FR-4` `FR-6` `NFR-2` `NFR-4` `NFR-5`
@@ -14,6 +14,7 @@
 - [x] model / config / `cmudict_data.json` を含む dictionary 読み込みを path 非依存の形へ分離する
 - [x] Web で unsupported な backend や optional native backend の扱いを固定する
 - [x] Phase 1 の最小 synthesize と除外機能の境界を整理する
+- [ ] `TKT-011` の初回 browser smoke 結果で、Web runtime contract と最小 synthesize の成立を最終確認する
 
 ## タスク目的とゴール
 
@@ -26,8 +27,9 @@
 - `src/piper_core/piper.cpp` の config / model load を byte / string ベースへ分離し、Web で memory session に寄せられる形へ整理する。
 - `src/piper_core/piper.cpp` の `cmudict_data.json` 解決を、`docs/requirements.md` の探索契約を崩さずに `FileAccess` 由来 resource へ寄せる。
 - `src/piper_tts.cpp` で `FileAccess` 由来の resource load と unsupported provider handling を追加し、`test/prepare-assets.sh` が作る fixture 配置でも読み込めるようにする。
-- `src/piper_core/openjtalk_wrapper.c` の `openjtalk-native` 分岐は Web で unsupported として固定し、Japanese text input / dictionary bootstrap を Phase 1 に含めるかは明示的な scope 判定として返す。
+- `src/piper_core/openjtalk_wrapper.c` の `openjtalk-native` 分岐は Web で unsupported として固定し、Japanese text input / dictionary bootstrap は Phase 1 対象外として明示的な scope 判定を返す。
 - Web では `execution_provider` を `EP_CPU` 固定にし、それ以外は machine-readable な error を返す方針を実装する。
+- Phase 1 の runtime scope は固定済みで、Japanese text input / dictionary bootstrap は Phase 2 扱いとします。
 
 ## 実装するために必要なエージェントチームの役割と人数
 

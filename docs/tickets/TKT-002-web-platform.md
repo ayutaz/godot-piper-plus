@@ -1,6 +1,6 @@
 # TKT-002 Web Platform 対応
 
-- 状態: `進行中`
+- 状態: `要確認`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -12,10 +12,10 @@
 - [x] Phase 1 のスコープを `preview`、`CPU-only`、custom template 前提で固定する
 - [x] Web backend と制約の feasibility を確定する
 - [x] `W0` として調査結果、受け入れ条件、子チケット分割を `docs/` へ固定する
-- [ ] [`TKT-008`](TKT-008-web-template-toolchain-bootstrap.md) として `W1` custom template / toolchain bootstrap を完了する
-- [ ] [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) として `W2` `web.*` manifest / package / export preset を完了する
-- [ ] [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md) として `W3` ONNX Runtime Web static-lib と runtime I/O refactor を完了する
-- [ ] [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md) として `W4` browser smoke / CI / 文書反映を完了する
+- [x] [`TKT-008`](TKT-008-web-template-toolchain-bootstrap.md) として `W1` custom template / toolchain bootstrap の実装と handoff を反映する
+- [x] [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) として `W2` `web.*` manifest / package / export preset の実装と handoff を反映する
+- [x] [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md) として `W3` ONNX Runtime Web static-lib と runtime I/O refactor の実装と runtime scope を反映する
+- [ ] [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md) として、重い Web build / export / browser smoke の初回 CI / local 結果を確定する
 
 ## 技術調査
 
@@ -28,10 +28,10 @@
 | ID | チケット | 状態 | 目的 | 主な変更対象 | 完了条件 | 依存 |
 |---|---|---|---|---|---|---|
 | `W0` | [`TKT-002`](TKT-002-web-platform.md) | `完了` | feasibility と Phase 1 scope を固定し、分割チケットの境界を確定する | `docs/web-platform-research.md`, `docs/milestones.md`, `docs/tickets/TKT-002-web-platform.md` | `preview`、`CPU-only`、custom template、addon load と最小モデル synthesize を見る CI browser smoke 前提を固定し、`W1` から `W4` の責務分担が定義済み | - |
-| `W1` | [`TKT-008`](TKT-008-web-template-toolchain-bootstrap.md) | `進行中` | custom Web export template と Emscripten build の入口を作る | `CMakeLists.txt`, `cmake/HTSEngine.cmake`, `scripts/ci/install-godot-export-templates.sh`, 必要なら Web template build script | `dlink_enabled=yes` 前提の custom template が再現でき、thread / no-thread の binary 方針、artifact 名、出力配置が固定されている | - |
-| `W2` | [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) | `進行中` | `web.*` manifest、package、validator、export preset を揃える | `addons/piper_plus/piper_plus.gdextension`, `test/project/addons/piper_plus/piper_plus.gdextension`, `test/project/export_presets.cfg`, `scripts/ci/package-addon.sh`, `scripts/ci/validate-addon-package.sh`, `test/prepare-assets.sh` | `W1` で固定した Web artifact matrix を manifest、package、validator、export preset へ反映できている | `W1` |
-| `W3` | [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md) | `進行中` | Web 向け runtime backend と resource I/O を成立させる | `cmake/FindOnnxRuntime.cmake`, `src/piper_core/piper.cpp`, `src/piper_tts.cpp`, 必要なら `src/piper_core/openjtalk_wrapper.c` | `libonnxruntime_webassembly.a` を link でき、model / config / `cmudict_data.json` を含む path 非依存 load と unsupported backend error が実装されている | `W1` `W2` |
-| `W4` | [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md) | `進行中` | browser smoke と CI、README 反映で preview support を閉じる | `.github/workflows/build.yml`, `test/project`, `test/prepare-assets.sh`, smoke script 群, `README.md`, `addons/piper_plus/README.md` | browser smoke が既存 test fixture と package 成果物で CI / local の両方で再現可能になり、addon load と最小モデル synthesize の成否、Web の前提と制約が利用者向け文書に反映される | `W2` `W3` |
+| `W1` | [`TKT-008`](TKT-008-web-template-toolchain-bootstrap.md) | `要確認` | custom Web export template と Emscripten build の入口を作る | `CMakeLists.txt`, `cmake/HTSEngine.cmake`, `scripts/ci/install-godot-export-templates.sh`, 必要なら Web template build script | `dlink_enabled=yes` 前提の custom template が再現でき、thread / no-thread の binary 方針、artifact 名、出力配置が固定され、`W4` の初回実走結果で最終確認できる | - |
+| `W2` | [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) | `要確認` | `web.*` manifest、package、validator、export preset を揃える | `addons/piper_plus/piper_plus.gdextension`, `test/project/addons/piper_plus/piper_plus.gdextension`, `test/project/export_presets.cfg`, `scripts/ci/package-addon.sh`, `scripts/ci/validate-addon-package.sh`, `test/prepare-assets.sh` | `W1` で固定した Web artifact matrix を manifest、package、validator、export preset へ反映でき、`W4` の初回実走結果で最終確認できる | `W1` |
+| `W3` | [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md) | `要確認` | Web 向け runtime backend と resource I/O を成立させる | `cmake/FindOnnxRuntime.cmake`, `src/piper_core/piper.cpp`, `src/piper_tts.cpp`, 必要なら `src/piper_core/openjtalk_wrapper.c` | `libonnxruntime_webassembly.a` を link でき、model / config / `cmudict_data.json` を含む path 非依存 load と unsupported backend error が実装され、`W4` の初回実走結果で最終確認できる | `W1` `W2` |
+| `W4` | [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md) | `要確認` | browser smoke と CI、README 反映で preview support を閉じる | `.github/workflows/build.yml`, `test/project`, `test/prepare-assets.sh`, smoke script 群, `README.md`, `addons/piper_plus/README.md` | browser smoke が既存 test fixture と package 成果物で CI / local の両方で再現可能になり、addon load と最小モデル synthesize の成否、Web の前提と制約が利用者向け文書に反映される | `W2` `W3` |
 
 ## タスク目的とゴール
 

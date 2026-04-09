@@ -1,6 +1,6 @@
 # TKT-011 Web browser smoke / CI / 文書反映
 
-- 状態: `進行中`
+- 状態: `要確認`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -15,6 +15,7 @@
 - [x] smoke の pass / fail 判定とログ採取方法を addon load と最小モデル synthesize まで含めて固定する
 - [x] `test/project` と packaged addon を使う fixture 手順を既存 test 基盤へ接続する
 - [x] README と addon README に Web preview の前提と制約を反映する
+- [ ] CI runner と local emsdk 環境で、重い Web build / export / browser smoke の初回結果を確定する
 
 ## タスク目的とゴール
 

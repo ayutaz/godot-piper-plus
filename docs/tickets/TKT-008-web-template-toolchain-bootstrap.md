@@ -1,6 +1,6 @@
 # TKT-008 Web custom template / toolchain bootstrap
 
-- 状態: `進行中`
+- 状態: `要確認`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `NFR-5`
@@ -15,6 +15,7 @@
 - [x] addon 側の thread / no-thread binary 方針と命名規約を固定する
 - [x] custom template artifact の出力配置と後続チケットが参照するパス契約を固定する
 - [x] 後続チケットへ渡す toolchain 前提と artifact 規約を文書化する
+- [ ] `TKT-011` の初回 Web export / browser smoke 結果で、toolchain と artifact 契約が実際に成立していることを最終確認する
 
 ## タスク目的とゴール
 
@@ -25,6 +26,7 @@
 
 - `build-web` workflow では Godot 4.4 系に合わせて `EMSDK_VERSION=3.1.62` を固定しました。
 - `scripts/ci/build-godot-web-templates.sh`、`scripts/ci/build-web-side-module.sh`、`scripts/ci/install-godot-export-templates.sh`、README の local smoke 手順で、custom template artifact 名と配置契約を後続チケットへ共有しています。
+- 現時点の未確定点は、重い Web build / export / browser smoke を通したときに、この artifact 契約が CI / local の両方で崩れないことの初回確認です。
 
 ## 実装する内容の詳細
 

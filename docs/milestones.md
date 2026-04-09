@@ -22,7 +22,7 @@
 | 進行中 | M4 Packaging / Documentation 完成 | `FR-9` `NFR-6` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package assembly / validator と addon 文書は整備済み。multilingual contract は反映済みで、残りは platform / Web 結果の最終反映 |
 | 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証、Web Phase 1 の受け入れ条件固定までは整備済み。残りは Web と platform smoke の最終 gate 化 |
 | 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) | Windows / Linux は概ね確定。macOS / Android / iOS は初回結果の確認と必要修正が残る |
-| 進行中 | M7 Web Support 完成 | `FR-10` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | `W0` feasibility / scope 固定は完了。残りは `W1` custom template / toolchain、`W2` manifest / package、`W3` runtime adaptation、`W4` browser smoke / 文書反映 |
+| 要確認 | M7 Web Support 完成 | `FR-10` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | `W0` は完了、`W1` から `W3` は実装反映済み、`W4` も script / docs は整備済み。残りは重い Web build / export / browser smoke の初回結果確定 |
 | 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | package / README / changelog の基礎と multilingual 反映は完了。残りは platform / Web 結果の最終反映と申請導線の確定 |
 
 ## マイルストーン詳細
@@ -117,17 +117,15 @@
 ### M7 Web Support 完成
 
 - 対象要求: `FR-10`
-- 状態: `進行中`
+- 状態: `要確認`
 - 関連チケット: [TKT-002 Web Platform 対応](./tickets/TKT-002-web-platform.md) [TKT-008 Web custom template / toolchain bootstrap](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009 Web manifest / package / export preset 整備](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010 Web runtime adaptation / ORT Web 対応](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md)
-- 現状: feasibility と設計メモは [docs/web-platform-research.md](./web-platform-research.md) に整理済みです。`W0` として Phase 1 の scope は `preview support`、`CPU-only`、custom Web export template 前提、`web.*` manifest、addon load と最小モデル synthesize を見る CI browser smoke、制約文書化までで固定済みです。`W1` から `W4` はすでにコード着手しており、Web 向け toolchain 伝播、custom template/bootstrap script、`web.*` manifest / package / export preset、ORT Web static-lib の入口、Web での `EP_CPU` 固定 error handling、model / config / `cmudict_data.json` の path 非依存 loader、Phase 1 の最小 synthesize 境界を返す runtime contract、browser smoke / CI / README 反映の土台は入りました。残りは重い Web build/export/browser smoke の初回実行結果を CI / local で確定することです。
+- 現状: feasibility と設計メモは [docs/web-platform-research.md](./web-platform-research.md) に整理済みです。`W0` として Phase 1 の scope は `preview support`、`CPU-only`、custom Web export template 前提、`web.*` manifest、addon load と最小モデル synthesize を見る CI browser smoke、制約文書化までで固定済みです。`W1` から `W3` はコード反映と handoff 済みで、Web 向け toolchain 伝播、custom template/bootstrap script、`web.*` manifest / package / export preset、ORT Web static-lib の入口、Web での `EP_CPU` 固定 error handling、model / config / `cmudict_data.json` の path 非依存 loader、Phase 1 の最小 synthesize 境界を返す runtime contract まで入りました。`W4` も browser smoke / CI / README 反映の土台は入り、残りは重い Web build / export / browser smoke の初回実行結果を CI / local で確定することです。
 - 実装スコープ:
   - Phase 1: `preview support`。custom template、`web.*` manifest、Web 向け runtime 制約、browser smoke、README 反映までを release gate に含める
   - Phase 2: Japanese text input の dictionary bootstrap、multilingual parity 拡張、binary size 最適化などの広がりは preview 後に扱う
 - 残作業:
-  - [TKT-008 Web custom template / toolchain bootstrap](./tickets/TKT-008-web-template-toolchain-bootstrap.md) を成立させる
-  - [TKT-009 Web manifest / package / export preset 整備](./tickets/TKT-009-web-manifest-package-export-preset.md) を閉じる
-  - [TKT-010 Web runtime adaptation / ORT Web 対応](./tickets/TKT-010-web-runtime-ort-adaptation.md) を実装する
-  - [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) を閉じる
+  - [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) として、重い Web build / export / browser smoke の初回結果を CI / local で確定する
+  - `TKT-002` と `M4` `M5` `M8` に、Web Phase 1 の最終 pass / fail と既知制約を反映する
 - 完了条件:
   - Web export 向け build / package / export 導線が成立する
   - `web.*` manifest、package validator、test project export preset が同じ artifact 契約を参照している
@@ -138,10 +136,10 @@
 | 状態 | ID | チケット | マイルストーン | 主な変更対象 | 完了条件 |
 |---|---|---|---|---|---|
 | 完了 | `W0` | [TKT-002](./tickets/TKT-002-web-platform.md) | feasibility / scope 固定 | `docs/web-platform-research.md`, `docs/milestones.md`, `docs/tickets/TKT-002-web-platform.md` | Phase 1 を `preview support`、`CPU-only`、custom template、addon load と最小モデル synthesize を見る CI browser smoke 前提で固定し、`W1` から `W4` の分割を確定している |
-| 進行中 | `W1` | [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) | custom template / toolchain bootstrap | `CMakeLists.txt`, `cmake/HTSEngine.cmake`, `scripts/ci/install-godot-export-templates.sh`, 必要なら Web template build script | `dlink_enabled=yes` 前提の custom Web export template と Emscripten build の入口が再現でき、thread / no-thread の binary 方針、artifact 名、出力配置が固定されている |
-| 進行中 | `W2` | [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) | manifest / package / export preset 整備 | `addons/piper_plus/piper_plus.gdextension`, `test/project/addons/piper_plus/piper_plus.gdextension`, `test/project/export_presets.cfg`, `scripts/ci/package-addon.sh`, `scripts/ci/validate-addon-package.sh`, `test/prepare-assets.sh` | `W1` で固定した Web artifact matrix を `web.*` entry、package、validator、test project の Web export preset へ矛盾なく反映できている |
-| 進行中 | `W3` | [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) | runtime adaptation と ORT Web 対応 | `cmake/FindOnnxRuntime.cmake`, `src/piper_core/piper.cpp`, `src/piper_tts.cpp`, 必要なら `src/piper_core/openjtalk_wrapper.c` | `libonnxruntime_webassembly.a` を link でき、model / config / `cmudict_data.json` を含む resource 読み込みが path 非依存になり、unsupported backend と Phase 1 除外機能が説明可能な error を返す |
-| 進行中 | `W4` | [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | browser smoke / CI / 文書反映 | `.github/workflows/build.yml`, `test/project`, `test/prepare-assets.sh`, smoke 用 script 群, `README.md`, `addons/piper_plus/README.md` | COOP / COEP 前提の browser smoke が既存 test fixture と package 成果物を使って CI / local で再現可能になり、addon load と最小モデル synthesize の成否、Web の前提と制約が README と package 文書へ反映される |
+| 要確認 | `W1` | [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) | custom template / toolchain bootstrap | `CMakeLists.txt`, `cmake/HTSEngine.cmake`, `scripts/ci/install-godot-export-templates.sh`, 必要なら Web template build script | `dlink_enabled=yes` 前提の custom Web export template と Emscripten build の入口が再現でき、thread / no-thread の binary 方針、artifact 名、出力配置が固定され、`W4` の初回実走結果で最終確認できる |
+| 要確認 | `W2` | [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) | manifest / package / export preset 整備 | `addons/piper_plus/piper_plus.gdextension`, `test/project/addons/piper_plus/piper_plus.gdextension`, `test/project/export_presets.cfg`, `scripts/ci/package-addon.sh`, `scripts/ci/validate-addon-package.sh`, `test/prepare-assets.sh` | `W1` で固定した Web artifact matrix を `web.*` entry、package、validator、test project の Web export preset へ矛盾なく反映でき、`W4` の初回実走結果で最終確認できる |
+| 要確認 | `W3` | [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) | runtime adaptation と ORT Web 対応 | `cmake/FindOnnxRuntime.cmake`, `src/piper_core/piper.cpp`, `src/piper_tts.cpp`, 必要なら `src/piper_core/openjtalk_wrapper.c` | `libonnxruntime_webassembly.a` を link でき、model / config / `cmudict_data.json` を含む resource 読み込みが path 非依存になり、unsupported backend と Phase 1 除外機能が説明可能な error を返し、`W4` の初回実走結果で最終確認できる |
+| 要確認 | `W4` | [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | browser smoke / CI / 文書反映 | `.github/workflows/build.yml`, `test/project`, `test/prepare-assets.sh`, smoke 用 script 群, `README.md`, `addons/piper_plus/README.md` | COOP / COEP 前提の browser smoke が既存 test fixture と package 成果物を使って CI / local で再現可能になり、addon load と最小モデル synthesize の成否、Web の前提と制約が README と package 文書へ反映される |
 
 <a id="m8"></a>
 ### M8 Release / Asset Library 準備
@@ -160,19 +158,16 @@
 
 ## 直近の実行順
 
-1. [TKT-008 Web custom template / toolchain bootstrap](./tickets/TKT-008-web-template-toolchain-bootstrap.md) で、custom Web export template と Emscripten build の入口を固定する
-2. [TKT-009 Web manifest / package / export preset 整備](./tickets/TKT-009-web-manifest-package-export-preset.md) で、`web.*` entry、package、validator、export preset を揃える
-3. [TKT-010 Web runtime adaptation / ORT Web 対応](./tickets/TKT-010-web-runtime-ort-adaptation.md) で、Web 向け backend と path 非依存 I/O を実装する
-4. [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) で、browser smoke、CI、README 反映を閉じる
-5. [TKT-003 macOS arm64 packaged addon smoke 確認](./tickets/TKT-003-macos-packaged-smoke.md) で、CI 実結果を確認し、必要修正を入れる
-6. [TKT-004 Android arm64 export / runtime 確認](./tickets/TKT-004-android-export-runtime.md) で、export smoke / runtime 可否を確認し、必要なら `export_presets.cfg`、SDK / keystore、runtime 条件を修正する
-7. [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) で、generic configuration error を切り分ける
-8. [TKT-006 iOS Export / Link Smoke 確認](./tickets/TKT-006-ios-export-link-smoke.md) で、CI 実結果を確認し、必要修正を入れる
-9. [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) で、`M6` `M7` の結果を package / 文書 / changelog に反映し、Asset Library 公開準備を閉じる
+1. [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md) で、重い Web build / export / browser smoke の初回結果を確定する
+2. [TKT-003 macOS arm64 packaged addon smoke 確認](./tickets/TKT-003-macos-packaged-smoke.md) で、CI 実結果を確認し、必要修正を入れる
+3. [TKT-004 Android arm64 export / runtime 確認](./tickets/TKT-004-android-export-runtime.md) で、export smoke / runtime 可否を確認し、必要なら `export_presets.cfg`、SDK / keystore、runtime 条件を修正する
+4. [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) で、generic configuration error を切り分ける
+5. [TKT-006 iOS Export / Link Smoke 確認](./tickets/TKT-006-ios-export-link-smoke.md) で、CI 実結果を確認し、必要修正を入れる
+6. [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) で、`M6` `M7` の結果を package / 文書 / changelog に反映し、Asset Library 公開準備を閉じる
 
 ## ブロッカー / 未確定事項
 
-- Web Phase 1 は `preview`、`CPU-only`、custom template 前提で進める方針を固定したが、Japanese text input / dictionary bootstrap を Phase 1 に含めるか、`TKT-010` でどの runtime scope を確定させるかは未確定です。
+- Web Phase 1 の runtime scope は固定済みで、Japanese text input / dictionary bootstrap は Phase 2 扱いです。未確定なのは、重い Web build / export / browser smoke の初回結果だけです。
 - macOS / Android / iOS の初回 CI 結果がまだ release 判定へ織り込まれていません。
 - Windows local Android export の generic configuration error が Android 検証のノイズ源として残っています。
 

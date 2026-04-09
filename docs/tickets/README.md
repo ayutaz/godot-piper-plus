@@ -8,21 +8,22 @@
 
 | 状態 | Ticket | タイトル | 親チケット | 関連マイルストーン | 依存 | 後続 |
 |---|---|---|---|---|---|---|
-| 進行中 | [TKT-002](TKT-002-web-platform.md) | Web platform 対応 | - | `M7` `M4` `M5` `M8` | - | `TKT-007` |
+| 要確認 | [TKT-002](TKT-002-web-platform.md) | Web platform 対応 | - | `M7` `M4` `M5` `M8` | - | `TKT-007` |
 | 要確認 | [TKT-003](TKT-003-macos-packaged-smoke.md) | macOS arm64 packaged addon smoke 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-004](TKT-004-android-export-runtime.md) | Android arm64 export / runtime 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-005](TKT-005-windows-android-export-error.md) | Windows local Android export error 切り分け | - | `M6` `M5` | - | `TKT-004` `TKT-007` |
 | 要確認 | [TKT-006](TKT-006-ios-export-link-smoke.md) | iOS arm64 export / link smoke 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-007](TKT-007-release-finalization.md) | package / 文書 / Asset Library 最終化 | - | `M4` `M8` | `TKT-002` `TKT-003` `TKT-004` `TKT-006` `TKT-011` | - |
-| 進行中 | [TKT-008](TKT-008-web-template-toolchain-bootstrap.md) | Web custom template / toolchain bootstrap | `TKT-002` | `M7` `M5` | - | `TKT-009` `TKT-010` |
-| 進行中 | [TKT-009](TKT-009-web-manifest-package-export-preset.md) | Web manifest / package / export preset 整備 | `TKT-002` | `M7` `M4` `M5` | `TKT-008` | `TKT-010` `TKT-011` |
-| 進行中 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
-| 進行中 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
+| 要確認 | [TKT-008](TKT-008-web-template-toolchain-bootstrap.md) | Web custom template / toolchain bootstrap | `TKT-002` | `M7` `M5` | - | `TKT-009` `TKT-010` |
+| 要確認 | [TKT-009](TKT-009-web-manifest-package-export-preset.md) | Web manifest / package / export preset 整備 | `TKT-002` | `M7` `M4` `M5` | `TKT-008` | `TKT-010` `TKT-011` |
+| 要確認 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
+| 要確認 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
 
 ## 運用メモ
 
 - 完了したチケットはこのディレクトリから削除し、成果だけを `docs/milestones.md` と残存チケットへ反映します。
 - `TKT-002` は Web 要求全体を束ねる umbrella ticket です。`W0` feasibility / scope 固定を持ち、実装は `TKT-008` から `TKT-011` の `W1` から `W4` に分割しています。技術調査は `docs/web-platform-research.md` に集約しています。`親チケット` は進捗の集約先を示し、`依存` と `後続` は実行順だけを表します。
+- Web の `TKT-008` から `TKT-011` は、コードと文書は揃っていても重い Web build / export / browser smoke の初回結果が未確定な間は `要確認` で扱います。
 - multilingual contract は `tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として扱います。
 - `TKT-003` から `TKT-006` は platform verification の結果確定チケットです。
 - `TKT-008` から `TKT-011` は `M7 Web Support` を `W1` から `W4` に分解した実装チケットです。進捗更新時は `TKT-002` と `docs/milestones.md` の `M7` セクションも同時に更新します。
