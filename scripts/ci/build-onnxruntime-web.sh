@@ -52,26 +52,44 @@ fi
 
 mkdir -p "$STAGING_ROOT/lib" "$STAGING_ROOT/include"
 
+read -r -a ort_build_args <<< "$ORT_BUILD_FLAGS"
+if [[ " ${ort_build_args[*]} " != *" --parallel "* ]]; then
+  ort_build_args+=(--parallel "$ORT_BUILD_PARALLEL")
+fi
+if [[ -n "$ORT_EMSDK_VERSION" && " ${ort_build_args[*]} " != *" --emsdk_version "* ]]; then
+  ort_build_args+=(--emsdk_version "$ORT_EMSDK_VERSION")
+fi
+if [[ -n "$ORT_BUILD_TARGET" && " ${ort_build_args[*]} " != *" --target "* ]]; then
+  ort_build_args+=(--target "$ORT_BUILD_TARGET")
+fi
+
+ort_build_dir=""
+for ((i = 0; i < ${#ort_build_args[@]}; ++i)); do
+  if [[ "${ort_build_args[$i]}" == "--build_dir" && $((i + 1)) -lt ${#ort_build_args[@]} ]]; then
+    ort_build_dir="${ort_build_args[$((i + 1))]}"
+    break
+  fi
+done
+
+if [[ -z "$ort_build_dir" ]]; then
+  ort_build_dir="$ORT_SOURCE_DIR/build"
+elif [[ "$ort_build_dir" != /* ]]; then
+  ort_build_dir="$ORT_SOURCE_DIR/$ort_build_dir"
+fi
+
 (
   cd "$ORT_SOURCE_DIR"
-  read -r -a ort_build_args <<< "$ORT_BUILD_FLAGS"
-  if [[ " ${ort_build_args[*]} " != *" --parallel "* ]]; then
-    ort_build_args+=(--parallel "$ORT_BUILD_PARALLEL")
-  fi
-  if [[ -n "$ORT_EMSDK_VERSION" && " ${ort_build_args[*]} " != *" --emsdk_version "* ]]; then
-    ort_build_args+=(--emsdk_version "$ORT_EMSDK_VERSION")
-  fi
-  if [[ -n "$ORT_BUILD_TARGET" && " ${ort_build_args[*]} " != *" --target "* ]]; then
-    ort_build_args+=(--target "$ORT_BUILD_TARGET")
-  fi
-
   echo "Building ONNX Runtime Web static library with target=${ORT_BUILD_TARGET:-default} parallel=$ORT_BUILD_PARALLEL emsdk=${ORT_EMSDK_VERSION:-default}"
   ./build.sh "${ort_build_args[@]}"
 )
 
-ort_static_lib="$(find "$ORT_SOURCE_DIR/build" -type f -name 'libonnxruntime_webassembly.a' | sort | tail -n 1)"
+ort_static_lib=""
+if [[ -d "$ort_build_dir" ]]; then
+  ort_static_lib="$(find "$ort_build_dir" -type f -name 'libonnxruntime_webassembly.a' | sort | tail -n 1)"
+fi
+
 if [[ -z "$ort_static_lib" ]]; then
-  echo "ERROR: libonnxruntime_webassembly.a was not produced under $ORT_SOURCE_DIR/build" >&2
+  echo "ERROR: libonnxruntime_webassembly.a was not produced under $ort_build_dir" >&2
   exit 1
 fi
 
