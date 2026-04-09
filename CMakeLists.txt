@@ -37,16 +37,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(GODOTCPP_THREADS "${PIPER_PLUS_WEB_THREADS}" CACHE BOOL "" FORCE)
   endif()
   set(PIPER_PLUS_USE_PTHREADS "${PIPER_PLUS_WEB_THREADS}")
-
-  # Side modules are produced via -sSIDE_MODULE=1. Leaving the generic shared
-  # library driver flag enabled causes em++ to wrap every input archive in
-  # --whole-archive, which explodes with our static OpenJTalk/HTSEngine/ORT libs.
-  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "")
-  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "")
-  set(CMAKE_SHARED_MODULE_CREATE_C_FLAGS "")
-  set(CMAKE_SHARED_MODULE_CREATE_CXX_FLAGS "")
-  set(CMAKE_SHARED_LIBRARY_SONAME_C_FLAG "")
-  set(CMAKE_SHARED_LIBRARY_SONAME_CXX_FLAG "")
 endif()
 
 # External CMake args propagation for ExternalProject builds
@@ -188,6 +178,16 @@ endif()
 add_subdirectory(thirdparty/godot-cpp)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # SIDE_MODULE=2 keeps side-module relocation enabled without switching em++
+  # into LINKABLE mode, which otherwise wraps every static archive in
+  # --whole-archive and breaks ORT/HTSEngine linkage.
+  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_MODULE_CREATE_C_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_MODULE_CREATE_CXX_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_LIBRARY_SONAME_C_FLAG "")
+  set(CMAKE_SHARED_LIBRARY_SONAME_CXX_FLAG "")
+
   get_target_property(_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS godot-cpp INTERFACE_LINK_OPTIONS)
   if(_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS)
     list(REMOVE_ITEM _PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS -shared)
@@ -288,14 +288,15 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   message(STATUS "Web build detected (threads=${PIPER_PLUS_USE_PTHREADS})")
   target_compile_definitions(piper_plus PRIVATE WEB_ENABLED UNIX_ENABLED)
   target_compile_options(piper_plus PRIVATE
-    -sSIDE_MODULE=1
+    -sSIDE_MODULE=2
     -sSUPPORT_LONGJMP=wasm
   )
   target_link_options(piper_plus PRIVATE
-    -sSIDE_MODULE=1
+    -sSIDE_MODULE=2
     -sWASM_BIGINT
     -sSUPPORT_LONGJMP=wasm
     -fvisibility=hidden
+    LINKER:--export=piper_plus_library_init
   )
   if(PIPER_PLUS_USE_PTHREADS)
     target_compile_options(piper_plus PRIVATE -sUSE_PTHREADS=1)

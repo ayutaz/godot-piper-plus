@@ -642,7 +642,7 @@ static char* builtin_text_to_phonemes(const char* text) {
     size_t phoneme_buffer_size = OPENJTALK_MAX_BUFFER;
     char* phonemes = (char*)malloc(phoneme_buffer_size);
     if (!phonemes) {
-        HTS_Label_clear(label);
+        openjtalk_label_clear(label);
         openjtalk_finalize(oj);
         return NULL;
     }
@@ -651,9 +651,9 @@ static char* builtin_text_to_phonemes(const char* text) {
     size_t total_phoneme_len = 0;
 
     // Extract phonemes from full-context labels
-    size_t label_size = HTS_Label_get_size(label);
+    size_t label_size = openjtalk_label_get_size(label);
     for (size_t i = 0; i < label_size; i++) {
-        const char* label_str = HTS_Label_get_string(label, i);
+        const char* label_str = openjtalk_label_get_string(label, i);
         if (!label_str) continue;
 
         // Skip silence at beginning and end
@@ -676,7 +676,7 @@ static char* builtin_text_to_phonemes(const char* text) {
                         if (phoneme_buffer_size > ((size_t)-1) / 2) {
                             fprintf(stderr, "Error: Buffer size would overflow\n");
                             free(phonemes);
-                            HTS_Label_clear(label);
+                            openjtalk_label_clear(label);
                             openjtalk_finalize(oj);
                             return NULL;
                         }
@@ -684,7 +684,7 @@ static char* builtin_text_to_phonemes(const char* text) {
                         char* new_phonemes = (char*)realloc(phonemes, new_size);
                         if (!new_phonemes) {
                             free(phonemes);
-                            HTS_Label_clear(label);
+                            openjtalk_label_clear(label);
                             openjtalk_finalize(oj);
                             return NULL;
                         }
@@ -707,7 +707,7 @@ static char* builtin_text_to_phonemes(const char* text) {
     }
 
     // Clean up
-    HTS_Label_clear(label);
+    openjtalk_label_clear(label);
     openjtalk_finalize(oj);
 
     if (total_phoneme_len == 0) {
@@ -753,13 +753,13 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
         return NULL;
     }
 
-    size_t label_size = HTS_Label_get_size(label);
+    size_t label_size = openjtalk_label_get_size(label);
 
     // Allocate result structure
     OpenJTalkProsodyResult* prosody_result =
         (OpenJTalkProsodyResult*)malloc(sizeof(OpenJTalkProsodyResult));
     if (!prosody_result) {
-        HTS_Label_clear(label);
+        openjtalk_label_clear(label);
         openjtalk_finalize(oj);
         return NULL;
     }
@@ -774,7 +774,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     if (!prosody_result->phonemes || !prosody_result->prosody_a1 ||
         !prosody_result->prosody_a2 || !prosody_result->prosody_a3) {
         openjtalk_free_prosody_result(prosody_result);
-        HTS_Label_clear(label);
+        openjtalk_label_clear(label);
         openjtalk_finalize(oj);
         return NULL;
     }
@@ -784,7 +784,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
 
     // Extract phonemes and prosody from full-context labels
     for (size_t i = 0; i < label_size; i++) {
-        const char* label_str = HTS_Label_get_string(label, i);
+        const char* label_str = openjtalk_label_get_string(label, i);
         if (!label_str || strlen(label_str) == 0) continue;
 
         // Extract phoneme from: xx^xx-phoneme+xx=xx/A:a1+a2+a3/B:...
@@ -846,7 +846,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     }
 
     // Clean up
-    HTS_Label_clear(label);
+    openjtalk_label_clear(label);
     openjtalk_finalize(oj);
 
     if (prosody_result->count == 0) {
