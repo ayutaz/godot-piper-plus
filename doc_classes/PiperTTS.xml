@@ -143,6 +143,12 @@
 				Returns the most recent machine-readable error record. The dictionary is empty until a validation or synthesis failure occurs. On failure it contains [code]code[/code], [code]message[/code], [code]stage[/code], and when available [code]requested_language_code[/code], [code]requested_language_id[/code], [code]resolved_language_code[/code], [code]resolved_language_id[/code], and [code]selection_mode[/code].
 			</description>
 		</method>
+		<method name="get_runtime_state" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the current runtime state as one of [code]"uninitialized"[/code], [code]"initializing"[/code], [code]"ready"[/code], [code]"busy"[/code], or [code]"stopping"[/code].
+			</description>
+		</method>
 		<method name="is_processing" qualifiers="const">
 			<return type="bool" />
 			<description>
@@ -241,6 +247,18 @@
 			<param index="0" name="error" type="String" />
 			<description>
 				Emitted when [method synthesize_async], [method synthesize_async_request], [method synthesize_streaming], or [method synthesize_streaming_request] fails. [param error] contains a human-readable error message describing the cause of the failure.
+			</description>
+		</signal>
+		<signal name="runtime_state_changed">
+			<param index="0" name="state" type="String" />
+			<description>
+				Emitted when the internal runtime state changes. [param state] matches the values returned by [method get_runtime_state].
+			</description>
+		</signal>
+		<signal name="synthesis_failed_detailed">
+			<param index="0" name="error" type="Dictionary" />
+			<description>
+				Emitted alongside [signal synthesis_failed] with the same machine-readable payload shape returned by [method get_last_error].
 			</description>
 		</signal>
 		<signal name="streaming_ended">

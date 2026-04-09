@@ -3,6 +3,7 @@ extends EditorInspectorPlugin
 
 const ModelDownloaderScript = preload("res://addons/piper_plus/model_downloader.gd")
 const DictionaryEditorScript = preload("res://addons/piper_plus/dictionary_editor.gd")
+const PresetServiceScript = preload("res://addons/piper_plus/preset_service.gd")
 const TestSpeechDialogScript = preload("res://addons/piper_plus/test_speech_dialog.gd")
 const PiperIcon = preload("res://addons/piper_plus/icon.svg")
 
@@ -52,7 +53,7 @@ func _parse_begin(object: Object) -> void:
 
 	var preset_picker := OptionButton.new()
 	preset_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for key in ModelDownloaderScript.list_model_item_keys():
+	for key in PresetServiceScript.list_model_presets():
 		preset_picker.add_item(key)
 	_select_current_preset(preset_picker, String(object.get("model_path")))
 	preset_row.add_child(preset_picker)
@@ -89,20 +90,12 @@ func _select_current_preset(preset_picker: OptionButton, current_model_path: Str
 		return
 
 	var current_value := current_model_path.strip_edges()
-	var current_stem := current_value.get_file()
-	if current_stem.ends_with(".onnx"):
-		current_stem = current_stem.trim_suffix(".onnx")
-
-	for index in range(preset_picker.item_count):
-		var key := preset_picker.get_item_text(index)
-		var primary_model_path := ModelDownloaderScript.get_primary_model_path(key)
-		var primary_stem := primary_model_path.get_file()
-		if primary_stem.ends_with(".onnx"):
-			primary_stem = primary_stem.trim_suffix(".onnx")
-
-		if current_value == key or current_value == primary_model_path or current_stem == primary_stem:
-			preset_picker.select(index)
-			return
+	var matched_key := PresetServiceScript.match_model_path_to_preset(current_value)
+	if not matched_key.is_empty():
+		for index in range(preset_picker.item_count):
+			if preset_picker.get_item_text(index) == matched_key:
+				preset_picker.select(index)
+				return
 
 	preset_picker.select(0)
 
@@ -112,35 +105,29 @@ func _apply_preset(target: Object, preset_picker: OptionButton) -> void:
 		return
 
 	var preset_key := preset_picker.get_item_text(preset_picker.selected)
-	var model_value := preset_key
-	if ModelDownloaderScript.is_item_installed(preset_key):
-		var installed_model_path := ModelDownloaderScript.get_primary_model_path(preset_key)
-		if not installed_model_path.is_empty():
-			model_value = installed_model_path
-
-	var dictionary_value := ModelDownloaderScript.get_recommended_dictionary_path(preset_key)
+	var preset_values := PresetServiceScript.resolve_preset_application(preset_key)
 
 	if _plugin != null:
 		var undo_redo = _plugin.get_undo_redo()
 		undo_redo.create_action("Apply Piper Plus Preset")
-		undo_redo.add_do_property(target, "model_path", model_value)
+		undo_redo.add_do_property(target, "model_path", preset_values.get("model_path", ""))
 		undo_redo.add_undo_property(target, "model_path", target.get("model_path"))
-		undo_redo.add_do_property(target, "config_path", "")
+		undo_redo.add_do_property(target, "config_path", preset_values.get("config_path", ""))
 		undo_redo.add_undo_property(target, "config_path", target.get("config_path"))
-		undo_redo.add_do_property(target, "dictionary_path", dictionary_value)
+		undo_redo.add_do_property(target, "dictionary_path", preset_values.get("dictionary_path", ""))
 		undo_redo.add_undo_property(target, "dictionary_path", target.get("dictionary_path"))
-		undo_redo.add_do_property(target, "language_id", -1)
+		undo_redo.add_do_property(target, "language_id", int(preset_values.get("language_id", -1)))
 		undo_redo.add_undo_property(target, "language_id", target.get("language_id"))
-		undo_redo.add_do_property(target, "language_code", "")
+		undo_redo.add_do_property(target, "language_code", String(preset_values.get("language_code", "")))
 		undo_redo.add_undo_property(target, "language_code", target.get("language_code"))
 		undo_redo.commit_action()
 		return
 
-	target.set("model_path", model_value)
-	target.set("config_path", "")
-	target.set("dictionary_path", dictionary_value)
-	target.set("language_id", -1)
-	target.set("language_code", "")
+	target.set("model_path", preset_values.get("model_path", ""))
+	target.set("config_path", preset_values.get("config_path", ""))
+	target.set("dictionary_path", preset_values.get("dictionary_path", ""))
+	target.set("language_id", int(preset_values.get("language_id", -1)))
+	target.set("language_code", String(preset_values.get("language_code", "")))
 
 
 func _popup_ephemeral_dialog(dialog: AcceptDialog, size: Vector2i) -> void:

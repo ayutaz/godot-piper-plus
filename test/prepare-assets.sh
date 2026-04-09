@@ -38,12 +38,21 @@ for addon_file in \
   piper_plus_plugin.gd.uid \
   model_downloader.gd \
   model_downloader.gd.uid \
+  download_catalog.gd \
+  download_catalog.gd.uid \
+  download_catalog.json \
   dictionary_editor.gd \
   dictionary_editor.gd.uid \
+  piper_asset_paths.gd \
+  piper_asset_paths.gd.uid \
+  preset_service.gd \
+  preset_service.gd.uid \
   piper_plus.gdextension \
   piper_plus.gdextension.uid \
   piper_tts_inspector_plugin.gd \
   piper_tts_inspector_plugin.gd.uid \
+  preview_controller.gd \
+  preview_controller.gd.uid \
   test_speech_dialog.gd \
   test_speech_dialog.gd.uid \
   icon.svg \

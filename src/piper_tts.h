@@ -9,6 +9,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,6 +19,7 @@
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include "audio_queue.h"
+#include "piper_runtime_support.hpp"
 
 // Forward declarations
 namespace piper {
@@ -62,11 +64,13 @@ private:
 
 	// Internal state
 	bool ready = false;
+	std::atomic<piper_runtime::RuntimeState> runtime_state_{
+			piper_runtime::RuntimeState::Uninitialized};
 	std::unique_ptr<piper::PiperConfig> piper_config;
 	std::unique_ptr<piper::Voice> voice;
 	Dictionary last_synthesis_result_;
 	Dictionary last_inspection_result_;
-	Dictionary last_error_;
+	piper_runtime::RuntimeErrorInfo last_error_;
 
 	// Async synthesis state
 	std::atomic<bool> processing{false};
@@ -85,6 +89,8 @@ private:
 	size_t pending_sample_offset_ = 0;
 
 	// Helpers
+	piper_runtime::RuntimePropertySnapshot build_runtime_property_snapshot() const;
+	void set_runtime_state(piper_runtime::RuntimeState state);
 	String resolve_path(const String &path) const;
 	String resolve_model_path(const String &path) const;
 	String resolve_config_path(const String &resolved_model_path) const;
@@ -170,6 +176,7 @@ public:
 	Dictionary get_last_inspection_result() const;
 	Dictionary get_language_capabilities() const;
 	Dictionary get_runtime_contract() const;
+	String get_runtime_state() const;
 	Dictionary get_last_error() const;
 
 	// Methods (M3: async)

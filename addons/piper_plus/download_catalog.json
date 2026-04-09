@@ -1,0 +1,81 @@
+{
+	"version": 1,
+	"items": {
+		"css10": {
+			"type": "model",
+			"description": "Default CSS10 6-language model (Japanese/English/Chinese/Spanish/French/Portuguese, ~40 MB)",
+			"dest_subdir": "models/css10",
+			"recommended_dictionary_key": "naist-jdic",
+			"files": [
+				{
+					"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/css10-ja-6lang-fp16.onnx?download=true",
+					"filename": "css10-ja-6lang-fp16.onnx"
+				},
+				{
+					"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/config.json?download=true",
+					"filename": "config.json"
+				}
+			]
+		},
+		"ja_JP-test-medium": {
+			"type": "model",
+			"description": "Japanese test model (medium quality, ~60 MB)",
+			"dest_subdir": "models/ja_JP-test-medium",
+			"recommended_dictionary_key": "naist-jdic",
+			"files": [
+				{
+					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx?download=true",
+					"filename": "ja_JP-test-medium.onnx"
+				},
+				{
+					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx.json?download=true",
+					"filename": "ja_JP-test-medium.onnx.json"
+				}
+			]
+		},
+		"tsukuyomi-chan": {
+			"type": "model",
+			"description": "Tsukuyomi-chan Japanese model (high quality with prosody, ~60 MB)",
+			"dest_subdir": "models/tsukuyomi-chan",
+			"recommended_dictionary_key": "naist-jdic",
+			"files": [
+				{
+					"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/tsukuyomi-chan.onnx",
+					"filename": "tsukuyomi-chan.onnx"
+				},
+				{
+					"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/tsukuyomi-chan.onnx.json",
+					"filename": "tsukuyomi-chan.onnx.json"
+				}
+			]
+		},
+		"en_US-ljspeech-medium": {
+			"type": "model",
+			"description": "English LJSpeech model (medium quality, ~60 MB)",
+			"dest_subdir": "models/en_US-ljspeech-medium",
+			"files": [
+				{
+					"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/en_US-ljspeech-medium.onnx",
+					"filename": "en_US-ljspeech-medium.onnx"
+				},
+				{
+					"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/en_US-ljspeech-medium.onnx.json",
+					"filename": "en_US-ljspeech-medium.onnx.json"
+				}
+			]
+		},
+		"naist-jdic": {
+			"type": "dictionary",
+			"description": "OpenJTalk dictionary naist-jdic (required for Japanese, ~23 MB zip)",
+			"dest_subdir": "dictionaries",
+			"install_directory": "open_jtalk_dic_utf_8-1.11",
+			"files": [
+				{
+					"url": "https://huggingface.co/ccds/vits_onnx/resolve/main/open_jtalk_dic_utf_8-1.11.zip?download=true",
+					"filename": "open_jtalk_dic_utf_8-1.11.zip",
+					"extract": true
+				}
+			]
+		}
+	}
+}

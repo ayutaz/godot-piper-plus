@@ -12,7 +12,7 @@ extends RefCounted
 ##   }
 ## }
 
-const DEFAULT_DICT_PATH := "res://addons/piper_plus/dictionaries/custom_dictionary.json"
+const PiperAssetPaths = preload("res://addons/piper_plus/piper_asset_paths.gd")
 
 # ---------------------------------------------------------------------------
 # Factory
@@ -20,6 +20,7 @@ const DEFAULT_DICT_PATH := "res://addons/piper_plus/dictionaries/custom_dictiona
 
 ## Creates and returns the dictionary editor dialog.
 static func create_dialog() -> AcceptDialog:
+	var default_dict_path := PiperAssetPaths.default_custom_dictionary_path()
 	var dialog := AcceptDialog.new()
 	dialog.title = "Piper Plus - Custom Dictionary Editor"
 	dialog.ok_button_text = "Close"
@@ -42,7 +43,7 @@ static func create_dialog() -> AcceptDialog:
 
 	var path_edit := LineEdit.new()
 	path_edit.name = "PathEdit"
-	path_edit.text = DEFAULT_DICT_PATH
+	path_edit.text = default_dict_path
 	path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	path_hbox.add_child(path_edit)
 
@@ -114,7 +115,7 @@ static func create_dialog() -> AcceptDialog:
 	add_btn.pressed.connect(_add_entry_row.bind(entries_vbox, "", ""))
 
 	# Auto-load if file exists
-	if FileAccess.file_exists(DEFAULT_DICT_PATH):
+	if FileAccess.file_exists(default_dict_path):
 		# Defer the load so the dialog is fully ready
 		load_btn.pressed.emit()
 

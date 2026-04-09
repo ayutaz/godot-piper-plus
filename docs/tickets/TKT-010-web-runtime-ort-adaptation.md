@@ -11,9 +11,9 @@
 ## 進捗
 
 - [x] `FindOnnxRuntime.cmake` に Web static-lib 分岐を追加する
-- [ ] model / config / `cmudict_data.json` を含む dictionary 読み込みを path 非依存の形へ分離する
+- [x] model / config / `cmudict_data.json` を含む dictionary 読み込みを path 非依存の形へ分離する
 - [x] Web で unsupported な backend や optional native backend の扱いを固定する
-- [ ] Phase 1 の最小 synthesize と除外機能の境界を整理する
+- [x] Phase 1 の最小 synthesize と除外機能の境界を整理する
 
 ## タスク目的とゴール
 

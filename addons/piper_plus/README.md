@@ -59,9 +59,9 @@ func _ready() -> void:
     var tts := PiperTTS.new()
     add_child(tts)
 
-    tts.model_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx"
-    tts.config_path = "res://addons/piper_plus/models/ja_JP-test-medium/ja_JP-test-medium.onnx.json"
-    tts.dictionary_path = "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
+    tts.model_path = "res://piper_plus_assets/models/ja_JP-test-medium/ja_JP-test-medium.onnx"
+    tts.config_path = "res://piper_plus_assets/models/ja_JP-test-medium/ja_JP-test-medium.onnx.json"
+    tts.dictionary_path = "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
     # 任意: openjtalk-native を使う場合
     # tts.openjtalk_library_path = "res://addons/piper_plus/bin/openjtalk_native.dll"
     # 任意: CUDA 対応 ONNX Runtime を配置している場合
@@ -107,7 +107,7 @@ addon は次の editor command を登録します。
 
 加えて、`PiperTTS` ノードには custom Inspector が入り、preset 適用、ダウンロード導線、辞書 editor、試聴 UI を Inspector から開けます。
 
-downloader は `res://addons/piper_plus/models/<model-name>/` と `res://addons/piper_plus/dictionaries/` に file を配置します。辞書 editor の既定保存先は `res://addons/piper_plus/dictionaries/custom_dictionary.json` です。
+downloader は既定で `res://piper_plus_assets/models/<model-name>/` と `res://piper_plus_assets/dictionaries/` に file を配置します。legacy fallback として `addons/piper_plus` 側の既存 asset も解決できます。辞書 editor の既定保存先は `res://piper_plus_assets/dictionaries/custom_dictionary.json` です。
 
 ## モデルと辞書
 
@@ -120,7 +120,7 @@ downloader は `res://addons/piper_plus/models/<model-name>/` と `res://addons/
 
 補足:
 
-- 日本語 text input には `res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11` が必要です。
+- 日本語 text input には `res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11` が必要です。legacy fallback として `addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11` も解決します。
 - 英語 text input は同梱の `cmudict_data.json` を使います。
 - multilingual text input で `es` / `fr` / `pt` を使う場合は experimental explicit-only adapter です。
 - `zh` は multilingual model の capability には残せますが、text input では phonemize できません。

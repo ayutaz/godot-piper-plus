@@ -31,6 +31,27 @@ TEST(EnglishPhonemize, LoadCmuDictFromJson) {
     EXPECT_EQ(dict.at("cats"), "K AE1 T Z");
 }
 
+TEST(EnglishPhonemize, LoadCmuDictFromJsonString) {
+    const std::string jsonText = R"({
+        "the": "DH AH0",
+        "cat": "K AE1 T"
+    })";
+
+    std::unordered_map<std::string, std::string> dict;
+    EXPECT_TRUE(piper::loadCmuDictFromJsonString(jsonText, dict));
+    EXPECT_EQ(dict.at("the"), "DH AH0");
+    EXPECT_EQ(dict.at("cat"), "K AE1 T");
+}
+
+TEST(EnglishPhonemize, LoadCmuDictFromInvalidJsonStringFails) {
+    std::unordered_map<std::string, std::string> dict = {
+        {"stale", "S T EY1 L"},
+    };
+
+    EXPECT_FALSE(piper::loadCmuDictFromJsonString("{invalid", dict));
+    EXPECT_TRUE(dict.empty());
+}
+
 TEST(EnglishPhonemize, PhonemizeDestressesFunctionWords) {
     std::unordered_map<std::string, std::string> dict = {
         {"the", "DH AH0"},

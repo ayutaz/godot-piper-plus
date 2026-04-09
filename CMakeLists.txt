@@ -191,6 +191,9 @@ include(cmake/FindOnnxRuntime.cmake)
 set(PIPER_PLUS_SOURCES
   src/register_types.cpp
   src/piper_tts.cpp
+  src/piper_tts_paths.cpp
+  src/piper_language_support.cpp
+  src/piper_runtime_support.cpp
   src/piper_core/piper.cpp
   src/piper_core/piper_test_utils.cpp
   src/piper_core/english_phonemize.cpp

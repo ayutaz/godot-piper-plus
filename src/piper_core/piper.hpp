@@ -2,6 +2,8 @@
 #define PIPER_H_
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <functional>
 #include <map>
@@ -97,6 +99,7 @@ struct ModelSession {
   Ort::SessionOptions options;
   Ort::AllocatorWithDefaultOptions allocator;
   Ort::Session onnx;
+  std::vector<uint8_t> modelData;
   bool hasDurationOutput = false;  // Whether model outputs duration information
   bool hasProsodyInput = false;    // Whether model accepts prosody_features input
   bool hasMultiSpeaker = false;    // Whether model has sid (speaker ID) input
@@ -161,6 +164,8 @@ std::string phonemeToString(Phoneme ph);
 std::string getVersion();
 
 // Load JSON config information for phonemization/synthesis/model metadata.
+bool parseJsonConfigFromString(const std::string &jsonText, json &configRoot,
+                               std::string *errorMessage = nullptr);
 void parsePhonemizeConfig(json &configRoot, PhonemizeConfig &phonemizeConfig);
 void parseSynthesisConfig(json &configRoot, SynthesisConfig &synthesisConfig);
 void parseModelConfig(json &configRoot, ModelConfig &modelConfig);
@@ -193,6 +198,15 @@ void loadVoice(PiperConfig &config, std::string modelPath,
                std::string modelConfigPath, Voice &voice,
                std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU,
                int executionDeviceId = 0);
+
+void loadVoice(PiperConfig &config, std::vector<uint8_t> modelData,
+               const std::string &modelSourceLabel,
+               const std::string &modelConfigJson,
+               const std::string &modelConfigSourceLabel, Voice &voice,
+               std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU,
+               int executionDeviceId = 0,
+               const std::optional<std::string> &cmuDictJson = std::nullopt,
+               const std::string &cmuDictSourceLabel = {});
 
 // Phonemize text and synthesize audio
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,

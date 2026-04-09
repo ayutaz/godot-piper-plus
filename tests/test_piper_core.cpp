@@ -378,3 +378,29 @@ TEST_F(PiperCore, ModelConfigLanguageCountInference) {
 	ASSERT_TRUE(modelConfig.languageIdMap.has_value());
 	EXPECT_EQ(modelConfig.languageIdMap->size(), 2u);
 }
+
+TEST_F(PiperCore, ParseJsonConfigFromStringSuccess) {
+	json config;
+	std::string error_message;
+	const std::string json_text = R"({
+		"audio": {
+			"sample_rate": 24000
+		},
+		"num_languages": 2
+	})";
+
+	EXPECT_TRUE(piper::parseJsonConfigFromString(json_text, config, &error_message));
+	EXPECT_TRUE(error_message.empty());
+	EXPECT_TRUE(config.is_object());
+	EXPECT_EQ(config["audio"]["sample_rate"], 24000);
+	EXPECT_EQ(config["num_languages"], 2);
+}
+
+TEST_F(PiperCore, ParseJsonConfigFromStringFailure) {
+	json config;
+	std::string error_message;
+
+	EXPECT_FALSE(piper::parseJsonConfigFromString("{not-json", config, &error_message));
+	EXPECT_FALSE(error_message.empty());
+	EXPECT_TRUE(config.is_null());
+}

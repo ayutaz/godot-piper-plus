@@ -11,6 +11,7 @@
 #include <regex>
 #include <set>
 #include <unordered_map>
+#include <utility>
 
 #include <onnxruntime_cxx_api.h>
 #include "spdlog/spdlog.h"
@@ -279,59 +280,37 @@ std::vector<std::filesystem::path> get_cmudict_candidates(
   return candidates;
 }
 
-} // namespace
-
-void initialize(PiperConfig &config) {
-  spdlog::info("Initialized piper");
-}
-
-void terminate(PiperConfig &config) {
-  spdlog::info("Terminated piper");
-}
-
-static int resolveExecutionDeviceId(int executionProvider, int requestedDeviceId) {
-  if (requestedDeviceId > 0) {
-    return requestedDeviceId;
+void configure_session_options(Ort::SessionOptions &options, bool using_gpu_ep) {
+  if (using_gpu_ep) {
+    options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+  } else {
+    options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
   }
-
-  if (executionProvider == EP_CUDA) {
-    const char *envValue = std::getenv("PIPER_GPU_DEVICE_ID");
-    if (envValue && envValue[0] != '\0') {
-      try {
-        int envDeviceId = std::stoi(envValue);
-        if (envDeviceId >= 0) {
-          return envDeviceId;
-        }
-      } catch (const std::exception &) {
-        spdlog::warn("Ignoring invalid PIPER_GPU_DEVICE_ID='{}'", envValue);
-      }
-    }
-  }
-
-  return std::max(0, requestedDeviceId);
+  options.DisableCpuMemArena();
+  options.DisableMemPattern();
+  options.DisableProfiling();
 }
 
-void loadModel(std::string modelPath, ModelSession &session,
-               int executionProvider = EP_CPU, int executionDeviceId = 0) {
-  spdlog::debug("loadModel called with path: {}, EP: {}, device_id: {}",
-                modelPath, executionProvider, executionDeviceId);
+template <typename SessionFactory>
+void load_model_with_factory(ModelSession &session, int executionProvider,
+                             int executionDeviceId, const std::string &modelSourceLabel,
+                             SessionFactory &&sessionFactory) {
+  spdlog::debug("loadModel called with source: {}, EP: {}, device_id: {}",
+                modelSourceLabel, executionProvider, executionDeviceId);
 
-  // Create env
   try {
     session.env = Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING,
                            instanceName.c_str());
     session.env.DisableTelemetryEvents();
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     spdlog::error("Failed to create ONNX Runtime environment: {}", e.what());
     throw;
   }
 
-  // Try to append GPU EP
   bool using_gpu_ep = false;
 #if defined(__EMSCRIPTEN__)
   if (executionProvider != EP_CPU) {
-    throw std::runtime_error(
-        "Web build supports only EP_CPU execution_provider.");
+    throw std::runtime_error("Web build supports only EP_CPU execution_provider.");
   }
 #else
   if (executionProvider != EP_CPU) {
@@ -368,11 +347,10 @@ void loadModel(std::string modelPath, ModelSession &session,
         } else {
           spdlog::info("Using {} execution provider", ep_name);
         }
-      } catch (const Ort::Exception& e) {
+      } catch (const Ort::Exception &e) {
         spdlog::warn("{} EP not available, falling back to CPU: {}", ep_name, e.what());
-        // Reset options since they might be in an inconsistent state
         session.options = Ort::SessionOptions();
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         spdlog::warn("{} EP setup failed, falling back to CPU: {}", ep_name, e.what());
         session.options = Ort::SessionOptions();
       }
@@ -380,38 +358,22 @@ void loadModel(std::string modelPath, ModelSession &session,
   }
 #endif
 
-  // Configure session options
-  if (using_gpu_ep) {
-    // GPU EPs benefit from graph optimization
-    session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-  } else {
-    session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
-  }
-  session.options.DisableCpuMemArena();
-  session.options.DisableMemPattern();
-  session.options.DisableProfiling();
+  configure_session_options(session.options, using_gpu_ep);
+
+  auto load_session = [&]() {
+    return sessionFactory(session.env, session.options);
+  };
 
   auto startTime = std::chrono::steady_clock::now();
 
-#ifdef _WIN32
-  auto modelPathW = std::filesystem::path(modelPath).wstring();
-  auto modelPathStr = modelPathW.c_str();
-#else
-  auto modelPathStr = modelPath.c_str();
-#endif
-
-  // Create session with fallback
   try {
-    session.onnx = Ort::Session(session.env, modelPathStr, session.options);
-  } catch (const std::exception& e) {
+    session.onnx = load_session();
+  } catch (const std::exception &e) {
     if (using_gpu_ep) {
       spdlog::warn("Session creation with GPU EP failed, retrying with CPU: {}", e.what());
       session.options = Ort::SessionOptions();
-      session.options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
-      session.options.DisableCpuMemArena();
-      session.options.DisableMemPattern();
-      session.options.DisableProfiling();
-      session.onnx = Ort::Session(session.env, modelPathStr, session.options);
+      configure_session_options(session.options, false);
+      session.onnx = load_session();
     } else {
       throw;
     }
@@ -421,10 +383,8 @@ void loadModel(std::string modelPath, ModelSession &session,
   spdlog::debug("Loaded onnx model in {} second(s)",
                 std::chrono::duration<double>(endTime - startTime).count());
 
-  // Check if model has duration output
   size_t numOutputNodes = session.onnx.GetOutputCount();
   if (numOutputNodes >= 2) {
-    // Check if second output is named "durations"
     auto outputName = session.onnx.GetOutputNameAllocated(1, session.allocator);
     if (std::string(outputName.get()) == "durations") {
       session.hasDurationOutput = true;
@@ -432,7 +392,6 @@ void loadModel(std::string modelPath, ModelSession &session,
     }
   }
 
-  // Check model inputs for optional features
   size_t numInputNodes = session.onnx.GetInputCount();
   for (size_t i = 0; i < numInputNodes; i++) {
     auto inputName = session.onnx.GetInputNameAllocated(i, session.allocator);
@@ -449,6 +408,70 @@ void loadModel(std::string modelPath, ModelSession &session,
       spdlog::debug("Model supports language selection ({} input)", name);
     }
   }
+}
+
+} // namespace
+
+void initialize(PiperConfig &config) {
+  spdlog::info("Initialized piper");
+}
+
+void terminate(PiperConfig &config) {
+  spdlog::info("Terminated piper");
+}
+
+static int resolveExecutionDeviceId(int executionProvider, int requestedDeviceId) {
+  if (requestedDeviceId > 0) {
+    return requestedDeviceId;
+  }
+
+  if (executionProvider == EP_CUDA) {
+    const char *envValue = std::getenv("PIPER_GPU_DEVICE_ID");
+    if (envValue && envValue[0] != '\0') {
+      try {
+        int envDeviceId = std::stoi(envValue);
+        if (envDeviceId >= 0) {
+          return envDeviceId;
+        }
+      } catch (const std::exception &) {
+        spdlog::warn("Ignoring invalid PIPER_GPU_DEVICE_ID='{}'", envValue);
+      }
+    }
+  }
+
+  return std::max(0, requestedDeviceId);
+}
+
+void loadModel(std::string modelPath, ModelSession &session,
+               int executionProvider = EP_CPU, int executionDeviceId = 0) {
+  session.modelData.clear();
+#ifdef _WIN32
+  auto modelPathW = std::filesystem::path(modelPath).wstring();
+  const std::wstring modelPathOwned = std::move(modelPathW);
+  const auto *modelPathStr = modelPathOwned.c_str();
+  const std::string modelSourceLabel = modelPath;
+#else
+  const auto *modelPathStr = modelPath.c_str();
+  const std::string modelSourceLabel = modelPath;
+#endif
+  load_model_with_factory(session, executionProvider, executionDeviceId, modelSourceLabel,
+                          [&](const Ort::Env &env, const Ort::SessionOptions &options) {
+                            return Ort::Session(env, modelPathStr, options);
+                          });
+}
+
+void loadModel(std::vector<uint8_t> modelData, ModelSession &session,
+               int executionProvider, int executionDeviceId, const std::string &modelSourceLabel) {
+  if (modelData.empty()) {
+    throw std::runtime_error("Model data is empty: " + modelSourceLabel);
+  }
+
+  session.modelData = std::move(modelData);
+  load_model_with_factory(session, executionProvider, executionDeviceId, modelSourceLabel,
+                          [&](const Ort::Env &env, const Ort::SessionOptions &options) {
+                            return Ort::Session(env, session.modelData.data(),
+                                                session.modelData.size(), options);
+                          });
 }
 
 // Load Onnx model and JSON config file
@@ -479,6 +502,7 @@ void loadVoice(PiperConfig &config, std::string modelPath,
   }
 
   spdlog::debug("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
+  voice.cmuDict.clear();
 
   if (voice.phonemizeConfig.phonemeType == TextPhonemes ||
       voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
@@ -502,6 +526,57 @@ void loadVoice(PiperConfig &config, std::string modelPath,
   loadModel(modelPath, voice.session, executionProvider, executionDeviceId);
 
 } /* loadVoice */
+
+void loadVoice(PiperConfig &config, std::vector<uint8_t> modelData,
+               const std::string &modelSourceLabel,
+               const std::string &modelConfigJson,
+               const std::string &modelConfigSourceLabel, Voice &voice,
+               std::optional<SpeakerId> &speakerId, int executionProvider,
+               int executionDeviceId, const std::optional<std::string> &cmuDictJson,
+               const std::string &cmuDictSourceLabel) {
+  spdlog::debug("loadVoice called with modelSource={}, configSource={}",
+                modelSourceLabel, modelConfigSourceLabel);
+  std::string parseError;
+  if (!parseJsonConfigFromString(modelConfigJson, voice.configRoot, &parseError)) {
+    throw std::runtime_error("Failed to parse model config text (" +
+                             modelConfigSourceLabel + "): " + parseError);
+  }
+
+  parsePhonemizeConfig(voice.configRoot, voice.phonemizeConfig);
+  parseSynthesisConfig(voice.configRoot, voice.synthesisConfig);
+  parseModelConfig(voice.configRoot, voice.modelConfig);
+
+  if (voice.modelConfig.numSpeakers > 1) {
+    if (speakerId) {
+      voice.synthesisConfig.speakerId = speakerId;
+    } else {
+      voice.synthesisConfig.speakerId = 0;
+    }
+  }
+
+  spdlog::debug("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
+  voice.cmuDict.clear();
+  if (voice.phonemizeConfig.phonemeType == TextPhonemes ||
+      voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
+    if (cmuDictJson.has_value()) {
+      if (!loadCmuDictFromJsonString(*cmuDictJson, voice.cmuDict)) {
+        throw std::runtime_error("Failed to parse English CMU dictionary text (" +
+                                 cmuDictSourceLabel + ")");
+      }
+      spdlog::info("Loaded English CMU dictionary from {}", cmuDictSourceLabel);
+    }
+
+    if (voice.cmuDict.empty() &&
+        (voice.phonemizeConfig.phonemeType == TextPhonemes ||
+         (voice.modelConfig.languageIdMap &&
+          voice.modelConfig.languageIdMap->count("en") > 0))) {
+      spdlog::warn("English CMU dictionary was not provided. English text phonemization will fail until cmudict_data.json is supplied.");
+    }
+  }
+
+  loadModel(std::move(modelData), voice.session, executionProvider, executionDeviceId,
+            modelSourceLabel);
+}
 
 // Phoneme ids to WAV audio
 void synthesize(std::vector<PhonemeId> &phonemeIds,
