@@ -276,7 +276,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     -sWASM_BIGINT
     -sSUPPORT_LONGJMP=wasm
     -fvisibility=hidden
-    -shared
   )
   if(PIPER_PLUS_USE_PTHREADS)
     target_compile_options(piper_plus PRIVATE -sUSE_PTHREADS=1)
