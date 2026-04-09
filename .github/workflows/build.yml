@@ -439,11 +439,20 @@ jobs:
         with:
           path: ${{ runner.temp }}/godot-web-templates
           key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', '.github/workflows/build.yml') }}
+          restore-keys: |
+            web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-
 
       - name: Build custom Godot Web export templates
         if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
         shell: bash
         run: |
+          if [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_release.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_release.zip" ]]; then
+            echo "Using restored custom Godot Web export templates from cache."
+            exit 0
+          fi
           git clone --depth 1 --branch "$GODOT_VERSION" https://github.com/godotengine/godot.git "$RUNNER_TEMP/godot-source"
           chmod +x scripts/ci/build-godot-web-templates.sh
           GODOT_SOURCE_DIR="$RUNNER_TEMP/godot-source" bash scripts/ci/build-godot-web-templates.sh "$RUNNER_TEMP/godot-web-templates"
