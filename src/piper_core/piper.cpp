@@ -67,6 +67,7 @@ const std::string instanceName{"piper"};
 
 std::string getVersion() { return VERSION; }
 static const int DEFAULT_HOP_SIZE = 256;
+static int resolveExecutionDeviceId(int executionProvider, int requestedDeviceId);
 
 namespace {
 

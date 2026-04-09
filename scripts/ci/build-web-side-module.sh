@@ -4,9 +4,28 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+detect_parallel_level() {
+  if command -v nproc >/dev/null 2>&1; then
+    nproc
+    return
+  fi
+
+  if command -v getconf >/dev/null 2>&1; then
+    getconf _NPROCESSORS_ONLN
+    return
+  fi
+
+  if command -v sysctl >/dev/null 2>&1; then
+    sysctl -n hw.ncpu
+    return
+  fi
+
+  printf '2\n'
+}
+
 BUILD_ROOT="${1:-$REPO_ROOT/build-web}"
 STAGING_ROOT="${PIPER_PLUS_WEB_STAGING_ROOT:-$REPO_ROOT/artifacts}"
-PARALLEL_LEVEL="${PIPER_PLUS_WEB_PARALLEL_LEVEL:-2}"
+PARALLEL_LEVEL="${PIPER_PLUS_WEB_PARALLEL_LEVEL:-$(detect_parallel_level)}"
 THREAD_MATRIX="${PIPER_PLUS_WEB_THREAD_MATRIX:-threads,nothreads}"
 CONFIG_MATRIX="${PIPER_PLUS_WEB_CONFIG_MATRIX:-Debug,Release}"
 ONNXRUNTIME_DIR="${ONNXRUNTIME_DIR:-${PIPER_PLUS_WEB_ONNXRUNTIME_DIR:-}}"

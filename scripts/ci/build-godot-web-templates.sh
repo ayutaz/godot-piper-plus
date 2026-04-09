@@ -4,12 +4,32 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+detect_parallel_level() {
+  if command -v nproc >/dev/null 2>&1; then
+    nproc
+    return
+  fi
+
+  if command -v getconf >/dev/null 2>&1; then
+    getconf _NPROCESSORS_ONLN
+    return
+  fi
+
+  if command -v sysctl >/dev/null 2>&1; then
+    sysctl -n hw.ncpu
+    return
+  fi
+
+  printf '2\n'
+}
+
 GODOT_SOURCE_DIR="${GODOT_SOURCE_DIR:-}"
 GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 SCONS_BIN="${SCONS_BIN:-scons}"
 GODOT_WEB_TEMPLATE_VARIANTS="${GODOT_WEB_TEMPLATE_VARIANTS:-threads,nothreads}"
 GODOT_WEB_TEMPLATE_OUTPUT_DIR="${1:-${GODOT_WEB_TEMPLATE_OUTPUT_DIR:-$REPO_ROOT/.ci/godot-export-templates/custom}}"
 INSTALL_TO_EXPORT_TEMPLATES="${INSTALL_TO_EXPORT_TEMPLATES:-0}"
+GODOT_WEB_SCONS_JOBS="${GODOT_WEB_SCONS_JOBS:-$(detect_parallel_level)}"
 
 if [[ -z "${GODOT_SOURCE_DIR}" ]]; then
   echo "ERROR: GODOT_SOURCE_DIR is not set" >&2
@@ -83,7 +103,7 @@ build_variant() {
     threads_flag="no"
   fi
 
-  "${SCONS_BIN}" -C "${GODOT_SOURCE_DIR}" \
+  "${SCONS_BIN}" -j "${GODOT_WEB_SCONS_JOBS}" -C "${GODOT_SOURCE_DIR}" \
     platform=web \
     target="${target}" \
     dlink_enabled=yes \
