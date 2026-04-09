@@ -29,6 +29,7 @@ PARALLEL_LEVEL="${PIPER_PLUS_WEB_PARALLEL_LEVEL:-$(detect_parallel_level)}"
 THREAD_MATRIX="${PIPER_PLUS_WEB_THREAD_MATRIX:-threads,nothreads}"
 CONFIG_MATRIX="${PIPER_PLUS_WEB_CONFIG_MATRIX:-Debug,Release}"
 ONNXRUNTIME_DIR="${ONNXRUNTIME_DIR:-${PIPER_PLUS_WEB_ONNXRUNTIME_DIR:-}}"
+ONNXRUNTIME_WEB_STATIC_LIB="${ONNXRUNTIME_WEB_STATIC_LIB:-}"
 
 if ! command -v emcmake >/dev/null 2>&1; then
   echo "ERROR: emcmake is not available. Activate emsdk before running this script." >&2
@@ -42,6 +43,15 @@ fi
 
 if [[ -z "$ONNXRUNTIME_DIR" ]]; then
   echo "ERROR: ONNXRUNTIME_DIR is required for Web builds and must point to a package containing lib/libonnxruntime_webassembly.a." >&2
+  exit 1
+fi
+
+if [[ -z "$ONNXRUNTIME_WEB_STATIC_LIB" ]]; then
+  ONNXRUNTIME_WEB_STATIC_LIB="$ONNXRUNTIME_DIR/lib/libonnxruntime_webassembly.a"
+fi
+
+if [[ ! -f "$ONNXRUNTIME_WEB_STATIC_LIB" ]]; then
+  echo "ERROR: ONNXRUNTIME_WEB_STATIC_LIB was not found: $ONNXRUNTIME_WEB_STATIC_LIB" >&2
   exit 1
 fi
 
@@ -94,7 +104,8 @@ build_variant() {
     -DCMAKE_BUILD_TYPE="$build_type" \
     -DGODOTCPP_TARGET="$godot_target" \
     -DGODOTCPP_THREADS="$godot_threads" \
-    -DONNXRUNTIME_DIR="$ONNXRUNTIME_DIR"
+    -DONNXRUNTIME_DIR="$ONNXRUNTIME_DIR" \
+    -DONNXRUNTIME_WEB_STATIC_LIB="$ONNXRUNTIME_WEB_STATIC_LIB"
 
   cmake --build "$build_dir" --config "$build_type" --parallel "$PARALLEL_LEVEL" --target piper_plus
 

@@ -50,6 +50,11 @@ endif()
 # Search user-specified dir first
 if(ONNXRUNTIME_DIR)
   if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(_ORT_WEB_STATIC_LIB_CANDIDATE "${ONNXRUNTIME_DIR}/lib/libonnxruntime_webassembly.a")
+    if(EXISTS "${_ORT_WEB_STATIC_LIB_CANDIDATE}")
+      set(ONNXRUNTIME_LIB "${_ORT_WEB_STATIC_LIB_CANDIDATE}")
+    endif()
+
     find_library(ONNXRUNTIME_LIB
       NAMES onnxruntime_webassembly onnxruntime
       PATHS "${ONNXRUNTIME_DIR}/lib"
@@ -67,6 +72,7 @@ if(ONNXRUNTIME_DIR)
   find_path(ONNXRUNTIME_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     PATHS "${ONNXRUNTIME_DIR}/include"
+    PATH_SUFFIXES "" "onnxruntime/core/session"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH
   )
@@ -149,6 +155,7 @@ if(NOT ONNXRUNTIME_LIB OR NOT ONNXRUNTIME_INCLUDE_DIR)
   find_path(ONNXRUNTIME_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     PATHS "${ONNXRUNTIME_DIR}/include"
+    PATH_SUFFIXES "" "onnxruntime/core/session"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH
   )

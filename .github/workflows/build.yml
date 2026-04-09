@@ -376,9 +376,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache ONNX Runtime Web static library
+      - name: Restore ONNX Runtime Web static library cache
         id: cache-ort-web
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
@@ -393,9 +393,16 @@ jobs:
           ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
           bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web"
 
-      - name: Cache custom Godot Web export templates
+      - name: Save ONNX Runtime Web static library cache
+        if: steps.cache-ort-web.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+
+      - name: Restore custom Godot Web export templates cache
         id: cache-godot-web-templates
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/godot-web-templates
           key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', '.github/workflows/build.yml') }}
@@ -408,6 +415,13 @@ jobs:
           chmod +x scripts/ci/build-godot-web-templates.sh
           GODOT_SOURCE_DIR="$RUNNER_TEMP/godot-source" bash scripts/ci/build-godot-web-templates.sh "$RUNNER_TEMP/godot-web-templates"
 
+      - name: Save custom Godot Web export templates cache
+        if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/godot-web-templates
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', '.github/workflows/build.yml') }}
+
       - name: Install custom Godot Web export templates
         shell: bash
         run: |
@@ -415,6 +429,12 @@ jobs:
           GODOT_SKIP_OFFICIAL_TEMPLATES=1 \
           GODOT_WEB_TEMPLATES_DIR="$RUNNER_TEMP/godot-web-templates" \
           bash scripts/ci/install-godot-export-templates.sh
+
+      - name: Build Web addon binaries
+        shell: bash
+        run: |
+          chmod +x scripts/ci/build-web-side-module.sh
+          ONNXRUNTIME_DIR="$RUNNER_TEMP/onnxruntime-web" bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
 
       - name: Download Godot Linux binary
         shell: bash
@@ -432,12 +452,6 @@ jobs:
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
-
-      - name: Build Web addon binaries
-        shell: bash
-        run: |
-          chmod +x scripts/ci/build-web-side-module.sh
-          ONNXRUNTIME_DIR="$RUNNER_TEMP/onnxruntime-web" bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
 
       - name: Run Web smoke
         shell: bash

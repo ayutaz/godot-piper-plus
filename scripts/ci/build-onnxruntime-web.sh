@@ -78,5 +78,12 @@ fi
 cp -f "$ort_static_lib" "$STAGING_ROOT/lib/libonnxruntime_webassembly.a"
 cp -R "$ORT_SOURCE_DIR/include"/. "$STAGING_ROOT/include"/
 
+# Mirror the flat header layout used by the official native packages so the
+# existing CMake lookup works for Web builds too.
+ort_session_include_dir="$ORT_SOURCE_DIR/include/onnxruntime/core/session"
+if [[ -d "$ort_session_include_dir" ]]; then
+  find "$ort_session_include_dir" -maxdepth 1 -type f -name '*.h' -exec cp -f {} "$STAGING_ROOT/include/" \;
+fi
+
 echo "Staged ONNX Runtime Web package at: $STAGING_ROOT"
 find "$STAGING_ROOT" -maxdepth 3 -type f | sort
