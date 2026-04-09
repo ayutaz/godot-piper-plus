@@ -25,7 +25,7 @@ detect_parallel_level() {
 
 ORT_SOURCE_DIR="${1:-${ORT_SOURCE_DIR:-}}"
 STAGING_ROOT="${2:-${PIPER_ONNXRUNTIME_WEB_STAGING_ROOT:-$REPO_ROOT/artifacts/onnxruntime-web}}"
-ORT_BUILD_FLAGS="${ORT_BUILD_FLAGS:---build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release}"
+ORT_BUILD_FLAGS="${ORT_BUILD_FLAGS:---build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF}"
 ORT_BUILD_PARALLEL="${ORT_BUILD_PARALLEL:-$(detect_parallel_level)}"
 ORT_EMSDK_VERSION="${ORT_EMSDK_VERSION:-}"
 ORT_BUILD_TARGET="${ORT_BUILD_TARGET:-}"
