@@ -511,6 +511,14 @@ jobs:
           chmod +x scripts/ci/export-web-smoke.sh
           bash scripts/ci/export-web-smoke.sh "$RUNNER_TEMP/web-smoke"
 
+      - name: Upload Web smoke export artifact
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-web-smoke-export
+          path: ${{ runner.temp }}/web-smoke/
+          if-no-files-found: ignore
+
       - name: Upload Web addon bin artifact
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

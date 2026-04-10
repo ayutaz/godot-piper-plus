@@ -96,7 +96,11 @@ async function main() {
 
     page.on('console', (message) => {
       const text = message.text();
-      process.stdout.write(`[${args.label} browser] ${text}\n`);
+      const location = message.location();
+      const locationText = location?.url
+        ? ` (${location.url}:${location.lineNumber ?? 0}:${location.columnNumber ?? 0})`
+        : '';
+      process.stdout.write(`[${args.label} browser:${message.type()}] ${text}${locationText}\n`);
 
       if (text.includes(FAILURE_STRING)) {
         failureReason = `browser reported failure marker: ${text}`;
@@ -123,7 +127,8 @@ async function main() {
     });
 
     page.on('pageerror', (error) => {
-      failureReason = `pageerror: ${String(error)}`;
+      const stack = error instanceof Error && error.stack ? error.stack : String(error);
+      failureReason = `pageerror: ${stack}`;
     });
 
     page.on('requestfailed', (request) => {
