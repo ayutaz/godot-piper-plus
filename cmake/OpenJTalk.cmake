@@ -2,6 +2,14 @@ include(ExternalProject)
 
 set(OPENJTALK_VERSION "1.11")
 set(OPENJTALK_DIR "${CMAKE_CURRENT_BINARY_DIR}/oj")
+set(OPENJTALK_ARCHIVE_NAME "open_jtalk-${OPENJTALK_VERSION}.tar.gz")
+set(OPENJTALK_ARCHIVE_SHA256 "20fdc6aeb6c757866034abc175820573db43e4284707c866fcd02c8ec18de71f")
+set(OPENJTALK_ARCHIVE_PATH "${CMAKE_SOURCE_DIR}/thirdparty/distfiles/${OPENJTALK_ARCHIVE_NAME}")
+set(OPENJTALK_URLS
+  "${OPENJTALK_ARCHIVE_PATH}"
+  "https://deb.debian.org/debian/pool/main/o/open-jtalk/open-jtalk_${OPENJTALK_VERSION}.orig.tar.gz"
+  "https://downloads.sourceforge.net/project/open-jtalk/Open%20JTalk/open_jtalk-${OPENJTALK_VERSION}/open_jtalk-${OPENJTALK_VERSION}.tar.gz"
+)
 
 set(OPENJTALK_CMAKE_ARGS
   -DCMAKE_INSTALL_PREFIX:PATH=${OPENJTALK_DIR}
@@ -29,7 +37,8 @@ endif()
 ExternalProject_Add(
   openjtalk_external
   PREFIX "${CMAKE_CURRENT_BINARY_DIR}/o"
-  URL "https://downloads.sourceforge.net/project/open-jtalk/Open%20JTalk/open_jtalk-${OPENJTALK_VERSION}/open_jtalk-${OPENJTALK_VERSION}.tar.gz"
+  URL ${OPENJTALK_URLS}
+  URL_HASH SHA256=${OPENJTALK_ARCHIVE_SHA256}
   CMAKE_ARGS ${OPENJTALK_CMAKE_ARGS}
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${EXTERNAL_BUILD_TYPE}
   INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --config ${EXTERNAL_BUILD_TYPE}

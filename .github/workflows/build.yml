@@ -25,6 +25,8 @@ env:
   GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4.1-stable_export_templates.tpz"
   EMSDK_VERSION: "3.1.62"
   NODE_VERSION: "20"
+  WEB_ORT_CACHE_VERSION: "2"
+  WEB_GODOT_TEMPLATES_CACHE_VERSION: "2"
 
 jobs:
   build-desktop:
@@ -378,7 +380,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Restore legacy ONNX Runtime Web no-thread cache
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
@@ -395,7 +397,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
           restore-keys: |
             web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-
 
@@ -423,21 +425,21 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Save ONNX Runtime Web threads cache
         if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh', '.github/workflows/build.yml') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Restore custom Godot Web export templates cache
         id: cache-godot-web-templates
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/godot-web-templates
-          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs', '.github/workflows/build.yml') }}
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
           restore-keys: |
             web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-
 
@@ -461,7 +463,7 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/godot-web-templates
-          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs', '.github/workflows/build.yml') }}
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
 
       - name: Install custom Godot Web export templates
         shell: bash

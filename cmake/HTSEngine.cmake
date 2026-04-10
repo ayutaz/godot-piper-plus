@@ -2,6 +2,14 @@ include(ExternalProject)
 
 set(HTS_ENGINE_VERSION "1.10")
 set(HTS_ENGINE_DIR "${CMAKE_CURRENT_BINARY_DIR}/he")
+set(HTS_ENGINE_ARCHIVE_NAME "hts_engine_API-${HTS_ENGINE_VERSION}.tar.gz")
+set(HTS_ENGINE_ARCHIVE_SHA256 "e2132be5860d8fb4a460be766454cfd7c3e21cf67b509c48e1804feab14968f7")
+set(HTS_ENGINE_ARCHIVE_PATH "${CMAKE_SOURCE_DIR}/thirdparty/distfiles/${HTS_ENGINE_ARCHIVE_NAME}")
+set(HTS_ENGINE_URLS
+  "${HTS_ENGINE_ARCHIVE_PATH}"
+  "https://deb.debian.org/debian/pool/main/h/htsengine/htsengine_${HTS_ENGINE_VERSION}.orig.tar.gz"
+  "https://downloads.sourceforge.net/project/hts-engine/hts_engine%20API/hts_engine_API-${HTS_ENGINE_VERSION}/hts_engine_API-${HTS_ENGINE_VERSION}.tar.gz"
+)
 
 if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "iOS" OR
    CMAKE_SYSTEM_NAME STREQUAL "Emscripten" OR
@@ -10,7 +18,8 @@ if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "
   ExternalProject_Add(
     hts_engine_external
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/h"
-    URL "https://downloads.sourceforge.net/project/hts-engine/hts_engine%20API/hts_engine_API-${HTS_ENGINE_VERSION}/hts_engine_API-${HTS_ENGINE_VERSION}.tar.gz"
+    URL ${HTS_ENGINE_URLS}
+    URL_HASH SHA256=${HTS_ENGINE_ARCHIVE_SHA256}
     CMAKE_ARGS
       -DCMAKE_INSTALL_PREFIX:PATH=${HTS_ENGINE_DIR}
       -DCMAKE_BUILD_TYPE:STRING=${EXTERNAL_BUILD_TYPE}
@@ -34,7 +43,8 @@ else()
   ExternalProject_Add(
     hts_engine_external
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/h"
-    URL "https://downloads.sourceforge.net/project/hts-engine/hts_engine%20API/hts_engine_API-${HTS_ENGINE_VERSION}/hts_engine_API-${HTS_ENGINE_VERSION}.tar.gz"
+    URL ${HTS_ENGINE_URLS}
+    URL_HASH SHA256=${HTS_ENGINE_ARCHIVE_SHA256}
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${HTS_ENGINE_DIR} "CFLAGS=-O2 -fPIC"
     BUILD_COMMAND make
     INSTALL_COMMAND make install
