@@ -1,6 +1,6 @@
 # TKT-006 iOS Export / Link Smoke 確認
 
-- 状態: `要確認`
+- 状態: `完了`
 - 主マイルストーン: [M6 Platform Verification 完成](../milestones.md#m6)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: iOS arm64 release gate
@@ -9,15 +9,20 @@
 
 ## 進捗
 
-- [ ] iOS export smoke の初回結果を確定する
-- [ ] Xcode project / link failure を切り分ける
-- [ ] 必要なら binary / export 条件を修正する
-- [ ] 結果を文書へ反映する
+- [x] iOS export smoke の初回結果を確定する
+- [x] Xcode project / link failure を切り分ける
+- [x] 必要なら binary / export 条件を修正する
+- [x] 結果を文書へ反映する
 
 ## タスク目的とゴール
 
 - iOS arm64 の export と Xcode link smoke の成否を確定し、release 判定へ反映できる状態にする。
 - ゴールは、Godot export から `xcodebuild` までが再現可能に通るか、失敗するなら原因と制約が説明できること。
+
+## 実装メモ
+
+- 2026-04-10 の GitHub Actions run `24223195868` で `iOS Export Smoke` が `success` になり、Godot export から `xcodebuild` までの smoke を CI 上で確認しました。
+- これにより、iOS arm64 は export / link smoke の観点で release gate に反映できる状態です。
 
 ## 実装する内容の詳細
 

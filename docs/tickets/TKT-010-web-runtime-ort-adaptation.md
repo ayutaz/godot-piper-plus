@@ -1,6 +1,6 @@
 # TKT-010 Web runtime adaptation / ORT Web 対応
 
-- 状態: `要確認`
+- 状態: `完了`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `FR-4` `FR-6` `NFR-2` `NFR-4` `NFR-5`
@@ -14,12 +14,17 @@
 - [x] model / config / `cmudict_data.json` を含む dictionary 読み込みを path 非依存の形へ分離する
 - [x] Web で unsupported な backend や optional native backend の扱いを固定する
 - [x] Phase 1 の最小 synthesize と除外機能の境界を整理する
-- [ ] `TKT-011` の初回 browser smoke 結果で、Web runtime contract と最小 synthesize の成立を最終確認する
+- [x] `TKT-011` の browser smoke 結果で、Web runtime contract と最小 synthesize の成立を最終確認する
 
 ## タスク目的とゴール
 
 - Web で addon が実際に動く runtime 条件を実装し、Phase 1 の最小 synthesize が可能な backend と resource load の形を確立する。
 - ゴールは、`libonnxruntime_webassembly.a` を link でき、path 前提に依存しない model / config / dict load と説明可能な unsupported error を実装すること。
+
+## 実装メモ
+
+- 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が成功し、Web runtime contract に沿って addon load と最小 synthesize まで成立することを確認しました。
+- browser smoke では `threads` / `no-threads` の両方で `RESULT total=9 pass=4 fail=0 skip=5`、`WEB_SMOKE status=pass` を確認しています。
 
 ## 実装する内容の詳細
 

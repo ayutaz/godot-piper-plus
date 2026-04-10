@@ -45,8 +45,8 @@ Web は preview support です。
 
 ローカル smoke は `scripts/ci/export-web-smoke.sh` を使います。Node.js と Playwright が必要なので、事前に `npm install --no-save playwright` と `npx playwright install chromium` を実行してください。
 
-2026-03-23 時点では、package script / validator は `.gdextension` に書かれた debug / release binary と Windows ONNX Runtime sidecar を拾うように更新済みです。Windows では local build bin から組み立てた packaged addon の headless smoke も再確認しています。  
-一方で macOS packaged smoke の CI 実行結果、Android/iOS の export smoke 初回結果は継続確認中です。source checkout 直後は全 platform の binary が揃っていないため、local では source build または package 内容の個別確認を前提に扱ってください。
+2026-04-10 の GitHub Actions run `24223195868` では、Web browser smoke、macOS packaged addon smoke、Android export smoke、iOS export smoke が成功しています。
+source checkout 直後は全 platform の binary が揃っていないため、local では source build または package 内容の個別確認を前提に扱ってください。Android の runtime 可否と Windows local export error は継続確認中です。
 
 ## クイックスタート
 
@@ -135,7 +135,7 @@ downloader は既定で `res://piper_plus_assets/models/<model-name>/` と `res:
 - `demo/`、`src/`、test asset などの開発用 file は packaged addon の利用には不要です。
 - package script は `piper_plus.gdextension` の全 `bin` 参照を正として assemble します。
 - validator は desktop / mobile の debug / release binary を含めて manifest 整合を確認します。
-- Windows packaged addon smoke は local で再確認済みです。macOS packaged smoke と Android/iOS export smoke は CI 初回結果の確認待ちです。
+- Windows packaged addon smoke は local で再確認済みです。2026-04-10 の CI では macOS packaged smoke、Android export smoke、iOS export smoke、Web browser smoke も成功しています。残っているのは Android runtime と Windows local export 差分の整理です。
 
 ## ライセンス
 

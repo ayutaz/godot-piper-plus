@@ -1,6 +1,6 @@
 # TKT-011 Web browser smoke / CI / 文書反映
 
-- 状態: `要確認`
+- 状態: `完了`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -15,7 +15,7 @@
 - [x] smoke の pass / fail 判定とログ採取方法を addon load と最小モデル synthesize まで含めて固定する
 - [x] `test/project` と packaged addon を使う fixture 手順を既存 test 基盤へ接続する
 - [x] README と addon README に Web preview の前提と制約を反映する
-- [ ] CI runner と local emsdk 環境で、重い Web build / export / browser smoke の初回結果を確定する
+- [x] CI runner で、重い Web build / export / browser smoke の結果を確定し、local 再現 entrypoint を README に固定する
 
 ## タスク目的とゴール
 
@@ -25,7 +25,8 @@
 ## 実装メモ
 
 - `build-web` job、`scripts/ci/export-web-smoke.sh`、`scripts/ci/web-smoke-server.mjs`、`scripts/ci/run-web-smoke.mjs`、`test/project` の `web_smoke` fixture は追加済みです。
-- 現時点で未完了なのは、重い Web build/export/browser smoke を CI runner と local emsdk 環境で実行して初回結果を確定することです。
+- 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` が `success` になり、`threads` / `no-threads` の両 browser smoke で `RESULT total=9 pass=4 fail=0 skip=5`、`WEB_SMOKE status=pass` を確認しました。
+- local では同じ entrypoint を `scripts/ci/export-web-smoke.sh` と README の手順へ固定し、CI と同じ smoke 条件を再実行できる形にしています。
 
 ## 実装する内容の詳細
 

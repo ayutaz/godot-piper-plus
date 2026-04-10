@@ -1,6 +1,6 @@
 # TKT-009 Web manifest / package / export preset 整備
 
-- 状態: `要確認`
+- 状態: `完了`
 - 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
@@ -15,12 +15,17 @@
 - [x] test project の Web export preset を追加し、custom template 前提を反映する
 - [x] `TKT-008` で固定した thread / no-thread artifact matrix を package / manifest / export preset へ反映する
 - [x] Web artifact を追加しても model / `naist-jdic` / `openjtalk-native` を package に含めない境界を固定する
-- [ ] `TKT-011` の初回 Web export / browser smoke 結果で、manifest / package / export preset 契約が実際に成立していることを最終確認する
+- [x] `TKT-011` の Web export / browser smoke 結果で、manifest / package / export preset 契約が実際に成立していることを最終確認する
 
 ## タスク目的とゴール
 
 - Web export に必要な manifest、package、validator、test project preset を揃え、後続の runtime 実装と browser smoke が同じ artifact 契約を前提に進められる状態にする。
 - ゴールは、`web.*` entry と package 実ファイル、validator 条件、test project の export preset が矛盾なく揃っていること。
+
+## 実装メモ
+
+- 2026-04-10 の GitHub Actions run `24223195868` で package 生成、validator、Web export、browser smoke が通り、manifest / package / export preset 契約が CI 上で成立していることを確認しました。
+- `FR-9` の境界は維持されており、Web 対応後も model、`naist-jdic`、`openjtalk-native` 本体は package に含めていません。
 
 ## 実装する内容の詳細
 

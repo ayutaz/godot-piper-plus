@@ -1,6 +1,6 @@
 # 要求定義
 
-更新日: 2026-04-06
+更新日: 2026-04-11
 
 この文書は `godot-piper-plus` の製品要求を定義する基準文書です。進捗管理や日々の残タスク管理は `docs/milestones.md` で扱い、この文書では「何を完成とみなすか」を固定します。
 
@@ -187,12 +187,9 @@ release 判定の対象 platform は次のとおりです。
 
 ## 現時点で残っている release gate
 
-- macOS arm64 packaged addon smoke の初回 CI 結果確認と必要修正
-- Android arm64 export smoke / runtime 確認と必要修正
+- Android arm64 の runtime 可否確認と必要修正
 - Windows local Android export の generic configuration error 切り分け
-- iOS arm64 export/link smoke の初回 CI 結果確認と必要修正
-- Web 向け GDExtension build / export 導線と runtime 検証方法の確立
-- 上記結果を反映した package / 文書の最終化
+- macOS / iOS / Web の確定結果、および Android の最終判定を反映した package / 文書 / changelog / Asset Library 文言の最終化
 
 ## 関連文書
 

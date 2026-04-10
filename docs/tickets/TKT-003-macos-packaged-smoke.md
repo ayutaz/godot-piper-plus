@@ -1,6 +1,6 @@
 # TKT-003 macOS arm64 packaged addon smoke 確認
 
-- 状態: `要確認`
+- 状態: `完了`
 - 主マイルストーン: [M6 Platform Verification 完成](../milestones.md#m6)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5), [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: サポート対象 `macOS arm64`, release 完了条件の packaged addon smoke
@@ -9,14 +9,19 @@
 
 ## 進捗
 
-- [ ] macOS CI の packaged smoke 結果を確認する
-- [ ] 必要なら dylib / dependency / package 差分を修正する
-- [ ] 結果を文書へ反映する
+- [x] macOS CI の packaged smoke 結果を確認する
+- [x] 必要なら dylib / dependency / package 差分を修正する
+- [x] 結果を文書へ反映する
 
 ## タスク目的とゴール
 
 - macOS arm64 で packaged addon が実際にロードできるかを確定し、release gate を閉じる。
 - build 成功だけではなく、package からの runtime load を smoke で通す。
+
+## 実装メモ
+
+- 2026-04-10 の GitHub Actions run `24223195868` で `macOS Packaged Addon Smoke Test` が `success` になり、package からの runtime load を CI 上で確認しました。
+- これにより、macOS arm64 は `build` と `C++ test` だけでなく、packaged addon smoke まで確定済みです。
 
 ## 実装する内容の詳細
 
