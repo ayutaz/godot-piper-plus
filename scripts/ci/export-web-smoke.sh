@@ -78,6 +78,7 @@ for preset_name in "${preset_names[@]}"; do
   fi
 
   stage_web_runtime_payload "$preset_dir"
+  node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$preset_dir"
 
   node "$SCRIPT_DIR/run-web-smoke.mjs" \
     --root "$preset_dir" \

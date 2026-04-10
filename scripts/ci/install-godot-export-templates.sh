@@ -63,6 +63,7 @@ install_custom_web_templates() {
     if [[ "${src_dir}/${archive_name}" != "${install_dir}/${archive_name}" ]]; then
       cp -f "${src_dir}/${archive_name}" "${install_dir}/${archive_name}"
     fi
+    node "${SCRIPT_DIR}/patch-web-asm-const.mjs" "${TEMPLATES_DIR}/${archive_name}" "${install_dir}/${archive_name}"
   done
 }
 

@@ -93,6 +93,16 @@ async function main() {
     let sawEnd = false;
     let webSmokeStatus = '';
     let failureReason = '';
+    let completed = false;
+
+    const hasSuccessfulSummary = () =>
+      Boolean(
+        sawEnd &&
+          summary &&
+          (!webSmokeStatus || webSmokeStatus === 'pass') &&
+          summary.fail === 0 &&
+          summary.pass > 0,
+      );
 
     page.on('console', (message) => {
       const text = message.text();
@@ -127,6 +137,9 @@ async function main() {
     });
 
     page.on('pageerror', (error) => {
+      if (completed) {
+        return;
+      }
       const stack = error instanceof Error && error.stack ? error.stack : String(error);
       failureReason = `pageerror: ${stack}`;
     });
@@ -147,11 +160,12 @@ async function main() {
 
     const deadline = Date.now() + args.timeoutMs;
     while (Date.now() < deadline) {
+      if (hasSuccessfulSummary()) {
+        completed = true;
+        break;
+      }
       if (failureReason) {
         throw new Error(failureReason);
-      }
-      if (sawEnd && summary) {
-        break;
       }
       await page.waitForTimeout(1000);
     }

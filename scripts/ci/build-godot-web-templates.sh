@@ -128,6 +128,8 @@ for variant in "${variants[@]}"; do
   esac
 done
 
+node "${SCRIPT_DIR}/patch-web-asm-const.mjs" "${GODOT_WEB_TEMPLATE_OUTPUT_DIR}"
+
 if [[ "${INSTALL_TO_EXPORT_TEMPLATES}" == "1" ]]; then
   GODOT_SKIP_OFFICIAL_TEMPLATES=1 \
   GODOT_WEB_TEMPLATES_DIR="${GODOT_WEB_TEMPLATE_OUTPUT_DIR}" \
