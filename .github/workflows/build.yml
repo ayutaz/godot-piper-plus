@@ -27,6 +27,7 @@ env:
   NODE_VERSION: "20"
   WEB_ORT_CACHE_VERSION: "2"
   WEB_GODOT_TEMPLATES_CACHE_VERSION: "2"
+  WEB_ORT_BUILD_SIGNATURE: "wasm-static-lib-simd-dual-threads-v1"
 
 jobs:
   build-desktop:
@@ -380,7 +381,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Restore legacy ONNX Runtime Web no-thread cache
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
@@ -388,21 +389,50 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-legacy-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
           restore-keys: |
-            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-
 
       - name: Restore ONNX Runtime Web threads cache
         id: cache-ort-web-threads
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+
+      - name: Restore legacy ONNX Runtime Web threads cache
+        if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
+        id: cache-ort-web-threads-legacy
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-threads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
           restore-keys: |
             web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-
 
+      - name: Check restored ONNX Runtime Web packages
+        id: ort-web-packages
+        shell: bash
+        run: |
+          nothreads_ready=false
+          if [[ -f "$RUNNER_TEMP/onnxruntime-web-nothreads/lib/libonnxruntime_webassembly.a" ]] && \
+             [[ -f "$RUNNER_TEMP/onnxruntime-web-nothreads/include/onnxruntime_c_api.h" ]]; then
+            nothreads_ready=true
+          fi
+
+          threads_ready=false
+          if [[ -f "$RUNNER_TEMP/onnxruntime-web-threads/lib/libonnxruntime_webassembly.a" ]] && \
+             [[ -f "$RUNNER_TEMP/onnxruntime-web-threads/include/onnxruntime_c_api.h" ]]; then
+            threads_ready=true
+          fi
+
+          echo "nothreads_ready=$nothreads_ready" >> "$GITHUB_OUTPUT"
+          echo "threads_ready=$threads_ready" >> "$GITHUB_OUTPUT"
+          echo "nothreads_ready=$nothreads_ready"
+          echo "threads_ready=$threads_ready"
+
       - name: Build ONNX Runtime Web static library packages
-        if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true' || steps.cache-ort-web-threads.outputs.cache-hit != 'true'
+        if: steps.ort-web-packages.outputs.nothreads_ready != 'true' || steps.ort-web-packages.outputs.threads_ready != 'true'
         shell: bash
         run: |
           if [[ ! -d "$RUNNER_TEMP/onnxruntime" ]]; then
@@ -425,14 +455,14 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Save ONNX Runtime Web threads cache
         if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
-          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Restore custom Godot Web export templates cache
         id: cache-godot-web-templates
@@ -443,8 +473,23 @@ jobs:
           restore-keys: |
             web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-
 
+      - name: Check restored custom Godot Web export templates
+        id: godot-web-templates
+        shell: bash
+        run: |
+          templates_ready=false
+          if [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_release.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_release.zip" ]]; then
+            templates_ready=true
+          fi
+
+          echo "ready=$templates_ready" >> "$GITHUB_OUTPUT"
+          echo "templates_ready=$templates_ready"
+
       - name: Build custom Godot Web export templates
-        if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
+        if: steps.godot-web-templates.outputs.ready != 'true'
         shell: bash
         run: |
           if [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_debug.zip" ]] && \

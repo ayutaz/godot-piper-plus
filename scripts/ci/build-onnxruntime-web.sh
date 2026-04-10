@@ -30,6 +30,15 @@ ORT_BUILD_PARALLEL="${ORT_BUILD_PARALLEL:-$(detect_parallel_level)}"
 ORT_EMSDK_VERSION="${ORT_EMSDK_VERSION:-}"
 ORT_BUILD_TARGET="${ORT_BUILD_TARGET:-}"
 
+mkdir -p "$STAGING_ROOT/lib" "$STAGING_ROOT/include"
+
+if [[ -f "$STAGING_ROOT/lib/libonnxruntime_webassembly.a" ]] && \
+   [[ -f "$STAGING_ROOT/include/onnxruntime_c_api.h" ]]; then
+  echo "Using existing staged ONNX Runtime Web package at: $STAGING_ROOT"
+  find "$STAGING_ROOT" -maxdepth 3 -type f | sort
+  exit 0
+fi
+
 if [[ -z "$ORT_SOURCE_DIR" ]]; then
   echo "ERROR: ORT_SOURCE_DIR is required" >&2
   exit 1
@@ -49,8 +58,6 @@ if ! command -v cmake >/dev/null 2>&1; then
   echo "ERROR: cmake is not available." >&2
   exit 1
 fi
-
-mkdir -p "$STAGING_ROOT/lib" "$STAGING_ROOT/include"
 
 read -r -a ort_build_args <<< "$ORT_BUILD_FLAGS"
 if [[ " ${ort_build_args[*]} " != *" --parallel "* ]]; then
