@@ -414,15 +414,22 @@ jobs:
         id: ort-web-packages
         shell: bash
         run: |
+          ort_package_ready() {
+            local package_root="$1"
+            local header_root="$package_root/include/onnxruntime_cxx_api.h"
+            local header_nested="$package_root/include/onnxruntime/core/session/onnxruntime_cxx_api.h"
+
+            [[ -f "$package_root/lib/libonnxruntime_webassembly.a" ]] && \
+            ([[ -f "$header_root" ]] || [[ -f "$header_nested" ]])
+          }
+
           nothreads_ready=false
-          if [[ -f "$RUNNER_TEMP/onnxruntime-web-nothreads/lib/libonnxruntime_webassembly.a" ]] && \
-             [[ -f "$RUNNER_TEMP/onnxruntime-web-nothreads/include/onnxruntime_c_api.h" ]]; then
+          if ort_package_ready "$RUNNER_TEMP/onnxruntime-web-nothreads"; then
             nothreads_ready=true
           fi
 
           threads_ready=false
-          if [[ -f "$RUNNER_TEMP/onnxruntime-web-threads/lib/libonnxruntime_webassembly.a" ]] && \
-             [[ -f "$RUNNER_TEMP/onnxruntime-web-threads/include/onnxruntime_c_api.h" ]]; then
+          if ort_package_ready "$RUNNER_TEMP/onnxruntime-web-threads"; then
             threads_ready=true
           fi
 

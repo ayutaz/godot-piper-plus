@@ -23,6 +23,15 @@ detect_parallel_level() {
   printf '2\n'
 }
 
+staged_package_ready() {
+  local package_root="$1"
+  local header_root="$package_root/include/onnxruntime_cxx_api.h"
+  local header_nested="$package_root/include/onnxruntime/core/session/onnxruntime_cxx_api.h"
+
+  [[ -f "$package_root/lib/libonnxruntime_webassembly.a" ]] && \
+  ([[ -f "$header_root" ]] || [[ -f "$header_nested" ]])
+}
+
 ORT_SOURCE_DIR="${1:-${ORT_SOURCE_DIR:-}}"
 STAGING_ROOT="${2:-${PIPER_ONNXRUNTIME_WEB_STAGING_ROOT:-$REPO_ROOT/artifacts/onnxruntime-web}}"
 ORT_BUILD_FLAGS="${ORT_BUILD_FLAGS:---build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF}"
@@ -32,8 +41,7 @@ ORT_BUILD_TARGET="${ORT_BUILD_TARGET:-}"
 
 mkdir -p "$STAGING_ROOT/lib" "$STAGING_ROOT/include"
 
-if [[ -f "$STAGING_ROOT/lib/libonnxruntime_webassembly.a" ]] && \
-   [[ -f "$STAGING_ROOT/include/onnxruntime_c_api.h" ]]; then
+if staged_package_ready "$STAGING_ROOT"; then
   echo "Using existing staged ONNX Runtime Web package at: $STAGING_ROOT"
   find "$STAGING_ROOT" -maxdepth 3 -type f | sort
   exit 0
