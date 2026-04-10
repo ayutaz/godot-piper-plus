@@ -382,6 +382,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-
 
       - name: Restore legacy ONNX Runtime Web no-thread cache
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
@@ -399,6 +401,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-threads-
 
       - name: Restore legacy ONNX Runtime Web threads cache
         if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
