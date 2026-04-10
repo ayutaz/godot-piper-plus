@@ -126,6 +126,18 @@ async function main() {
       failureReason = `pageerror: ${String(error)}`;
     });
 
+    page.on('requestfailed', (request) => {
+      process.stderr.write(
+        `[${args.label} requestfailed] ${request.failure()?.errorText ?? 'unknown'} ${request.method()} ${request.url()}\n`,
+      );
+    });
+
+    page.on('response', (response) => {
+      if (response.status() >= 400) {
+        process.stderr.write(`[${args.label} response] ${response.status()} ${response.url()}\n`);
+      }
+    });
+
     await page.goto(browserUrl, { waitUntil: 'load', timeout: args.timeoutMs });
 
     const deadline = Date.now() + args.timeoutMs;

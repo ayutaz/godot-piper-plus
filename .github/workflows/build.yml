@@ -482,6 +482,12 @@ jobs:
           ONNXRUNTIME_DIR_THREADS="$RUNNER_TEMP/onnxruntime-web-threads" \
           bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
 
+      - name: Download Linux addon bin artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-bin-linux-x86_64
+          path: addons/piper_plus/bin
+
       - name: Download Godot Linux binary
         shell: bash
         run: |
