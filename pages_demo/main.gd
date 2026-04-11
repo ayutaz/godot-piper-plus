@@ -7,7 +7,8 @@ const DEFAULT_TEXT := "Hello from Piper Plus on GitHub Pages."
 const STATUS_PREFIX := "PAGES_DEMO status="
 const SUMMARY_PREFIX := "PAGES_DEMO summary="
 
-var tts = null
+var tts: Object = null
+var tts_node: Node = null
 var audio_player: AudioStreamPlayer
 var title_label: Label
 var description_label: Label
@@ -34,27 +35,28 @@ func _ready() -> void:
 		_emit_status("fail")
 		return
 
-	var instance = ClassDB.instantiate("PiperTTS")
+	var instance: Object = ClassDB.instantiate("PiperTTS")
 	if instance == null or not (instance is Node):
 		_set_status("PiperTTS could not be instantiated.")
 		_emit_status("fail")
 		return
 
 	tts = instance
+	tts_node = instance as Node
 	audio_player = AudioStreamPlayer.new()
-	add_child(instance)
+	add_child(tts_node)
 	add_child(audio_player)
 
-	tts.model_path = MODEL_PATH
-	tts.config_path = CONFIG_PATH
-	tts.initialized.connect(_on_tts_initialized)
-	tts.synthesis_completed.connect(_on_synthesis_completed)
-	tts.synthesis_failed.connect(_on_synthesis_failed)
+	_tts_set("model_path", MODEL_PATH)
+	_tts_set("config_path", CONFIG_PATH)
+	_tts_connect("initialized", _on_tts_initialized)
+	_tts_connect("synthesis_completed", _on_synthesis_completed)
+	_tts_connect("synthesis_failed", _on_synthesis_failed)
 
 	_update_contract_label()
 	_set_status("Initializing runtime...")
-	var err = int(tts.initialize())
-	if err != OK and not tts.is_ready():
+	var err := _tts_call_int("initialize")
+	if err != OK and not _tts_call_bool("is_ready"):
 		_set_status("initialize() failed with error %d" % err)
 		_emit_status("fail")
 
@@ -119,6 +121,30 @@ func _set_status(message: String) -> void:
 func _emit_status(status: String) -> void:
 	print("%s%s" % [STATUS_PREFIX, status])
 
+func _tts_set(property_name: StringName, value: Variant) -> void:
+	if tts != null:
+		tts.set(property_name, value)
+
+func _tts_connect(signal_name: StringName, callable: Callable) -> void:
+	if tts != null:
+		tts.connect(signal_name, callable)
+
+func _tts_call_bool(method_name: StringName, arg0: Variant = null) -> bool:
+	if tts == null:
+		return false
+
+	if arg0 == null:
+		return bool(tts.call(method_name))
+	return bool(tts.call(method_name, arg0))
+
+func _tts_call_int(method_name: StringName, arg0: Variant = null) -> int:
+	if tts == null:
+		return ERR_UNAVAILABLE
+
+	if arg0 == null:
+		return int(tts.call(method_name))
+	return int(tts.call(method_name, arg0))
+
 func _on_tts_initialized(success: bool) -> void:
 	if not success:
 		_set_status("Initialization failed.")
@@ -130,14 +156,14 @@ func _on_tts_initialized(success: bool) -> void:
 
 func _run_startup_probe() -> void:
 	_startup_probe_running = true
-	var err = int(tts.synthesize_async(DEFAULT_TEXT))
+	var err := _tts_call_int("synthesize_async", DEFAULT_TEXT)
 	if err != OK:
 		_startup_probe_running = false
 		_set_status("Startup self-test failed to start (%d)." % err)
 		_emit_status("fail")
 
 func _on_synthesize_pressed() -> void:
-	if tts == null or not tts.is_ready():
+	if tts == null or not _tts_call_bool("is_ready"):
 		_set_status("Runtime is not ready yet.")
 		return
 
@@ -149,7 +175,7 @@ func _on_synthesize_pressed() -> void:
 	synthesize_button.disabled = true
 	_pending_user_request = true
 	_set_status("Synthesizing...")
-	var err = int(tts.synthesize_async(text))
+	var err := _tts_call_int("synthesize_async", text)
 	if err != OK:
 		_pending_user_request = false
 		synthesize_button.disabled = false
