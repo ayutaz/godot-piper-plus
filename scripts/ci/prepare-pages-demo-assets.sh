@@ -11,11 +11,13 @@ ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
 ADDON_DST="$PROJECT_DIR/addons/piper_plus"
 ADDON_BIN_DST="$ADDON_DST/bin"
 ADDON_DICT_DST="$ADDON_DST/dictionaries"
-MODEL_KEY="${PIPER_PAGES_MODEL_KEY:-en_US-ljspeech-medium}"
+MODEL_KEY="${PIPER_PAGES_MODEL_KEY:-multilingual-test-medium}"
 MODEL_STAGE_ROOT="$PROJECT_DIR/piper_plus_assets/models/$MODEL_KEY"
 MODEL_CACHE_ROOT="${PIPER_PAGES_MODEL_CACHE:-$REPO_ROOT/.cache/pages-demo/models}"
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
+DEFAULT_MODEL_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx"
+DEFAULT_CONFIG_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx.json"
 
 normalize_download_url() {
   local url="$1"
@@ -102,6 +104,14 @@ resolve_model_bundle() {
   local config_override="${PIPER_PAGES_CONFIG_PATH:-}"
   local model_filename="$MODEL_KEY.onnx"
   local config_filename="$MODEL_KEY.onnx.json"
+
+  if [[ -z "$model_override" && -f "$DEFAULT_MODEL_OVERRIDE" ]]; then
+    model_override="$DEFAULT_MODEL_OVERRIDE"
+  fi
+
+  if [[ -z "$config_override" && -f "$DEFAULT_CONFIG_OVERRIDE" ]]; then
+    config_override="$DEFAULT_CONFIG_OVERRIDE"
+  fi
 
   if [[ -n "$model_override" && -f "$model_override" ]]; then
     mkdir -p "$cache_dir"

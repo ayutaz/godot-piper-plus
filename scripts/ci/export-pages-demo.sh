@@ -9,7 +9,7 @@ TEMPLATE_PROJECT_DIR="${PIPER_PAGES_TEMPLATE_PROJECT_DIR:-$REPO_ROOT/pages_demo}
 PROJECT_DIR="${PIPER_PAGES_PROJECT_DIR:-${PIPER_PAGES_DEMO_PROJECT_DIR:-$REPO_ROOT/build/pages-demo-project}}"
 ENTRY_NAME="${PIPER_PAGES_ENTRY_NAME:-index.html}"
 PRESET_NAME="${PIPER_PAGES_PRESET_NAME:-Web Pages}"
-MODEL_KEY="${PIPER_PAGES_MODEL_KEY:-en_US-ljspeech-medium}"
+MODEL_KEY="${PIPER_PAGES_MODEL_KEY:-multilingual-test-medium}"
 GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 MODEL_RELATIVE_DIR="piper_plus_assets/models/$MODEL_KEY"
 MODEL_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx"
@@ -25,6 +25,8 @@ LINUX_DEBUG_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.linux.te
 LINUX_ORT_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libonnxruntime.linux.x86_64.so"
 BUILD_SHA="${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf 'local')}"
 STAGED_TEMPLATE_ROOT="$(dirname "$PROJECT_DIR")/.ci/godot-web-templates/$GODOT_TEMPLATES_VERSION"
+DEFAULT_MODEL_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx"
+DEFAULT_CONFIG_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx.json"
 
 resolve_custom_template_source_dir() {
 	local candidate=""
@@ -102,7 +104,22 @@ rm -rf "$EXPORT_ROOT" "$PROJECT_DIR"
 mkdir -p "$SITE_ROOT" "$(dirname "$PROJECT_DIR")"
 cp -a "$TEMPLATE_PROJECT_DIR/." "$PROJECT_DIR/"
 
-PIPER_PAGES_PROJECT_DIR="$PROJECT_DIR" bash "$SCRIPT_DIR/prepare-pages-demo-assets.sh"
+MODEL_OVERRIDE="${PIPER_PAGES_MODEL_PATH:-}"
+CONFIG_OVERRIDE="${PIPER_PAGES_CONFIG_PATH:-}"
+
+if [[ -z "$MODEL_OVERRIDE" && -f "$DEFAULT_MODEL_OVERRIDE" ]]; then
+	MODEL_OVERRIDE="$DEFAULT_MODEL_OVERRIDE"
+fi
+
+if [[ -z "$CONFIG_OVERRIDE" && -f "$DEFAULT_CONFIG_OVERRIDE" ]]; then
+	CONFIG_OVERRIDE="$DEFAULT_CONFIG_OVERRIDE"
+fi
+
+PIPER_PAGES_PROJECT_DIR="$PROJECT_DIR" \
+PIPER_PAGES_MODEL_KEY="$MODEL_KEY" \
+PIPER_PAGES_MODEL_PATH="$MODEL_OVERRIDE" \
+PIPER_PAGES_CONFIG_PATH="$CONFIG_OVERRIDE" \
+bash "$SCRIPT_DIR/prepare-pages-demo-assets.sh"
 stage_custom_templates
 node "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
 

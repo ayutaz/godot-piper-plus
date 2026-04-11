@@ -1,9 +1,9 @@
 extends Control
 
-const MODEL_KEY := "en_US-ljspeech-medium"
-const MODEL_PATH := "res://piper_plus_assets/models/en_US-ljspeech-medium/en_US-ljspeech-medium.onnx"
-const CONFIG_PATH := "res://piper_plus_assets/models/en_US-ljspeech-medium/en_US-ljspeech-medium.onnx.json"
-const DEFAULT_TEXT := "Hello from Piper Plus on GitHub Pages."
+const MODEL_KEY := "multilingual-test-medium"
+const MODEL_PATH := "res://piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx"
+const CONFIG_PATH := "res://piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx.json"
+const DEFAULT_TEXT := "hello from godot"
 const STATUS_PREFIX := "PAGES_DEMO status="
 const SUMMARY_PREFIX := "PAGES_DEMO summary="
 
@@ -42,6 +42,7 @@ func _ready() -> void:
 
 	_tts_set("model_path", MODEL_PATH)
 	_tts_set("config_path", CONFIG_PATH)
+	_tts_set("language_code", "en")
 	_tts_connect("initialized", _on_tts_initialized)
 
 	_update_contract_label()
@@ -70,7 +71,7 @@ func _build_ui() -> void:
 	layout.add_child(title_label)
 
 	description_label = Label.new()
-	description_label.text = "English-only, CPU-only, no-threads Web demo using en_US-ljspeech-medium."
+	description_label.text = "English-only, CPU-only, no-threads Web demo using the smoke-tested multilingual-test-medium bundle."
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(description_label)
 
@@ -97,7 +98,8 @@ func _update_contract_label() -> void:
 	var lines := PackedStringArray([
 		"Contract: EP_CPU / no-threads / PWA export / startup self-test on load.",
 		"Model: %s" % MODEL_KEY,
-		"Not included: Japanese dictionary bootstrap, multilingual routing, runtime downloads.",
+		"Route: language_code=en on a bundled multilingual model; no runtime downloads.",
+		"Not included: Japanese dictionary bootstrap, public multilingual UI, runtime downloads.",
 		"Licenses: see LICENSE.txt and THIRD_PARTY_LICENSES.txt in the published site root.",
 	])
 	contract_label.text = "\n".join(lines)
