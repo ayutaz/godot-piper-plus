@@ -31,7 +31,8 @@
 - [TKT-013 GitHub Pages scope / asset policy 固定](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md): `GP0`
 - [TKT-014 GitHub Pages preset / public entry 整備](./m9-github-pages/TKT-014-github-pages-preset-public-entry.md): `GP1`
 - [TKT-015 GitHub Pages deploy workflow 整備](./m9-github-pages/TKT-015-github-pages-deploy-workflow.md): `GP2`
-- `GP3` `GP4` は `TKT-016` 以降で個別化します。
+- [TKT-016 GitHub Pages public URL smoke 整備](./m9-github-pages/TKT-016-github-pages-public-url-smoke.md): `GP3`
+- `GP4` は `TKT-017` で個別化します。
 
 ## 実装メモ
 
