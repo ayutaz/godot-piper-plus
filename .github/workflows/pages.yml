@@ -145,6 +145,7 @@ jobs:
         run: |
           chmod +x scripts/ci/install-godot-export-templates.sh
           GODOT_SKIP_OFFICIAL_TEMPLATES=1 \
+          GODOT_WEB_TEMPLATE_VARIANTS="nothreads" \
           GODOT_WEB_TEMPLATES_DIR="$RUNNER_TEMP/godot-web-templates" \
           bash scripts/ci/install-godot-export-templates.sh
 

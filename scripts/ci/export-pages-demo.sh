@@ -10,6 +10,7 @@ PROJECT_DIR="${PIPER_PAGES_PROJECT_DIR:-${PIPER_PAGES_DEMO_PROJECT_DIR:-$REPO_RO
 ENTRY_NAME="${PIPER_PAGES_ENTRY_NAME:-index.html}"
 PRESET_NAME="${PIPER_PAGES_PRESET_NAME:-Web Pages}"
 MODEL_KEY="${PIPER_PAGES_MODEL_KEY:-en_US-ljspeech-medium}"
+GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 MODEL_RELATIVE_DIR="piper_plus_assets/models/$MODEL_KEY"
 MODEL_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx"
 CONFIG_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx.json"
@@ -17,6 +18,64 @@ CMUDICT_RELATIVE_PATH="addons/piper_plus/dictionaries/cmudict_data.json"
 ADDON_GDEXTENSION_RELATIVE_PATH="addons/piper_plus/piper_plus.gdextension"
 ADDON_BIN_RELATIVE_DIR="addons/piper_plus/bin"
 BUILD_SHA="${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf 'local')}"
+STAGED_TEMPLATE_ROOT="$(dirname "$PROJECT_DIR")/.ci/godot-web-templates/$GODOT_TEMPLATES_VERSION"
+
+resolve_custom_template_source_dir() {
+	local candidate=""
+	local official_templates_dir=""
+
+	if [[ -n "${PIPER_PAGES_WEB_TEMPLATES_DIR:-}" ]]; then
+		candidate="${PIPER_PAGES_WEB_TEMPLATES_DIR}"
+		if [[ -f "$candidate/web_dlink_nothreads_debug.zip" && -f "$candidate/web_dlink_nothreads_release.zip" ]]; then
+			printf '%s\n' "$candidate"
+			return
+		fi
+	fi
+
+	if [[ -n "${GODOT_WEB_TEMPLATES_DIR:-}" ]]; then
+		candidate="${GODOT_WEB_TEMPLATES_DIR}"
+		if [[ -f "$candidate/web_dlink_nothreads_debug.zip" && -f "$candidate/web_dlink_nothreads_release.zip" ]]; then
+			printf '%s\n' "$candidate"
+			return
+		fi
+	fi
+
+	candidate="$REPO_ROOT/.ci/godot-web-templates/$GODOT_TEMPLATES_VERSION"
+	if [[ -f "$candidate/web_dlink_nothreads_debug.zip" && -f "$candidate/web_dlink_nothreads_release.zip" ]]; then
+		printf '%s\n' "$candidate"
+		return
+	fi
+
+	case "$(uname -s)" in
+		Darwin)
+			official_templates_dir="${HOME}/Library/Application Support/Godot/export_templates/${GODOT_TEMPLATES_VERSION}"
+			;;
+		*)
+			official_templates_dir="${HOME}/.local/share/godot/export_templates/${GODOT_TEMPLATES_VERSION}"
+			;;
+	esac
+
+	if [[ -f "$official_templates_dir/web_dlink_nothreads_debug.zip" && -f "$official_templates_dir/web_dlink_nothreads_release.zip" ]]; then
+		printf '%s\n' "$official_templates_dir"
+		return
+	fi
+
+	echo "ERROR: custom Pages Web templates were not found. Set PIPER_PAGES_WEB_TEMPLATES_DIR or install templates with scripts/ci/install-godot-export-templates.sh." >&2
+	exit 1
+}
+
+stage_custom_templates() {
+	local source_dir=""
+
+	source_dir="$(resolve_custom_template_source_dir)"
+	rm -rf "$STAGED_TEMPLATE_ROOT"
+	mkdir -p "$STAGED_TEMPLATE_ROOT"
+	cp -f "$source_dir/web_dlink_nothreads_debug.zip" "$STAGED_TEMPLATE_ROOT/web_dlink_nothreads_debug.zip"
+	cp -f "$source_dir/web_dlink_nothreads_release.zip" "$STAGED_TEMPLATE_ROOT/web_dlink_nothreads_release.zip"
+	if [[ -f "$source_dir/version.txt" ]]; then
+		cp -f "$source_dir/version.txt" "$STAGED_TEMPLATE_ROOT/version.txt"
+	fi
+}
 
 if [[ -z "${GODOT:-}" ]]; then
 	echo "ERROR: GODOT is not set" >&2
@@ -38,6 +97,7 @@ mkdir -p "$SITE_ROOT" "$(dirname "$PROJECT_DIR")"
 cp -a "$TEMPLATE_PROJECT_DIR/." "$PROJECT_DIR/"
 
 PIPER_PAGES_PROJECT_DIR="$PROJECT_DIR" bash "$SCRIPT_DIR/prepare-pages-demo-assets.sh"
+stage_custom_templates
 node "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
 
 "$GODOT" --headless --path "$PROJECT_DIR" --export-release "$PRESET_NAME" "$SITE_ROOT/$ENTRY_NAME"
