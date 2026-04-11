@@ -5,7 +5,7 @@
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-5` `NFR-6`
 - 子チケット: [`TKT-019`](./TKT-019-web-japanese-dictionary-bootstrap.md) [`TKT-020`](./TKT-020-web-japanese-browser-smoke-ci.md) [`TKT-021`](./TKT-021-pages-japanese-demo-public-smoke.md)
-- 依存チケット: [`TKT-010`](./TKT-010-web-runtime-ort-adaptation.md) [`TKT-011`](./TKT-011-web-browser-smoke-ci-docs.md)
+- 依存チケット: なし
 - 後続チケット: [`TKT-007`](./TKT-007-release-finalization.md)
 
 ## 進捗
@@ -29,6 +29,7 @@
 - `TKT-021` で GitHub Pages demo を English-only から日本語入力を含む UI へ拡張し、public URL smoke を日本語シナリオまで広げる。
 - `TKT-007` が release 文書で迷わないように、必須 asset、既知制約、scope 表現、英語最小構成からの差分を明文化する。
 - `M7` と `M9` の完了実績は残しつつ、post-preview の mandatory track として `M10` へ進捗を集約する。
+- Phase 1 preview の runtime / smoke 実績は `docs/milestones.md` と `docs/web-github-pages-plan.md` を前提にし、この ticket では日本語 follow-up だけを扱う。
 
 ## エージェントチームの役割と人数
 

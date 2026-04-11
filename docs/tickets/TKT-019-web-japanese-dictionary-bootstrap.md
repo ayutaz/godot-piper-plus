@@ -5,7 +5,7 @@
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-4` `NFR-5`
 - 親チケット: [`TKT-018`](./TKT-018-web-japanese-support.md)
-- 依存チケット: [`TKT-010`](./TKT-010-web-runtime-ort-adaptation.md) [`TKT-011`](./TKT-011-web-browser-smoke-ci-docs.md)
+- 依存チケット: [`TKT-018`](./TKT-018-web-japanese-support.md)
 - 後続チケット: [`TKT-020`](./TKT-020-web-japanese-browser-smoke-ci.md) [`TKT-021`](./TKT-021-pages-japanese-demo-public-smoke.md)
 
 ## 進捗

@@ -49,7 +49,7 @@
 
 - package validator が最終 package に対して通ること。
 - README と addon README が最終スコープと矛盾しないこと。
-- Web preview の前提が `TKT-011` の smoke 条件と一致していること。
+- Web preview の前提が `M7` の browser smoke 条件と一致していること。
 - Web 日本語対応の前提が `TKT-018` から `TKT-021` の実装結果と一致していること。
 - サポート platform、未対応項目、既知制約が明記されていること。
 
