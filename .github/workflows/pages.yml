@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: github-pages-demo
+  group: github-pages-demo-${{ github.ref_name }}
   cancel-in-progress: false
 
 env:
