@@ -86,6 +86,7 @@ async function main() {
     ['platform', '"Web"'],
     ['custom_features', '"web_pages_public"'],
     ['export_path', '"build/web-pages/index.html"'],
+    ['include_filter', '"piper_plus_assets/models/*/*.onnx,piper_plus_assets/models/*/*.onnx.json,addons/piper_plus/dictionaries/*.json"'],
   ]);
 
   const expectedOptionValues = new Map([
