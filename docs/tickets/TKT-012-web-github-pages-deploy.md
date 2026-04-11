@@ -1,14 +1,18 @@
 # TKT-012 Web GitHub Pages deploy / public demo
 
-- 状態: `未着手`
-- 主マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
+- 状態: `進行中`
+- 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../milestones.md#m9)
+- 関連マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連要求: post-preview Web public demo / GitHub Pages deployment
 - 依存チケット: [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md)
-- 後続チケット: なし
+- 後続チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) 以降の `GP1` から `GP4` split tickets
 - 関連メモ: [docs/web-github-pages-plan.md](../web-github-pages-plan.md)
 
 ## 進捗
 
+- [x] `M9` を個別チケット化するための分解方針を決める
+- [x] `docs/tickets/m9-github-pages/` 配下に GitHub Pages 専用チケットフォルダを作る
+- [ ] `GP0` から `GP4` を個別チケットへ分割する
 - [ ] GitHub Pages 向けの前提、制約、公開範囲を固定する
 - [ ] Pages 専用の `no-threads` / `CPU-only` / English minimal demo preset を追加する
 - [ ] `index.html` を入口にした公開用 export を組み立てる
@@ -20,6 +24,12 @@
 
 - release gate 上では完了している Web preview support を維持したまま、GitHub Pages 上で再現可能な public demo と deploy 導線を追加する。
 - ゴールは、GitHub Pages で addon load と最小 synthesize が成立する公開 URL を持ち、同じ workflow で build・deploy・smoke を通せる状態にすること。
+- 実装順は [M9 GitHub Pages Public Demo / Deploy](../milestones.md#m9) の `GP0` から `GP4` に従います。
+
+## 分割した子チケット
+
+- [TKT-013 GitHub Pages scope / asset policy 固定](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md): `GP0`
+- `GP1` から `GP4` は `TKT-014` 以降で個別化します。
 
 ## 実装メモ
 
@@ -92,4 +102,3 @@
 
 - public demo が成立したら、README へ公開 URL と scope を反映するか判断材料を返す。
 - thread build や Japanese text input を Pages へ広げる場合は、別チケットとして Phase 2 拡張へ切り出す。
-

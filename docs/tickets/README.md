@@ -18,7 +18,8 @@
 | 完了 | [TKT-009](TKT-009-web-manifest-package-export-preset.md) | Web manifest / package / export preset 整備 | `TKT-002` | `M7` `M4` `M5` | `TKT-008` | `TKT-010` `TKT-011` |
 | 完了 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
 | 完了 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
-| 未着手 | [TKT-012](TKT-012-web-github-pages-deploy.md) | Web GitHub Pages deploy / public demo | - | `M7` post-preview | `TKT-011` | - |
+| 進行中 | [TKT-012](TKT-012-web-github-pages-deploy.md) | Web GitHub Pages deploy / public demo | - | `M9` `M7` | `TKT-011` | `TKT-013` |
+| 進行中 | [TKT-013](m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | GitHub Pages scope / asset policy 固定 | `TKT-012` | `M9` `M7` | `TKT-011` | - |
 
 ## 運用メモ
 
@@ -29,4 +30,5 @@
 - `TKT-003` から `TKT-006` は platform verification の結果確定チケットです。2026-04-10 時点で macOS packaged smoke と iOS export smoke は完了、Android は export smoke 成功後の runtime / local 再現性だけが残っています。
 - `TKT-008` から `TKT-011` は `M7 Web Support` を `W1` から `W4` に分解した実装チケットです。進捗更新時は `TKT-002` と `docs/milestones.md` の `M7` セクションも同時に更新します。
 - `TKT-007` は release 完了条件の最終集約チケットで、他チケットの結果を取り込みます。Web については `TKT-002` の umbrella 状態だけでなく、`TKT-011` の smoke / README 反映完了も依存に含めます。
-- `TKT-012` は release gate 上の `M7` を reopen せずに、GitHub Pages 向けの public demo / deploy を追跡する post-preview follow-up task です。前提整理は `docs/web-github-pages-plan.md` にまとめます。
+- `TKT-012` は独立マイルストーン `M9 GitHub Pages Public Demo / Deploy` の実行チケットです。release gate 上の `M7` を reopen せずに、GitHub Pages 向けの public demo / deploy を追跡します。前提整理は `docs/web-github-pages-plan.md` にまとめます。
+- `M9` の個別実行チケットは `docs/tickets/m9-github-pages/` に分けて置き、umbrella ticket の `TKT-012` と [`docs/milestones.md`](../milestones.md) 側の `GP0` から `GP4` と相互にリンクさせます。

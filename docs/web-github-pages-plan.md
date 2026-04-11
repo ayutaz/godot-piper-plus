@@ -7,6 +7,7 @@
 - [README.md](../README.md)
 - [マイルストーン管理](./milestones.md)
 - [チケット一覧](./tickets/README.md)
+- [M9 個別チケット一覧](./tickets/m9-github-pages/README.md)
 - [Web Platform 技術調査](./web-platform-research.md)
 - [TKT-011 Web browser smoke / CI / 文書反映](./tickets/TKT-011-web-browser-smoke-ci-docs.md)
 - [TKT-012 Web GitHub Pages deploy / public demo](./tickets/TKT-012-web-github-pages-deploy.md)
@@ -14,6 +15,7 @@
 ## 現状
 
 - release gate 上の Web Phase 1 は完了です。`M7 Web Support` は `preview support`、`CPU-only`、custom Web export template、browser smoke、README 反映までを受け入れ条件として閉じています。
+- GitHub Pages 対応は release gate 外の follow-up として、[`M9 GitHub Pages Public Demo / Deploy`](./milestones.md#m9) と [`TKT-012 Web GitHub Pages deploy / public demo`](./tickets/TKT-012-web-github-pages-deploy.md) で個別に追跡します。
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通っており、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - 現在の runtime contract は Web 向け `EP_CPU` 固定で、最小 synthesize は英語 text input または phoneme string を中心に成立しています。
 
@@ -70,4 +72,3 @@
 - PWA / service worker ベースの cross-origin isolation workaround は cache の影響を受けやすく、更新反映や stale cache の切り分けが必要です
 - 公開用 model のサイズ、ライセンス、配布方法を誤ると package 方針や公開方針と衝突します
 - thread build は header 条件の影響を受けやすいため、初回 Pages 対応では避けた方が安全です
-
