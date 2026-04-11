@@ -10,7 +10,7 @@
 |---|---|---|---|---|---|
 | 進行中 | [TKT-013](./TKT-013-github-pages-scope-asset-policy.md) | `GP0` | public demo scope / asset policy / hosting 前提の固定 | `TKT-011` | `TKT-014` `TKT-015` `TKT-017` |
 | 未着手 | [TKT-014](./TKT-014-github-pages-preset-public-entry.md) | `GP1` | Pages 向け preset / public entry 整備 | `TKT-013` | `TKT-015` `TKT-016` `TKT-017` |
-| 未着手 | `TKT-015` | `GP2` | Pages deploy workflow 整備 | `TKT-013` `TKT-014` | - |
+| 未着手 | [TKT-015](./TKT-015-github-pages-deploy-workflow.md) | `GP2` | Pages deploy workflow 整備 | `TKT-013` `TKT-014` | `TKT-016` `TKT-017` |
 | 未着手 | `TKT-016` | `GP3` | public URL smoke 整備 | `TKT-014` `TKT-015` | - |
 | 未着手 | `TKT-017` | `GP4` | 文書 / 運用メモ最終化 | `TKT-013` `TKT-014` `TKT-015` `TKT-016` | - |
 
