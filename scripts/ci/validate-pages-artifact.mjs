@@ -23,16 +23,26 @@ function hasExtension(rootDir, extension) {
   return fs.readdirSync(rootDir).some((name) => name.toLowerCase().endsWith(extension));
 }
 
-const artifactDir = process.argv[2];
+const argv = process.argv.slice(2);
+const artifactDir = argv[0];
 if (!artifactDir) {
   usage();
 }
 
 let expectedBuild = "";
-for (let index = 3; index < process.argv.length; index += 1) {
-  if (process.argv[index] === "--expected-build") {
-    expectedBuild = process.argv[index + 1] ?? "";
+for (let index = 1; index < argv.length; index += 1) {
+  const arg = argv[index];
+  if (arg === "--expected-build") {
+    const value = argv[index + 1];
+    if (value == null || value.startsWith("--")) {
+      console.error("missing value for --expected-build");
+      usage();
+    }
+    expectedBuild = value;
     index += 1;
+  } else {
+    console.error(`unknown argument: ${arg}`);
+    usage();
   }
 }
 

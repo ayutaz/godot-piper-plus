@@ -41,6 +41,28 @@ else
   exit 1
 fi
 
+verify_sha256() {
+  local file_path="$1"
+  local expected_sha="$2"
+
+  if [[ -z "$expected_sha" ]]; then
+    echo "ERROR: missing sha256 for $(basename "$file_path") in download_catalog.json" >&2
+    exit 1
+  fi
+
+  "$PYTHON_CMD" - "$file_path" "$expected_sha" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+file_path = pathlib.Path(sys.argv[1])
+expected = sys.argv[2].strip().lower()
+actual = hashlib.sha256(file_path.read_bytes()).hexdigest()
+if actual != expected:
+    raise SystemExit(f"sha256 mismatch for {file_path.name}: expected {expected}, got {actual}")
+PY
+}
+
 for required_file in \
   project.godot \
   main.gd \
@@ -123,14 +145,9 @@ resolve_model_bundle() {
     fi
   fi
 
-  if [[ -f "$cache_dir/$model_filename" && -f "$cache_dir/$config_filename" ]]; then
-    printf '%s\n' "$cache_dir"
-    return
-  fi
-
   mkdir -p "$cache_dir"
 
-  "$PYTHON_CMD" - "$ADDON_SRC/download_catalog.json" "$MODEL_KEY" <<'PY' | while IFS=$'\t' read -r url filename; do
+  "$PYTHON_CMD" - "$ADDON_SRC/download_catalog.json" "$MODEL_KEY" <<'PY' | while IFS=$'\t' read -r url filename sha256; do
 import json
 import sys
 
@@ -145,14 +162,17 @@ if not item:
 for file_entry in item.get("files", []):
     filename = file_entry.get("filename", "")
     if filename.endswith(".onnx") or filename.endswith(".onnx.json"):
-        print(f"{file_entry['url']}\t{filename}")
+        print(f"{file_entry['url']}\t{filename}\t{file_entry.get('sha256', '')}")
 PY
     request_url="$(normalize_download_url "$url")"
-    if [[ -f "$cache_dir/$filename" ]]; then
+    target_path="$cache_dir/$filename"
+    if [[ -f "$target_path" ]]; then
+      verify_sha256 "$target_path" "$sha256"
       continue
     fi
-    curl -L --fail --retry 3 --retry-delay 2 -o "$cache_dir/$filename.tmp" "$request_url"
-    mv "$cache_dir/$filename.tmp" "$cache_dir/$filename"
+    curl -L --fail --retry 3 --retry-delay 2 -o "$target_path.tmp" "$request_url"
+    verify_sha256 "$target_path.tmp" "$sha256"
+    mv "$target_path.tmp" "$target_path"
   done
 
   if [[ ! -f "$cache_dir/$model_filename" || ! -f "$cache_dir/$config_filename" ]]; then

@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: github-pages-demo-${{ github.ref_name }}
+  group: github-pages-demo-site
   cancel-in-progress: false
 
 env:
@@ -88,7 +88,7 @@ jobs:
         shell: bash
         run: cmake -B build-release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DGODOTCPP_TARGET=template_release
 
-      - name: Build Linux release addon for export host
+      - name: Build Linux release addon for export host and validation
         shell: bash
         run: cmake --build build-release --config Release --parallel 2 --target piper_plus
 
@@ -96,7 +96,7 @@ jobs:
         shell: bash
         run: cmake -B build-debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Debug -DGODOTCPP_TARGET=template_debug
 
-      - name: Build Linux debug addon for export host
+      - name: Build Linux debug addon for export host and validation
         shell: bash
         run: cmake --build build-debug --config Debug --parallel 2 --target piper_plus
 
@@ -202,39 +202,6 @@ jobs:
           PIPER_PLUS_WEB_CONFIG_MATRIX="Debug,Release" \
           ONNXRUNTIME_DIR_NOTHREADS="$RUNNER_TEMP/onnxruntime-web-nothreads" \
           bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
-
-      - name: Cache Linux host ExternalProject dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            build-release/h
-            build-release/he
-            build-release/o
-            build-release/oj
-            build-debug/h
-            build-debug/he
-            build-debug/o
-            build-debug/oj
-          key: linux-x86_64-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
-
-      - name: Cache Linux host ONNX Runtime
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            build-release/onnxruntime
-            build-debug/onnxruntime
-          key: linux-x86_64-onnxruntime-${{ env.ORT_VERSION }}
-
-      - name: Build Linux host addon binaries for export validation
-        shell: bash
-        run: |
-          CC=gcc CXX=g++ cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DGODOTCPP_TARGET=template_release
-          cmake --build build-release --config Release --parallel 2 --target piper_plus
-
-          CC=gcc CXX=g++ cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=OFF -DGODOTCPP_TARGET=template_debug
-          cmake --build build-debug --config Debug --parallel 2 --target piper_plus
-
-          cp build-release/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.linux.x86_64.so
 
       - name: Download Godot Linux binary
         shell: bash
