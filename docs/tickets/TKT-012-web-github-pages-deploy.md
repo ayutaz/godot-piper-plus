@@ -4,6 +4,7 @@
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連要求: post-preview Web public demo / GitHub Pages deployment
+- 子チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md)
 - 依存チケット: [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md)
 - 後続チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) 以降の `GP1` から `GP4` split tickets
 - 関連メモ: [docs/web-github-pages-plan.md](../web-github-pages-plan.md)
@@ -32,24 +33,20 @@
 - [TKT-014 GitHub Pages preset / public entry 整備](./m9-github-pages/TKT-014-github-pages-preset-public-entry.md): `GP1`
 - [TKT-015 GitHub Pages deploy workflow 整備](./m9-github-pages/TKT-015-github-pages-deploy-workflow.md): `GP2`
 - [TKT-016 GitHub Pages public URL smoke 整備](./m9-github-pages/TKT-016-github-pages-public-url-smoke.md): `GP3`
-- `GP4` は `TKT-017` で個別化します。
+- `GP4`: `TKT-017` で個別化予定
 
 ## 実装メモ
 
 - `M7 Web Support` は 2026-04-10 の GitHub Actions run `24223195868` で完了済みであり、このチケットはその release gate を reopen しません。
 - 現在の browser smoke は `COOP` / `COEP` header を付ける Node static server 前提で成立しています。GitHub Pages 化では hosting 条件を吸収する別構成が必要です。
 - 初回スコープは `no-threads`、`CPU-only`、English minimal demo を優先し、Japanese text input と `naist-jdic` を使う公開デモは対象外にします。
+- `TKT-012` は umbrella と handoff の管理が責務です。`GP0` の具体的な scope / asset policy は [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) を正本にします。
 
 ## 実装する内容の詳細
 
-- `test/project/export_presets.cfg` に Pages 専用 Web preset を追加するか、公開用 project / preset を別に切り出す。
-- `progressive_web_app/enabled=true` と `progressive_web_app/ensure_cross_origin_isolation_headers=true` を前提にした公開用 export を整備する。
-- 出力ファイル名を `index.html` 基準に揃え、GitHub Pages artifact としてそのまま publish できる構成にする。
-- 公開対象は `test/project` ベースの最小 English demo か、新規 minimal public demo のどちらかに絞る。
-- model 配布方針を確定し、package と混同しない形で公開 demo 用 asset を扱う。
-- `.github/workflows/build.yml` を split または拡張し、Pages 用 artifact upload と deploy を追加する。
-- deploy 後の `page_url` に対して Playwright などで smoke を実行し、addon load と最小 synthesize を確認する。
-- 公開 scope、既知制約、cache / service worker の注意点を文書へ反映する。
+- `GP0` として [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) で scope / asset policy / hosting 前提を固定する。
+- `GP1` 以降で、Pages preset / public entry、deploy workflow、public URL smoke、文書反映を child ticket へ分割して進める。
+- この umbrella ticket では child ticket 間の依存、handoff、acceptance の整合だけを管理する。
 
 ## 実装するために必要なエージェントチームの役割と人数
 

@@ -163,7 +163,7 @@
 - 状態: `進行中`
 - 依存: `M7`
 - 関連チケット: [TKT-012 Web GitHub Pages deploy / public demo](./tickets/TKT-012-web-github-pages-deploy.md) [TKT-013 GitHub Pages scope / asset policy 固定](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) [TKT-014 GitHub Pages preset / public entry 整備](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md) [TKT-015 GitHub Pages deploy workflow 整備](./tickets/m9-github-pages/TKT-015-github-pages-deploy-workflow.md) [TKT-016 GitHub Pages public URL smoke 整備](./tickets/m9-github-pages/TKT-016-github-pages-public-url-smoke.md)
-- 現状: GitHub Pages 対応の前提整理は [docs/web-github-pages-plan.md](./web-github-pages-plan.md) に反映済みです。`docs/tickets/m9-github-pages/` で `GP0` から `GP3` を個別チケット化し、public demo scope、model 配布方針、preset / public entry、Pages deploy workflow、public URL smoke の責務分割を先に固定しています。Pages 向け preset、`index.html` export、deploy workflow、public URL smoke は未実装です。
+- 現状: GitHub Pages 対応の overview は [docs/web-github-pages-plan.md](./web-github-pages-plan.md) に反映済みです。`docs/tickets/m9-github-pages/` で `GP0` から `GP3` を個別チケット化済みで、scope / asset policy の固定を [`TKT-013`](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) で進めています。Pages 向け preset、`index.html` export、deploy workflow、public URL smoke は未実装です。
 - 実装スコープ:
   - `no-threads`
   - `CPU-only`
@@ -186,11 +186,11 @@
 
 | 状態 | ID | チケット | マイルストーン | 主な変更対象 | 完了条件 |
 |---|---|---|---|---|---|
-| 進行中 | `GP0` | [TKT-013](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | scope / asset policy 固定 | `docs/web-github-pages-plan.md`, `docs/milestones.md`, `docs/tickets/TKT-012-web-github-pages-deploy.md`, `docs/tickets/m9-github-pages/` | `no-threads` / `CPU-only` / English minimal demo、model 配布方針、PWA workaround 前提が文書で固定されている |
+| 進行中 | `GP0` | [TKT-013](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | scope / asset policy 固定 | `docs/web-github-pages-plan.md`, `docs/milestones.md`, `docs/tickets/TKT-012-web-github-pages-deploy.md`, `docs/tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md` | `no-threads` / `CPU-only` / English minimal demo、`en_US-ljspeech-medium` 1 モデル同梱、runtime download なし、notice 同梱、PWA workaround 前提が文書で固定されている |
 | 未着手 | `GP1` | [TKT-014](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md) | Pages 向け preset / public entry 整備 | `test/project/export_presets.cfg`, 公開 demo 用 project または asset 一式, 必要なら export 補助 script | Pages 向け preset が `index.html`、`no-threads`、PWA 有効を満たし、公開入口が固定されている |
 | 未着手 | `GP2` | [TKT-015](./tickets/m9-github-pages/TKT-015-github-pages-deploy-workflow.md) | Pages deploy workflow 整備 | `.github/workflows/build.yml` または Pages 専用 workflow, deploy 補助 script | `configure-pages`、artifact upload、deploy が CI 上で成立する |
 | 未着手 | `GP3` | [TKT-016](./tickets/m9-github-pages/TKT-016-github-pages-public-url-smoke.md) | public URL smoke 整備 | smoke 用 script 群, 必要なら Playwright helper, workflow の deploy 後 step | deploy 後の `page_url` で addon load と最小 synthesize を確認できる |
-| 未着手 | `GP4` | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) | 文書 / 運用メモ最終化 | `README.md`, `docs/web-github-pages-plan.md`, 関連 docs | 公開 URL の scope、既知制約、cache / service worker 注意点が文書へ反映されている |
+| 未着手 | `GP4` | `TKT-017 (planned)` | 文書 / 運用メモ最終化 | `README.md`, `docs/web-github-pages-plan.md`, 関連 docs | 公開 URL の scope、既知制約、cache / service worker 注意点が文書へ反映されている |
 
 ## 直近の実行順
 
@@ -202,7 +202,7 @@
 
 1. [TKT-013 GitHub Pages scope / asset policy 固定](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) で、公開 scope と model 配布方針を固定する
 2. [TKT-014 GitHub Pages preset / public entry 整備](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md) と [TKT-015 GitHub Pages deploy workflow 整備](./tickets/m9-github-pages/TKT-015-github-pages-deploy-workflow.md) で、Pages 向け preset / public entry と deploy workflow を揃える
-3. [TKT-016 GitHub Pages public URL smoke 整備](./tickets/m9-github-pages/TKT-016-github-pages-public-url-smoke.md) と `GP4` の後続チケットで、public URL smoke と文書反映を閉じる
+3. [TKT-016 GitHub Pages public URL smoke 整備](./tickets/m9-github-pages/TKT-016-github-pages-public-url-smoke.md) と `TKT-017` で、public URL smoke と文書反映を閉じる
 
 ## ブロッカー / 未確定事項
 

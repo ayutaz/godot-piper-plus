@@ -16,6 +16,7 @@
 
 - release gate 上の Web Phase 1 は完了です。`M7 Web Support` は `preview support`、`CPU-only`、custom Web export template、browser smoke、README 反映までを受け入れ条件として閉じています。
 - GitHub Pages 対応は release gate 外の follow-up として、[`M9 GitHub Pages Public Demo / Deploy`](./milestones.md#m9) と [`TKT-012 Web GitHub Pages deploy / public demo`](./tickets/TKT-012-web-github-pages-deploy.md) で個別に追跡します。
+- `GP0` の具体的な scope / asset policy の正本は [`TKT-013 GitHub Pages scope / asset policy 固定`](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) に置き、この文書は overview を保ちます。
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通っており、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - 現在の runtime contract は Web 向け `EP_CPU` 固定で、最小 synthesize は英語 text input または phoneme string を中心に成立しています。
 
@@ -27,6 +28,7 @@
 - 現在の export target は `test/project` の smoke fixture で、出力も `piper-plus-tests.html` 前提です。公開ページ向けの `index.html`、導線、見た目、説明は未整備です。
 - `demo/` は `CSS10` モデルと `naist-jdic` を前提にしており、preview support の最小公開デモとしては重すぎます。
 - addon package 方針では model file を同梱しないため、GitHub Pages 公開物だけ別扱いでどのモデルをどう載せるかを決める必要があります。
+- 初回 public demo の asset policy は `TKT-013` で、`en_US-ljspeech-medium` 1 モデルを Pages artifact へ同梱し、runtime download は行わない前提に固定します。
 
 ## 推奨スコープ
 
