@@ -56,9 +56,13 @@ async function main() {
     process.exit(args.help ? 0 : 1);
   }
 
-  const presetPath = path.join(path.resolve(args.project), 'export_presets.cfg');
-  const text = await readFile(presetPath, 'utf8');
-  const sections = parseExportPresets(text);
+  const projectRoot = path.resolve(args.project);
+  const presetPath = path.join(projectRoot, 'export_presets.cfg');
+  const presetText = await readFile(presetPath, 'utf8');
+  const sections = parseExportPresets(presetText);
+  const projectPath = path.join(projectRoot, 'project.godot');
+  const projectText = await readFile(projectPath, 'utf8');
+  const projectSections = parseExportPresets(projectText);
 
   let presetIndex = null;
   for (const [sectionName, values] of sections) {
@@ -85,12 +89,14 @@ async function main() {
   ]);
 
   const expectedOptionValues = new Map([
+    ['html/export_icon', 'true'],
     ['progressive_web_app/enabled', 'true'],
     ['progressive_web_app/ensure_cross_origin_isolation_headers', 'true'],
     ['variant/thread_support', 'false'],
     ['variant/extensions_support', 'true'],
     ['threads/emscripten_pool_size', '0'],
     ['threads/godot_pool_size', '0'],
+    ['vram_texture_compression/for_mobile', 'false'],
   ]);
 
   for (const [key, expected] of expectedPresetValues) {
@@ -110,6 +116,12 @@ async function main() {
   const releaseTemplate = stripQuotes(optionValues.get('custom_template/release') ?? '');
   if (!releaseTemplate.endsWith('web_dlink_nothreads_release.zip')) {
     throw new Error(`unexpected release template path: ${releaseTemplate || '<missing>'}`);
+  }
+
+  const applicationValues = projectSections.get('application') ?? new Map();
+  const projectIcon = applicationValues.get('config/icon');
+  if (projectIcon !== '"res://addons/piper_plus/icon.svg"') {
+    throw new Error(`project config/icon mismatch: expected "res://addons/piper_plus/icon.svg", got ${projectIcon ?? '<missing>'}`);
   }
 
   console.log(`PAGES_PRESET_OK preset=${args.preset}`);

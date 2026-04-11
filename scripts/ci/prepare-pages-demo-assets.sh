@@ -74,6 +74,7 @@ for addon_file in \
   THIRD_PARTY_LICENSES.txt \
   download_catalog.gd \
   download_catalog.json \
+  icon.svg \
   piper_asset_paths.gd \
   piper_plus.gdextension
 do
@@ -88,6 +89,11 @@ fi
 
 if [[ -f "$CMUDICT_SRC_PATH" ]]; then
   cp -f "$CMUDICT_SRC_PATH" "$CMUDICT_DST_PATH"
+fi
+
+if [[ ! -f "$ADDON_DST/icon.svg" ]]; then
+  echo "ERROR: staged addon icon is missing: $ADDON_DST/icon.svg" >&2
+  exit 1
 fi
 
 resolve_model_bundle() {
