@@ -6,7 +6,7 @@
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
 - 親チケット: [TKT-012 Web GitHub Pages deploy / public demo](../TKT-012-web-github-pages-deploy.md)
 - 依存チケット: [`TKT-011`](../TKT-011-web-browser-smoke-ci-docs.md)
-- 後続チケット: `TKT-014` `TKT-015` `TKT-017`
+- 後続チケット: [TKT-014](./TKT-014-github-pages-preset-public-entry.md) `TKT-015` `TKT-017`
 - 関連メモ: [docs/web-github-pages-plan.md](../../web-github-pages-plan.md) [M9 GitHub Pages 個別チケット](./README.md)
 
 ## 進捗
@@ -79,6 +79,6 @@
 
 ## 後続のタスクに連絡する内容
 
-- `TKT-014` には、Pages preset と public entry を `no-threads` / `CPU-only` / English minimal demo 前提で実装するよう引き継ぐ。
+- [TKT-014](./TKT-014-github-pages-preset-public-entry.md) には、Pages preset と public entry を `no-threads` / `CPU-only` / English minimal demo 前提で実装するよう引き継ぐ。
 - `TKT-015` には、deploy workflow が `GP0` で固定した artifact 契約と model 配布方針を壊さないよう引き継ぐ。
 - `TKT-017` には、最終文書化で `GP0` の scope を過大表現しないことを引き継ぐ。

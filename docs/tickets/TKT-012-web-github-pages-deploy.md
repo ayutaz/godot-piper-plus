@@ -29,7 +29,8 @@
 ## 分割した子チケット
 
 - [TKT-013 GitHub Pages scope / asset policy 固定](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md): `GP0`
-- `GP1` から `GP4` は `TKT-014` 以降で個別化します。
+- [TKT-014 GitHub Pages preset / public entry 整備](./m9-github-pages/TKT-014-github-pages-preset-public-entry.md): `GP1`
+- `GP2` から `GP4` は `TKT-015` 以降で個別化します。
 
 ## 実装メモ
 

@@ -24,7 +24,7 @@
 | 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-003](./tickets/TKT-003-macos-packaged-smoke.md) [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-006](./tickets/TKT-006-ios-export-link-smoke.md) | Windows / Linux / macOS / iOS は概ね確定。Android は CI export smoke 済みで、残りは runtime 可否と Windows local 差分の確定 |
 | 完了 | M7 Web Support 完成 | `FR-10` | [TKT-002](./tickets/TKT-002-web-platform.md) [TKT-008](./tickets/TKT-008-web-template-toolchain-bootstrap.md) [TKT-009](./tickets/TKT-009-web-manifest-package-export-preset.md) [TKT-010](./tickets/TKT-010-web-runtime-ort-adaptation.md) [TKT-011](./tickets/TKT-011-web-browser-smoke-ci-docs.md) | 2026-04-10 の GitHub Actions run `24223195868` で `Build Web`、browser smoke、README 反映を含む Phase 1 preview support の受け入れ条件を確認済み |
 | 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | Web preview、macOS packaged smoke、iOS export smoke の結果までは反映済み。残りは Android の最終判定と changelog / Asset Library 文書の最終化 |
-| 進行中 | M9 GitHub Pages Public Demo / Deploy | post-preview Web public demo / GitHub Pages deployment | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) [TKT-013](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | `M7` 完了後の follow-up。ticket 分解と `GP0` scope / asset policy 固定に着手し、Pages 向け `no-threads` / `CPU-only` / English minimal demo の前提整理を進めています |
+| 進行中 | M9 GitHub Pages Public Demo / Deploy | post-preview Web public demo / GitHub Pages deployment | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) [TKT-013](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) [TKT-014](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md) | `M7` 完了後の follow-up。`GP0` と `GP1` の ticket 分解まで完了し、Pages 向け scope 固定と preset / public entry の設計単位を切り出しています |
 
 ## マイルストーン詳細
 
@@ -162,8 +162,8 @@
 - 対象要求: post-preview Web public demo / GitHub Pages deployment
 - 状態: `進行中`
 - 依存: `M7`
-- 関連チケット: [TKT-012 Web GitHub Pages deploy / public demo](./tickets/TKT-012-web-github-pages-deploy.md) [TKT-013 GitHub Pages scope / asset policy 固定](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md)
-- 現状: GitHub Pages 対応の前提整理は [docs/web-github-pages-plan.md](./web-github-pages-plan.md) に反映済みです。`docs/tickets/m9-github-pages/` に個別チケットの分解を開始し、`GP0` として public demo scope、model 配布方針、hosting 前提の固定に着手しています。Pages 向け preset、`index.html` export、deploy workflow、public URL smoke は未実装です。
+- 関連チケット: [TKT-012 Web GitHub Pages deploy / public demo](./tickets/TKT-012-web-github-pages-deploy.md) [TKT-013 GitHub Pages scope / asset policy 固定](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) [TKT-014 GitHub Pages preset / public entry 整備](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md)
+- 現状: GitHub Pages 対応の前提整理は [docs/web-github-pages-plan.md](./web-github-pages-plan.md) に反映済みです。`docs/tickets/m9-github-pages/` で `GP0` と `GP1` を個別チケット化し、public demo scope、model 配布方針、preset / public entry の責務分割を先に固定しています。Pages 向け preset、`index.html` export、deploy workflow、public URL smoke は未実装です。
 - 実装スコープ:
   - `no-threads`
   - `CPU-only`
@@ -187,7 +187,7 @@
 | 状態 | ID | チケット | マイルストーン | 主な変更対象 | 完了条件 |
 |---|---|---|---|---|---|
 | 進行中 | `GP0` | [TKT-013](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | scope / asset policy 固定 | `docs/web-github-pages-plan.md`, `docs/milestones.md`, `docs/tickets/TKT-012-web-github-pages-deploy.md`, `docs/tickets/m9-github-pages/` | `no-threads` / `CPU-only` / English minimal demo、model 配布方針、PWA workaround 前提が文書で固定されている |
-| 未着手 | `GP1` | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) | Pages 向け preset / public entry 整備 | `test/project/export_presets.cfg`, 公開 demo 用 project または asset 一式, 必要なら export 補助 script | Pages 向け preset が `index.html`、`no-threads`、PWA 有効を満たし、公開入口が固定されている |
+| 未着手 | `GP1` | [TKT-014](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md) | Pages 向け preset / public entry 整備 | `test/project/export_presets.cfg`, 公開 demo 用 project または asset 一式, 必要なら export 補助 script | Pages 向け preset が `index.html`、`no-threads`、PWA 有効を満たし、公開入口が固定されている |
 | 未着手 | `GP2` | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) | Pages deploy workflow 整備 | `.github/workflows/build.yml` または Pages 専用 workflow, deploy 補助 script | `configure-pages`、artifact upload、deploy が CI 上で成立する |
 | 未着手 | `GP3` | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) | public URL smoke 整備 | smoke 用 script 群, 必要なら Playwright helper, workflow の deploy 後 step | deploy 後の `page_url` で addon load と最小 synthesize を確認できる |
 | 未着手 | `GP4` | [TKT-012](./tickets/TKT-012-web-github-pages-deploy.md) | 文書 / 運用メモ最終化 | `README.md`, `docs/web-github-pages-plan.md`, 関連 docs | 公開 URL の scope、既知制約、cache / service worker 注意点が文書へ反映されている |
@@ -201,7 +201,7 @@
 ## post-preview Web の実行順
 
 1. [TKT-013 GitHub Pages scope / asset policy 固定](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) で、公開 scope と model 配布方針を固定する
-2. `GP1` `GP2` の後続チケットで、Pages 向け preset / public entry と deploy workflow を揃える
+2. [TKT-014 GitHub Pages preset / public entry 整備](./tickets/m9-github-pages/TKT-014-github-pages-preset-public-entry.md) と `GP2` の後続チケットで、Pages 向け preset / public entry と deploy workflow を揃える
 3. `GP3` `GP4` の後続チケットで、public URL smoke と文書反映を閉じる
 
 ## ブロッカー / 未確定事項
