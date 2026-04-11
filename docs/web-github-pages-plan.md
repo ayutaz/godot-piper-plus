@@ -19,6 +19,8 @@
 - `GP0` の具体的な scope / asset policy の正本は [`TKT-013 GitHub Pages scope / asset policy 固定`](./tickets/m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) に置き、この文書は overview を保ちます。
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通っており、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - 現在の runtime contract は Web 向け `EP_CPU` 固定で、最小 synthesize は英語 text input または phoneme string を中心に成立しています。
+- repo 側の Pages 実装は着手済みで、public demo project は [`pages_demo`](../pages_demo)、staging/export は [`scripts/ci/prepare-pages-demo-assets.sh`](../scripts/ci/prepare-pages-demo-assets.sh) と [`scripts/ci/export-pages-demo.sh`](../scripts/ci/export-pages-demo.sh)、smoke は [`scripts/ci/run-pages-demo-smoke.mjs`](../scripts/ci/run-pages-demo-smoke.mjs)、workflow は [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) に入りました。
+- Pages workflow 自体の最終確認は未実施です。現時点の状態は「repo 実装済み、GitHub Actions / Pages 上の実走確認待ち」です。
 
 ## GitHub Pages 化で追加で必要なこと
 
@@ -54,12 +56,12 @@
 
 ## 実装方針
 
-- Pages 専用の Web preset を追加し、まずは `variant/thread_support=false` の `no-threads` を正本にする
+- Pages 専用の Web preset は staging script が生成し、`variant/thread_support=false` の `no-threads` を正本にする
 - `progressive_web_app/enabled=true` と `progressive_web_app/ensure_cross_origin_isolation_headers=true` を使い、header を直接制御できない hosting でも動く形を優先する
-- 公開対象は `test/project` ベースの最小 English demo か、新規の minimal public demo のどちらかに絞る
-- export 生成物は `index.html` を入口に揃える
-- workflow には `actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages` を追加する
-- deploy 後に `page_url` へアクセスして、addon load と最小 synthesize を確認する smoke を追加する
+- 公開対象は `test/project` とは分離した dedicated minimal public demo project [`pages_demo`](../pages_demo) に固定する
+- export 生成物は `index.html` を入口に揃え、[`scripts/ci/export-pages-demo.sh`](../scripts/ci/export-pages-demo.sh) が `public-demo-manifest.json` と `build-meta.json` を artifact 契約の正本として生成する
+- workflow は [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) で `build-pages-demo`、`deploy-pages-demo`、`smoke-pages-demo` の 3 job に分ける
+- deploy 後は `page_url` を [`scripts/ci/run-pages-demo-smoke.mjs`](../scripts/ci/run-pages-demo-smoke.mjs) へ渡し、addon load と最小 synthesize を確認する
 
 ## 受け入れ条件
 

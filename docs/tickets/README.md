@@ -19,11 +19,11 @@
 | 完了 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
 | 完了 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
 | 進行中 | [TKT-012](TKT-012-web-github-pages-deploy.md) | Web GitHub Pages deploy / public demo | - | `M9` `M7` | `TKT-011` | `TKT-013` `TKT-014` `TKT-015` `TKT-016` `TKT-017` |
-| 進行中 | [TKT-013](m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | GitHub Pages scope / asset policy 固定 | `TKT-012` | `M9` `M7` | `TKT-011` | `TKT-014` `TKT-015` `TKT-016` `TKT-017` |
-| 未着手 | [TKT-014](m9-github-pages/TKT-014-github-pages-preset-public-entry.md) | GitHub Pages preset / public entry 整備 | `TKT-012` | `M9` `M7` | `TKT-013` | `TKT-015` `TKT-016` `TKT-017` |
-| 未着手 | [TKT-015](m9-github-pages/TKT-015-github-pages-deploy-workflow.md) | GitHub Pages deploy workflow 整備 | `TKT-012` | `M9` `M7` | `TKT-013` `TKT-014` | `TKT-016` `TKT-017` |
-| 未着手 | [TKT-016](m9-github-pages/TKT-016-github-pages-public-url-smoke.md) | GitHub Pages public URL smoke 整備 | `TKT-012` | `M9` `M7` | `TKT-014` `TKT-015` | `TKT-017` |
-| 未着手 | [TKT-017](m9-github-pages/TKT-017-github-pages-docs-operational-notes.md) | GitHub Pages docs / operational notes 最終化 | `TKT-012` | `M9` `M7` | `TKT-013` `TKT-014` `TKT-015` `TKT-016` | - |
+| 完了 | [TKT-013](m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) | GitHub Pages scope / asset policy 固定 | `TKT-012` | `M9` `M7` | `TKT-011` | `TKT-014` `TKT-015` `TKT-016` `TKT-017` |
+| 進行中 | [TKT-014](m9-github-pages/TKT-014-github-pages-preset-public-entry.md) | GitHub Pages preset / public entry 整備 | `TKT-012` | `M9` `M7` | `TKT-013` | `TKT-015` `TKT-016` `TKT-017` |
+| 進行中 | [TKT-015](m9-github-pages/TKT-015-github-pages-deploy-workflow.md) | GitHub Pages deploy workflow 整備 | `TKT-012` | `M9` `M7` | `TKT-013` `TKT-014` | `TKT-016` `TKT-017` |
+| 進行中 | [TKT-016](m9-github-pages/TKT-016-github-pages-public-url-smoke.md) | GitHub Pages public URL smoke 整備 | `TKT-012` | `M9` `M7` | `TKT-014` `TKT-015` | `TKT-017` |
+| 進行中 | [TKT-017](m9-github-pages/TKT-017-github-pages-docs-operational-notes.md) | GitHub Pages docs / operational notes 最終化 | `TKT-012` | `M9` `M7` | `TKT-013` `TKT-014` `TKT-015` `TKT-016` | - |
 
 ## 運用メモ
 

@@ -131,6 +131,25 @@ GODOT=/path/to/godot bash scripts/ci/export-web-smoke.sh
 `run-web-smoke.mjs` には Node.js と Playwright が必要です。
 `npm install --no-save playwright` の後に `npx playwright install chromium` を実行してください。
 
+## GitHub Pages Public Demo
+
+GitHub Pages 向けの public demo は `M7` の preview support とは別の follow-up として実装しています。
+
+- workflow は [`.github/workflows/pages.yml`](./.github/workflows/pages.yml) です
+- scope は `no-threads` / `CPU-only` / English minimal demo / `en_US-ljspeech-medium` 1 モデル同梱です
+- export 入口は `index.html`、PWA と cross-origin isolation workaround を有効にしています
+- 公開 URL は Pages deploy 成功と public URL smoke pass 後にのみ案内する方針です
+
+repo 内の実装入口:
+
+- public demo project: [`pages_demo`](./pages_demo)
+- project staging: [`scripts/ci/prepare-pages-demo-assets.sh`](./scripts/ci/prepare-pages-demo-assets.sh)
+- export: [`scripts/ci/export-pages-demo.sh`](./scripts/ci/export-pages-demo.sh)
+- local / remote smoke: [`scripts/ci/run-pages-demo-smoke.mjs`](./scripts/ci/run-pages-demo-smoke.mjs)
+- artifact contract: `public-demo-manifest.json` と `build-meta.json`
+
+運用メモと進捗は [docs/web-github-pages-plan.md](./docs/web-github-pages-plan.md) と [docs/milestones.md](./docs/milestones.md) を参照してください。
+
 ## Editor ツール
 
 addon は次の editor command を提供します。

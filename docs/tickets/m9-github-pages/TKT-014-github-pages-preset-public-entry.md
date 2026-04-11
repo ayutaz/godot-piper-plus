@@ -1,6 +1,6 @@
 # TKT-014 GitHub Pages preset / public entry 整備
 
-- 状態: `未着手`
+- 状態: `進行中`
 - フェーズ: `GP1`
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
@@ -11,10 +11,10 @@
 
 ## 進捗
 
-- [ ] Pages 向けの `no-threads` / `CPU-only` / English minimal demo preset を追加する
-- [ ] `index.html` を入口にした公開用 export target を固定する
-- [ ] public demo 用 scene / asset / UI 導線を固定する
-- [ ] `GP2` と `GP3` が利用する export artifact 契約を固定する
+- [x] Pages 向けの `no-threads` / `CPU-only` / English minimal demo preset を追加する
+- [x] `index.html` を入口にした公開用 export target を固定する
+- [x] public demo 用 scene / asset / UI 導線を固定する
+- [x] `GP2` と `GP3` が利用する export artifact 契約を固定する
 
 ## タスク目的とゴール
 
@@ -23,10 +23,10 @@
 
 ## 実装する内容の詳細
 
-- `test/project/export_presets.cfg` を拡張するか、公開用 project / preset を別に切り出して Pages 向け export target を定義する。
+- dedicated public demo project [`pages_demo`](../../../pages_demo) を正本にし、[`scripts/ci/prepare-pages-demo-assets.sh`](../../../scripts/ci/prepare-pages-demo-assets.sh) と [`scripts/ci/export-pages-demo.sh`](../../../scripts/ci/export-pages-demo.sh) が staged addon / model payload と Web export を生成する。
 - `variant/thread_support=false`、`progressive_web_app/enabled=true`、`progressive_web_app/ensure_cross_origin_isolation_headers=true`、`index.html` を満たす preset を用意する。
 - 公開入口として使う minimal demo の scene、asset、UI テキスト、説明導線を固定する。
-- export 後に GitHub Pages artifact として publish するファイル構成を固定し、`GP2` の workflow と `GP3` の smoke が同じ契約を参照できるようにする。
+- export 後に GitHub Pages artifact として publish するファイル構成を固定し、[`scripts/ci/export-pages-demo.sh`](../../../scripts/ci/export-pages-demo.sh) が書き出す `public-demo-manifest.json` と `build-meta.json` を `GP2` と `GP3` の共通契約にする。
 - model / dictionary / config の読み込み前提を `GP0` の scope と整合する形で整理する。
 
 ## 実装するために必要なエージェントチームの役割と人数

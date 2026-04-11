@@ -1,6 +1,6 @@
 # TKT-013 GitHub Pages scope / asset policy 固定
 
-- 状態: `進行中`
+- 状態: `完了`
 - フェーズ: `GP0`
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
@@ -12,11 +12,11 @@
 ## 進捗
 
 - [x] `M9` の `GP0` を個別チケットとして切り出す
-- [ ] public demo の scope を `no-threads` / `CPU-only` / English minimal demo に固定する
-- [ ] public demo 用 asset policy を `en_US-ljspeech-medium` 1 モデル同梱、runtime download なしで固定する
-- [ ] license / notice / cache versioning / hosting 前提を固定する
-- [ ] 公開 URL は Pages deploy 成功と public URL smoke pass 後にのみ案内する方針を固定する
-- [ ] `GP1` から `GP4` が参照する acceptance criteria を整理する
+- [x] public demo の scope を `no-threads` / `CPU-only` / English minimal demo に固定する
+- [x] public demo 用 asset policy を `en_US-ljspeech-medium` 1 モデル同梱、runtime download なしで固定する
+- [x] license / notice / cache versioning / hosting 前提を固定する
+- [x] 公開 URL は Pages deploy 成功と public URL smoke pass 後にのみ案内する方針を固定する
+- [x] `GP1` から `GP4` が参照する acceptance criteria を整理する
 
 ## タスク目的とゴール
 

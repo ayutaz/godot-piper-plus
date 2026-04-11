@@ -1,6 +1,6 @@
 # TKT-017 GitHub Pages docs / operational notes 最終化
 
-- 状態: `未着手`
+- 状態: `進行中`
 - フェーズ: `GP4`
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
@@ -11,8 +11,8 @@
 
 ## 進捗
 
-- [ ] README と関連 docs に public demo の scope と known limitations を反映する
-- [ ] deploy workflow、public URL smoke、cache troubleshooting の運用メモを反映する
+- [x] README と関連 docs に public demo の scope と known limitations を反映する
+- [x] deploy workflow、public URL smoke、cache troubleshooting の運用メモを反映する
 - [ ] `M9`、`TKT-012`、個別チケットの完了時反映手順を整理する
 - [ ] `GP0` で固定した公開 URL の案内条件を README と運用メモへ反映する
 

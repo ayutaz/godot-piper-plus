@@ -1,6 +1,6 @@
 # TKT-015 GitHub Pages deploy workflow 整備
 
-- 状態: `未着手`
+- 状態: `進行中`
 - フェーズ: `GP2`
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
@@ -11,10 +11,10 @@
 
 ## 進捗
 
-- [ ] Pages 用 artifact upload / deploy の workflow 構成を決める
-- [ ] `configure-pages`、`upload-pages-artifact`、`deploy-pages` の利用方針を固定する
-- [ ] Pages deploy の permissions、environment、concurrency、artifact 名を固定する
-- [ ] `GP3` が利用する `page_url` / metadata の受け渡しを固定する
+- [x] Pages 用 artifact upload / deploy の workflow 構成を決める
+- [x] `configure-pages`、`upload-pages-artifact`、`deploy-pages` の利用方針を固定する
+- [x] Pages deploy の permissions、environment、concurrency、artifact 名を固定する
+- [x] `GP3` が利用する `page_url` / metadata の受け渡しを固定する
 
 ## タスク目的とゴール
 
@@ -23,7 +23,7 @@
 
 ## 実装する内容の詳細
 
-- `.github/workflows/build.yml` を拡張するか、Pages 専用 workflow を分離するかを決める。
+- Pages 専用 workflow [`.github/workflows/pages.yml`](../../../.github/workflows/pages.yml) を分離し、`build-pages-demo`、`deploy-pages-demo`、`smoke-pages-demo` に責務を分ける。
 - `actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages` を用いた deploy job の責務を定義する。
 - deploy 対象 artifact の入力ディレクトリ、必要ファイル、命名規則、成功条件を固定する。
 - workflow の permissions、environment、concurrency、branch 条件、manual trigger の扱いを整理する。

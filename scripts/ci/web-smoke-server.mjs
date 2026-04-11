@@ -7,6 +7,8 @@ function parseArgs(argv) {
     root: '',
     host: '127.0.0.1',
     port: 0,
+    coiMode: 'headers',
+    cacheControl: 'no-store',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -17,6 +19,10 @@ function parseArgs(argv) {
       result.host = argv[++i] ?? '127.0.0.1';
     } else if (arg === '--port') {
       result.port = Number(argv[++i] ?? '0');
+    } else if (arg === '--coi-mode') {
+      result.coiMode = argv[++i] ?? 'headers';
+    } else if (arg === '--cache-control') {
+      result.cacheControl = argv[++i] ?? 'no-store';
     } else if (arg === '--help') {
       result.help = true;
     }
@@ -51,12 +57,21 @@ function contentTypeFor(filePath) {
   }
 }
 
-const headers = {
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'require-corp',
-  'Cross-Origin-Resource-Policy': 'same-origin',
-  'Cache-Control': 'no-store',
-};
+function buildHeaders(args) {
+  const headers = {};
+
+  if (args.coiMode !== 'none') {
+    headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+    headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+    headers['Cross-Origin-Resource-Policy'] = 'same-origin';
+  }
+
+  if (args.cacheControl !== 'none' && args.cacheControl !== 'default') {
+    headers['Cache-Control'] = args.cacheControl;
+  }
+
+  return headers;
+}
 
 async function resolveFile(root, requestUrl) {
   const url = new URL(requestUrl, 'http://localhost');
@@ -88,12 +103,13 @@ async function resolveFile(root, requestUrl) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.root) {
-    console.error('Usage: node web-smoke-server.mjs --root <dir> [--host 127.0.0.1] [--port 0]');
+    console.error('Usage: node web-smoke-server.mjs --root <dir> [--host 127.0.0.1] [--port 0] [--coi-mode headers|none] [--cache-control value]');
     process.exit(args.help ? 0 : 1);
   }
 
   const root = path.resolve(args.root);
   await fs.access(root);
+  const headers = buildHeaders(args);
 
   const server = createServer(async (req, res) => {
     try {

@@ -1,6 +1,6 @@
 # TKT-016 GitHub Pages public URL smoke 整備
 
-- 状態: `未着手`
+- 状態: `進行中`
 - フェーズ: `GP3`
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
@@ -11,10 +11,10 @@
 
 ## 進捗
 
-- [ ] deploy 後の `page_url` に対する smoke 観点を固定する
-- [ ] addon load と最小 synthesize を確認する browser automation を整備する
-- [ ] service worker cache / stale deploy を切り分ける診断方法を固定する
-- [ ] failure 時の screenshot / console / log artifact を固定する
+- [x] deploy 後の `page_url` に対する smoke 観点を固定する
+- [x] addon load と最小 synthesize を確認する browser automation を整備する
+- [x] service worker cache / stale deploy を切り分ける診断方法を固定する
+- [x] failure 時の screenshot / console / log artifact を固定する
 
 ## タスク目的とゴール
 
@@ -23,7 +23,7 @@
 
 ## 実装する内容の詳細
 
-- `TKT-015` が出力する `page_url` を受け取り、headless browser でアクセスする smoke を設計する。
+- [`scripts/ci/run-pages-demo-smoke.mjs`](../../../scripts/ci/run-pages-demo-smoke.mjs) が `TKT-015` の `page_url` を受け取り、local / remote の両 mode で headless browser smoke を実行する。
 - addon load、最小 synthesize、必要 resource の解決、エラーメッセージの検出条件を固定する。
 - cache-busting、service worker 更新反映、deploy 直後の待ち合わせなど、GitHub Pages 固有の揺れを吸収する。
 - failure 時に screenshot、console log、network / app log などの診断情報を artifact として残す。

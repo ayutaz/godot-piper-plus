@@ -14,12 +14,12 @@
 - [x] `M9` を個別チケット化するための分解方針を決める
 - [x] `docs/tickets/m9-github-pages/` 配下に GitHub Pages 専用チケットフォルダを作る
 - [x] `GP0` から `GP4` を個別チケットへ分割する
-- [ ] GitHub Pages 向けの前提、制約、公開範囲を固定する
-- [ ] Pages 専用の `no-threads` / `CPU-only` / English minimal demo preset を追加する
-- [ ] `index.html` を入口にした公開用 export を組み立てる
-- [ ] GitHub Actions に Pages artifact upload / deploy job を追加する
-- [ ] deploy 後の public URL に対する smoke を追加する
-- [ ] 公開デモの scope と既知制約を文書へ反映する
+- [x] GitHub Pages 向けの前提、制約、公開範囲を固定する
+- [x] Pages 専用の `no-threads` / `CPU-only` / English minimal demo preset を追加する
+- [x] `index.html` を入口にした公開用 export を組み立てる
+- [x] GitHub Actions に Pages artifact upload / deploy job を追加する
+- [x] deploy 後の public URL に対する smoke を追加する
+- [x] 公開デモの scope と既知制約を文書へ反映する
 
 ## タスク目的とゴール
 
