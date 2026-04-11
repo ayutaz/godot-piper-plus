@@ -6,7 +6,7 @@
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
 - 親チケット: [TKT-012 Web GitHub Pages deploy / public demo](../TKT-012-web-github-pages-deploy.md)
 - 依存チケット: [`TKT-013`](./TKT-013-github-pages-scope-asset-policy.md)
-- 後続チケット: [TKT-015](./TKT-015-github-pages-deploy-workflow.md) [TKT-016](./TKT-016-github-pages-public-url-smoke.md) `TKT-017`
+- 後続チケット: [TKT-015](./TKT-015-github-pages-deploy-workflow.md) [TKT-016](./TKT-016-github-pages-public-url-smoke.md) [TKT-017](./TKT-017-github-pages-docs-operational-notes.md)
 - 関連メモ: [docs/web-github-pages-plan.md](../../web-github-pages-plan.md) [M9 GitHub Pages 個別チケット](./README.md)
 
 ## 進捗
@@ -83,4 +83,4 @@
 
 - [TKT-015](./TKT-015-github-pages-deploy-workflow.md) には、workflow がこのチケットで固定した artifact 構成とファイル名をそのまま publish するよう引き継ぐ。
 - [TKT-016](./TKT-016-github-pages-public-url-smoke.md) には、public URL smoke がこのチケットで固定した `index.html` と minimal demo 導線を前提に設計されるよう引き継ぐ。
-- `TKT-017` には、公開手順と known limitations がこのチケットの preset / artifact 契約と一致するよう引き継ぐ。
+- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、公開手順と known limitations がこのチケットの preset / artifact 契約と一致するよう引き継ぐ。

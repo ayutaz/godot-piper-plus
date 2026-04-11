@@ -4,16 +4,16 @@
 - 主マイルストーン: [M9 GitHub Pages Public Demo / Deploy](../milestones.md#m9)
 - 関連マイルストーン: [M7 Web Support 完成](../milestones.md#m7)
 - 関連要求: post-preview Web public demo / GitHub Pages deployment
-- 子チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md)
+- 子チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) [`TKT-014`](./m9-github-pages/TKT-014-github-pages-preset-public-entry.md) [`TKT-015`](./m9-github-pages/TKT-015-github-pages-deploy-workflow.md) [`TKT-016`](./m9-github-pages/TKT-016-github-pages-public-url-smoke.md) [`TKT-017`](./m9-github-pages/TKT-017-github-pages-docs-operational-notes.md)
 - 依存チケット: [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md)
-- 後続チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) 以降の `GP1` から `GP4` split tickets
+- 後続チケット: [`TKT-013`](./m9-github-pages/TKT-013-github-pages-scope-asset-policy.md) [`TKT-014`](./m9-github-pages/TKT-014-github-pages-preset-public-entry.md) [`TKT-015`](./m9-github-pages/TKT-015-github-pages-deploy-workflow.md) [`TKT-016`](./m9-github-pages/TKT-016-github-pages-public-url-smoke.md) [`TKT-017`](./m9-github-pages/TKT-017-github-pages-docs-operational-notes.md)
 - 関連メモ: [docs/web-github-pages-plan.md](../web-github-pages-plan.md)
 
 ## 進捗
 
 - [x] `M9` を個別チケット化するための分解方針を決める
 - [x] `docs/tickets/m9-github-pages/` 配下に GitHub Pages 専用チケットフォルダを作る
-- [ ] `GP0` から `GP4` を個別チケットへ分割する
+- [x] `GP0` から `GP4` を個別チケットへ分割する
 - [ ] GitHub Pages 向けの前提、制約、公開範囲を固定する
 - [ ] Pages 専用の `no-threads` / `CPU-only` / English minimal demo preset を追加する
 - [ ] `index.html` を入口にした公開用 export を組み立てる
@@ -33,7 +33,7 @@
 - [TKT-014 GitHub Pages preset / public entry 整備](./m9-github-pages/TKT-014-github-pages-preset-public-entry.md): `GP1`
 - [TKT-015 GitHub Pages deploy workflow 整備](./m9-github-pages/TKT-015-github-pages-deploy-workflow.md): `GP2`
 - [TKT-016 GitHub Pages public URL smoke 整備](./m9-github-pages/TKT-016-github-pages-public-url-smoke.md): `GP3`
-- `GP4`: `TKT-017` で個別化予定
+- [TKT-017 GitHub Pages docs / operational notes 最終化](./m9-github-pages/TKT-017-github-pages-docs-operational-notes.md): `GP4`
 
 ## 実装メモ
 

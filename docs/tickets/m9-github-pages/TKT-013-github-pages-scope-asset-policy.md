@@ -6,7 +6,7 @@
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
 - 親チケット: [TKT-012 Web GitHub Pages deploy / public demo](../TKT-012-web-github-pages-deploy.md)
 - 依存チケット: [`TKT-011`](../TKT-011-web-browser-smoke-ci-docs.md)
-- 後続チケット: [TKT-014](./TKT-014-github-pages-preset-public-entry.md) [TKT-015](./TKT-015-github-pages-deploy-workflow.md) [TKT-016](./TKT-016-github-pages-public-url-smoke.md) `TKT-017 (planned)`
+- 後続チケット: [TKT-014](./TKT-014-github-pages-preset-public-entry.md) [TKT-015](./TKT-015-github-pages-deploy-workflow.md) [TKT-016](./TKT-016-github-pages-public-url-smoke.md) [TKT-017](./TKT-017-github-pages-docs-operational-notes.md)
 - 関連メモ: [docs/web-github-pages-plan.md](../../web-github-pages-plan.md) [M9 GitHub Pages 個別チケット](./README.md)
 
 ## 進捗
@@ -96,7 +96,7 @@
 
 ## 後続のタスクに連絡する内容
 
-- `TKT-014` には、Pages preset と public entry を `no-threads` / `CPU-only` / English minimal demo 前提で実装するよう引き継ぐ。
-- `TKT-015` には、deploy workflow が `en_US-ljspeech-medium` 同梱、runtime download なし、notice 同梱、cache versioning の契約を壊さないよう引き継ぐ。
-- `TKT-016` には、public URL smoke が fresh browser context と service worker cache 切り分けを前提にするよう引き継ぐ。
-- `TKT-017` には、最終文書化で `GP0` の scope を過大表現しないことを引き継ぐ。
+- [TKT-014](./TKT-014-github-pages-preset-public-entry.md) には、Pages preset と public entry を `no-threads` / `CPU-only` / English minimal demo 前提で実装するよう引き継ぐ。
+- [TKT-015](./TKT-015-github-pages-deploy-workflow.md) には、deploy workflow が `en_US-ljspeech-medium` 同梱、runtime download なし、notice 同梱、cache versioning の契約を壊さないよう引き継ぐ。
+- [TKT-016](./TKT-016-github-pages-public-url-smoke.md) には、public URL smoke が fresh browser context と service worker cache 切り分けを前提にするよう引き継ぐ。
+- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、最終文書化で `GP0` の scope を過大表現しないことを引き継ぐ。

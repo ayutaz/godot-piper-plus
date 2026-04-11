@@ -12,7 +12,7 @@
 | 未着手 | [TKT-014](./TKT-014-github-pages-preset-public-entry.md) | `GP1` | Pages 向け preset / public entry 整備 | `TKT-013` | `TKT-015` `TKT-016` `TKT-017` |
 | 未着手 | [TKT-015](./TKT-015-github-pages-deploy-workflow.md) | `GP2` | Pages deploy workflow 整備 | `TKT-013` `TKT-014` | `TKT-016` `TKT-017` |
 | 未着手 | [TKT-016](./TKT-016-github-pages-public-url-smoke.md) | `GP3` | public URL smoke 整備 | `TKT-014` `TKT-015` | `TKT-017` |
-| 未着手 | `TKT-017` | `GP4` | 文書 / 運用メモ最終化 | `TKT-013` `TKT-014` `TKT-015` `TKT-016` | - |
+| 未着手 | [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) | `GP4` | 文書 / 運用メモ最終化 | `TKT-013` `TKT-014` `TKT-015` `TKT-016` | - |
 
 ## 運用メモ
 

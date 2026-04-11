@@ -6,7 +6,7 @@
 - 関連マイルストーン: [M7 Web Support 完成](../../milestones.md#m7)
 - 親チケット: [TKT-012 Web GitHub Pages deploy / public demo](../TKT-012-web-github-pages-deploy.md)
 - 依存チケット: [`TKT-014`](./TKT-014-github-pages-preset-public-entry.md) [`TKT-015`](./TKT-015-github-pages-deploy-workflow.md)
-- 後続チケット: `TKT-017`
+- 後続チケット: [TKT-017](./TKT-017-github-pages-docs-operational-notes.md)
 - 関連メモ: [docs/web-github-pages-plan.md](../../web-github-pages-plan.md) [M9 GitHub Pages 個別チケット](./README.md)
 
 ## 進捗
@@ -81,4 +81,4 @@
 
 ## 後続のタスクに連絡する内容
 
-- `TKT-017` には、運用メモと README がこのチケットの smoke 導線、failure artifact、cache 切り分け手順と一致するよう引き継ぐ。
+- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、運用メモと README がこのチケットの smoke 導線、failure artifact、cache 切り分け手順と一致するよう引き継ぐ。
