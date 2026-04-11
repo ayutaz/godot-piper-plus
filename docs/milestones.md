@@ -123,6 +123,8 @@
   - Phase 2: Japanese text input の dictionary bootstrap、multilingual parity 拡張、binary size 最適化などの広がりは preview 後に扱う
 - 残作業:
   - なし。Phase 2 項目は別要求として扱います。
+- follow-up:
+  - GitHub Pages 向け public demo / deploy は release gate 外の post-preview task として [`TKT-012`](./tickets/TKT-012-web-github-pages-deploy.md) で追跡します。前提整理は [`docs/web-github-pages-plan.md`](./web-github-pages-plan.md) にまとめます。
 - 完了条件:
   - Web export 向け build / package / export 導線が成立する
   - `web.*` manifest、package validator、test project export preset が同じ artifact 契約を参照している
@@ -171,3 +173,7 @@
 - Windows packaged addon smoke、Linux headless strict CI、macOS packaged addon smoke、iOS export smoke は整備と実結果確認が完了しています。
 - 2026-04-10 の GitHub Actions run `24223195868` で Web preview の `Build Web` と browser smoke は `threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - multilingual contract、capability matrix、matrix-first 検証、runtime capability/error API は完了済みで、成果は `tests/fixtures/` と `docs/generated/` に反映済みです。
+
+## release gate 外の follow-up
+
+- Web preview support 自体は完了済みです。GitHub Pages 上で動く public demo / deploy は別タスクとして [`TKT-012`](./tickets/TKT-012-web-github-pages-deploy.md) で追跡し、技術整理は [`docs/web-github-pages-plan.md`](./web-github-pages-plan.md) にまとめます。
