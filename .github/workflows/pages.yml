@@ -196,7 +196,7 @@ jobs:
         run: |
           chmod +x scripts/ci/build-web-side-module.sh
           PIPER_PLUS_WEB_THREAD_MATRIX="nothreads" \
-          PIPER_PLUS_WEB_CONFIG_MATRIX="Release" \
+          PIPER_PLUS_WEB_CONFIG_MATRIX="Debug,Release" \
           ONNXRUNTIME_DIR_NOTHREADS="$RUNNER_TEMP/onnxruntime-web-nothreads" \
           bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
 
