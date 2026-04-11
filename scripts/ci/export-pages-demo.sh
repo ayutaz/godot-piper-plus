@@ -17,6 +17,12 @@ CONFIG_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx.json"
 CMUDICT_RELATIVE_PATH="addons/piper_plus/dictionaries/cmudict_data.json"
 ADDON_GDEXTENSION_RELATIVE_PATH="addons/piper_plus/piper_plus.gdextension"
 ADDON_BIN_RELATIVE_DIR="addons/piper_plus/bin"
+ADDON_ICON_RELATIVE_PATH="addons/piper_plus/icon.svg"
+WEB_RELEASE_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.web.template_release.wasm32.nothreads.wasm"
+WEB_DEBUG_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.web.template_debug.wasm32.nothreads.wasm"
+LINUX_RELEASE_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.linux.template_release.x86_64.so"
+LINUX_DEBUG_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.linux.template_debug.x86_64.so"
+LINUX_ORT_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libonnxruntime.linux.x86_64.so"
 BUILD_SHA="${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf 'local')}"
 STAGED_TEMPLATE_ROOT="$(dirname "$PROJECT_DIR")/.ci/godot-web-templates/$GODOT_TEMPLATES_VERSION"
 
@@ -100,7 +106,21 @@ PIPER_PAGES_PROJECT_DIR="$PROJECT_DIR" bash "$SCRIPT_DIR/prepare-pages-demo-asse
 stage_custom_templates
 node "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
 
-"$GODOT" --headless --path "$PROJECT_DIR" --export-release "$PRESET_NAME" "$SITE_ROOT/$ENTRY_NAME"
+for required_path in \
+	"$PROJECT_DIR/$ADDON_ICON_RELATIVE_PATH" \
+	"$PROJECT_DIR/$WEB_RELEASE_BINARY_RELATIVE_PATH" \
+	"$PROJECT_DIR/$WEB_DEBUG_BINARY_RELATIVE_PATH" \
+	"$PROJECT_DIR/$LINUX_RELEASE_BINARY_RELATIVE_PATH" \
+	"$PROJECT_DIR/$LINUX_DEBUG_BINARY_RELATIVE_PATH" \
+	"$PROJECT_DIR/$LINUX_ORT_RELATIVE_PATH"
+do
+	if [[ ! -f "$required_path" ]]; then
+		echo "ERROR: required Pages demo export input is missing: $required_path" >&2
+		exit 1
+	fi
+done
+
+"$GODOT" --headless --verbose --path "$PROJECT_DIR" --export-release "$PRESET_NAME" "$SITE_ROOT/$ENTRY_NAME"
 
 if [[ ! -f "$SITE_ROOT/$ENTRY_NAME" ]]; then
 	echo "ERROR: Pages demo export did not produce $SITE_ROOT/$ENTRY_NAME" >&2
@@ -114,6 +134,11 @@ fi
 
 if [[ ! -d "$PROJECT_DIR/$ADDON_BIN_RELATIVE_DIR" ]]; then
 	echo "ERROR: staged addon bin directory is missing: $PROJECT_DIR/$ADDON_BIN_RELATIVE_DIR" >&2
+	exit 1
+fi
+
+if [[ ! -f "$PROJECT_DIR/$ADDON_ICON_RELATIVE_PATH" ]]; then
+	echo "ERROR: staged addon icon is missing: $PROJECT_DIR/$ADDON_ICON_RELATIVE_PATH" >&2
 	exit 1
 fi
 
