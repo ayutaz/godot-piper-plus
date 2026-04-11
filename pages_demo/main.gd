@@ -7,7 +7,7 @@ const DEFAULT_TEXT := "Hello from Piper Plus on GitHub Pages."
 const STATUS_PREFIX := "PAGES_DEMO status="
 const SUMMARY_PREFIX := "PAGES_DEMO summary="
 
-var tts: PiperTTS
+var tts = null
 var audio_player: AudioStreamPlayer
 var title_label: Label
 var description_label: Label
@@ -29,9 +29,20 @@ func _ready() -> void:
 		_emit_status("fail")
 		return
 
-	tts = PiperTTS.new()
+	if not ClassDB.class_exists("PiperTTS"):
+		_set_status("PiperTTS class is not available in this export.")
+		_emit_status("fail")
+		return
+
+	var instance = ClassDB.instantiate("PiperTTS")
+	if instance == null or not (instance is Node):
+		_set_status("PiperTTS could not be instantiated.")
+		_emit_status("fail")
+		return
+
+	tts = instance
 	audio_player = AudioStreamPlayer.new()
-	add_child(tts)
+	add_child(instance)
 	add_child(audio_player)
 
 	tts.model_path = MODEL_PATH
@@ -42,7 +53,7 @@ func _ready() -> void:
 
 	_update_contract_label()
 	_set_status("Initializing runtime...")
-	var err := tts.initialize()
+	var err = int(tts.initialize())
 	if err != OK and not tts.is_ready():
 		_set_status("initialize() failed with error %d" % err)
 		_emit_status("fail")
@@ -119,7 +130,7 @@ func _on_tts_initialized(success: bool) -> void:
 
 func _run_startup_probe() -> void:
 	_startup_probe_running = true
-	var err := tts.synthesize_async(DEFAULT_TEXT)
+	var err = int(tts.synthesize_async(DEFAULT_TEXT))
 	if err != OK:
 		_startup_probe_running = false
 		_set_status("Startup self-test failed to start (%d)." % err)
@@ -138,7 +149,7 @@ func _on_synthesize_pressed() -> void:
 	synthesize_button.disabled = true
 	_pending_user_request = true
 	_set_status("Synthesizing...")
-	var err := tts.synthesize_async(text)
+	var err = int(tts.synthesize_async(text))
 	if err != OK:
 		_pending_user_request = false
 		synthesize_button.disabled = false
