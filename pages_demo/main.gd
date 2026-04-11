@@ -17,9 +17,7 @@ var status_label: Label
 var input_field: LineEdit
 var synthesize_button: Button
 
-var _startup_probe_running := false
 var _startup_probe_passed := false
-var _pending_user_request := false
 
 func _ready() -> void:
 	_build_ui()
@@ -45,8 +43,6 @@ func _ready() -> void:
 	_tts_set("model_path", MODEL_PATH)
 	_tts_set("config_path", CONFIG_PATH)
 	_tts_connect("initialized", _on_tts_initialized)
-	_tts_connect("synthesis_completed", _on_synthesis_completed)
-	_tts_connect("synthesis_failed", _on_synthesis_failed)
 
 	_update_contract_label()
 	_set_status("Initializing runtime...")
@@ -137,6 +133,17 @@ func _tts_call_int(method_name: StringName, arg0: Variant = null) -> int:
 		return int(tts.call(method_name))
 	return int(tts.call(method_name, arg0))
 
+func _tts_call_audio(method_name: StringName, arg0: Variant = null) -> AudioStreamWAV:
+	if tts == null:
+		return null
+
+	var result: Variant
+	if arg0 == null:
+		result = tts.call(method_name)
+	else:
+		result = tts.call(method_name, arg0)
+	return result as AudioStreamWAV
+
 func _on_tts_initialized(success: bool) -> void:
 	if not success:
 		_set_status("Initialization failed.")
@@ -147,12 +154,18 @@ func _on_tts_initialized(success: bool) -> void:
 	_run_startup_probe()
 
 func _run_startup_probe() -> void:
-	_startup_probe_running = true
-	var err := _tts_call_int("synthesize_async", DEFAULT_TEXT)
-	if err != OK:
-		_startup_probe_running = false
-		_set_status("Startup self-test failed to start (%d)." % err)
+	var audio := _tts_call_audio("synthesize", DEFAULT_TEXT)
+	if audio == null:
+		var last_error := _tts.call("get_last_error") if tts != null and tts.has_method("get_last_error") else {}
+		var message := String(last_error.get("message", "Synchronous synthesis returned no audio."))
+		_set_status("Startup self-test failed: %s" % message)
 		_emit_status("fail")
+		return
+
+	_startup_probe_passed = true
+	synthesize_button.disabled = false
+	_set_status("Ready.")
+	_emit_status("pass")
 
 func _on_synthesize_pressed() -> void:
 	if tts == null or not _tts_call_bool("is_ready"):
@@ -165,36 +178,16 @@ func _on_synthesize_pressed() -> void:
 		return
 
 	synthesize_button.disabled = true
-	_pending_user_request = true
 	_set_status("Synthesizing...")
-	var err := _tts_call_int("synthesize_async", text)
-	if err != OK:
-		_pending_user_request = false
+	var audio := _tts_call_audio("synthesize", text)
+	if audio == null:
+		var last_error := _tts.call("get_last_error") if tts != null and tts.has_method("get_last_error") else {}
+		var message := String(last_error.get("message", "Synchronous synthesis returned no audio."))
 		synthesize_button.disabled = false
-		_set_status("synthesize_async() failed with error %d." % err)
-
-func _on_synthesis_completed(audio: AudioStreamWAV) -> void:
-	if _startup_probe_running:
-		_startup_probe_running = false
-		_startup_probe_passed = true
-		synthesize_button.disabled = false
-		_set_status("Ready.")
-		_emit_status("pass")
+		_set_status("Synthesis failed: %s" % message)
 		return
 
 	audio_player.stream = audio
 	audio_player.play()
-	_pending_user_request = false
 	synthesize_button.disabled = false
 	_set_status("Playback started.")
-
-func _on_synthesis_failed(message: String) -> void:
-	if _startup_probe_running:
-		_startup_probe_running = false
-		_set_status("Startup self-test failed: %s" % message)
-		_emit_status("fail")
-		return
-
-	_pending_user_request = false
-	synthesize_button.disabled = not _startup_probe_passed
-	_set_status("Synthesis failed: %s" % message)
