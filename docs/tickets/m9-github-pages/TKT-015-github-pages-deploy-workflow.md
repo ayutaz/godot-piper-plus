@@ -26,7 +26,7 @@
 - Pages 専用 workflow [`.github/workflows/pages.yml`](../../../.github/workflows/pages.yml) を分離し、`build-pages-demo`、`deploy-pages-demo`、`smoke-pages-demo` に責務を分ける。
 - `actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages` を用いた deploy job の責務を定義する。
 - deploy 対象 artifact の入力ディレクトリ、必要ファイル、命名規則、成功条件を固定する。
-- workflow の permissions、environment、concurrency、branch 条件、manual trigger の扱いを整理する。`main` push は自動 deploy、`workflow_dispatch` は current ref を手動 deploy できる前提に揃える。
+- workflow の permissions、environment、concurrency、branch 条件、manual trigger の扱いを整理する。`pull_request` は Pages demo の build と local smoke のみ、`main` push は自動 deploy、`workflow_dispatch` は `deploy_pages=true` のときだけ current ref の deploy を試行する前提に揃える。
 - deploy 後に `page_url` を後続 job へ受け渡す方法を固定し、`GP3` が同じ metadata を参照できるようにする。
 
 ## 実装するために必要なエージェントチームの役割と人数

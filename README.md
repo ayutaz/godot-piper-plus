@@ -138,7 +138,8 @@ GitHub Pages 向けの public demo は `M7` の preview support とは別の fol
 - workflow は [`.github/workflows/pages.yml`](./.github/workflows/pages.yml) です
 - scope は `no-threads` / `CPU-only` / English minimal demo / `multilingual-test-medium` 1 モデル同梱です
 - export 入口は `index.html`、PWA と cross-origin isolation workaround を有効にしています
-- `main` への push で自動 deploy し、`workflow_dispatch` では feature branch からも手動 deploy できます
+- `pull_request` では Pages demo の build と local smoke を実行し、`main` への push で自動 deploy します
+- `workflow_dispatch` では current ref の build を手動実行でき、`deploy_pages=true` のときだけ Pages deploy を試行します
 - 公開 URL は Pages deploy 成功と public URL smoke pass 後にのみ案内する方針です
 
 repo 内の実装入口:
