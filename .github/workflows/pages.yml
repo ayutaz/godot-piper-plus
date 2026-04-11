@@ -59,6 +59,48 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Cache desktop Linux build dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            build-release/h
+            build-release/he
+            build-release/o
+            build-release/oj
+            build-debug/h
+            build-debug/he
+            build-debug/o
+            build-debug/oj
+          key: linux-x86_64-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
+
+      - name: Cache desktop Linux ONNX Runtime
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            build-release/onnxruntime
+            build-debug/onnxruntime
+          key: linux-x86_64-onnxruntime-${{ env.ORT_VERSION }}
+
+      - name: Configure Linux release addon for export host
+        shell: bash
+        run: cmake -B build-release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DGODOTCPP_TARGET=template_release
+
+      - name: Build Linux release addon for export host
+        shell: bash
+        run: cmake --build build-release --config Release --parallel 2 --target piper_plus
+
+      - name: Configure Linux debug addon for export host
+        shell: bash
+        run: cmake -B build-debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Debug -DGODOTCPP_TARGET=template_debug
+
+      - name: Build Linux debug addon for export host
+        shell: bash
+        run: cmake --build build-debug --config Debug --parallel 2 --target piper_plus
+
+      - name: Copy Linux ONNX Runtime for export host
+        shell: bash
+        run: cp build-release/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.linux.x86_64.so
+
       - name: Restore ONNX Runtime Web no-thread cache
         id: cache-ort-web-nothreads
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
