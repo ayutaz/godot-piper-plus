@@ -15,6 +15,7 @@
 - [ ] public demo の scope を `no-threads` / `CPU-only` / English minimal demo に固定する
 - [ ] public demo 用 asset policy を `en_US-ljspeech-medium` 1 モデル同梱、runtime download なしで固定する
 - [ ] license / notice / cache versioning / hosting 前提を固定する
+- [ ] 公開 URL は Pages deploy 成功と public URL smoke pass 後にのみ案内する方針を固定する
 - [ ] `GP1` から `GP4` が参照する acceptance criteria を整理する
 
 ## タスク目的とゴール
@@ -38,6 +39,7 @@
 - license / notice は public demo artifact から参照できる位置へ同梱し、README と Pages 用文書から同じ説明へリンクする。
 - cache versioning は deploy 単位で更新される version key を前提にし、`GP2` と `GP3` は service worker の stale cache を切り分けられる構成を採用する。
 - `PWA` と `ensure_cross_origin_isolation_headers` を使う前提、service worker cache の注意点、hosting 前提を文書化する。
+- 公開 URL の案内は、Pages deploy success と public URL smoke pass が揃った後に限る方針を固定し、`GP4` ではこの条件の反映だけを担当する。
 - `TKT-014` から `TKT-017` が参照する受け入れ条件、非対象範囲、依存関係を文書に落とす。
 - `M9`、`TKT-012`、個別チケット群の相互リンクと責務分担を確定する。
 
@@ -99,4 +101,4 @@
 - [TKT-014](./TKT-014-github-pages-preset-public-entry.md) には、Pages preset と public entry を `no-threads` / `CPU-only` / English minimal demo 前提で実装するよう引き継ぐ。
 - [TKT-015](./TKT-015-github-pages-deploy-workflow.md) には、deploy workflow が `en_US-ljspeech-medium` 同梱、runtime download なし、notice 同梱、cache versioning の契約を壊さないよう引き継ぐ。
 - [TKT-016](./TKT-016-github-pages-public-url-smoke.md) には、public URL smoke が fresh browser context と service worker cache 切り分けを前提にするよう引き継ぐ。
-- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、最終文書化で `GP0` の scope を過大表現しないことを引き継ぐ。
+- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、最終文書化で `GP0` の scope を過大表現せず、公開 URL の開示条件も `GP0` の方針をそのまま反映することを引き継ぐ。

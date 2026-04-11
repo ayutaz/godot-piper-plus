@@ -81,5 +81,5 @@
 
 ## 後続のタスクに連絡する内容
 
-- [TKT-016](./TKT-016-github-pages-public-url-smoke.md) には、public URL smoke がこのチケットで出力する `page_url` と deploy metadata を前提に設計されるよう引き継ぐ。
-- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、README と運用メモがこのチケットの trigger 条件、permissions、deploy 手順と一致するよう引き継ぐ。
+- [TKT-016](./TKT-016-github-pages-public-url-smoke.md) には、public URL smoke がこのチケットで出力する `page_url`、deploy metadata、workflow / job 名を前提に設計されるよう引き継ぐ。
+- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、README と運用メモがこのチケットの trigger 条件、permissions、workflow / job 名、environment 名、artifact 名、rerun / redeploy 手順と一致するよう引き継ぐ。

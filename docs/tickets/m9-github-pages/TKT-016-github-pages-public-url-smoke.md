@@ -81,4 +81,4 @@
 
 ## 後続のタスクに連絡する内容
 
-- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、運用メモと README がこのチケットの smoke 導線、failure artifact、cache 切り分け手順と一致するよう引き継ぐ。
+- [TKT-017](./TKT-017-github-pages-docs-operational-notes.md) には、運用メモと README がこのチケットの smoke 導線、failure artifact 名、screenshot / console / log の参照先、cache 切り分け手順と一致するよう引き継ぐ。

@@ -13,21 +13,22 @@
 
 - [ ] README と関連 docs に public demo の scope と known limitations を反映する
 - [ ] deploy workflow、public URL smoke、cache troubleshooting の運用メモを反映する
-- [ ] `M9`、`TKT-012`、個別チケットの状態更新ルールを整理する
-- [ ] 公開 URL を案内するかどうかの文言と条件を固定する
+- [ ] `M9`、`TKT-012`、個別チケットの完了時反映手順を整理する
+- [ ] `GP0` で固定した公開 URL の案内条件を README と運用メモへ反映する
 
 ## タスク目的とゴール
 
 - GitHub Pages 対応で出来上がった scope、preset、deploy、smoke の結果を、ユーザー向け文書と運用メモへ矛盾なく反映する。
-- public demo の案内、既知制約、cache 切り分け、更新手順を文書化し、後から見ても運用可能な状態にする。
+- `GP0` から `GP3` で固定された公開範囲、案内条件、cache 切り分け、更新手順を文書化し、後から見ても運用可能な状態にする。
 
 ## 実装する内容の詳細
 
 - `README.md`、`docs/web-github-pages-plan.md`、`docs/milestones.md`、`docs/tickets/README.md`、必要なら addon README に Pages 公開の情報を反映する。
 - public demo の scope、非対象範囲、known limitations、`CPU-only` / `no-threads` / English minimal demo の前提を明記する。
-- deploy workflow の trigger 条件、Pages 公開手順、失敗時の rollback / retry、cache troubleshooting を運用メモとして整理する。
-- public URL を README へ載せる条件と表現を決め、過大表現を避ける。
-- `M9` と `TKT-012` の進捗反映ルールを整え、完了時にどこを閉じるかを固定する。
+- deploy workflow の trigger 条件、workflow / job 名、environment、artifact 名、Pages 公開手順、失敗時の rerun / redeploy、cache troubleshooting を運用メモとして整理する。
+- `GP0` で固定した公開 URL の開示条件を README へ反映し、過大表現を避ける。
+- `GP2` と `GP3` が渡す `page_url`、workflow / job 名、failure artifact 名、screenshot / console / log の参照先を運用メモへ落とす。
+- `M9` と `TKT-012` の完了時反映手順を整え、完了時にどこを閉じるかを固定する。
 
 ## 実装するために必要なエージェントチームの役割と人数
 
@@ -40,14 +41,14 @@
 
 - README と関連 docs への Pages 公開情報の反映。
 - deploy / smoke / cache troubleshooting を含む運用メモ。
-- milestone / ticket の最終状態更新ルール。
-- public URL の案内条件と表現方針。
+- milestone / ticket の完了時反映手順。
+- `GP0` で固定した public URL の案内条件と表現方針の反映。
 
 ## テスト項目
 
 - 文書の scope、known limitations、公開手順が `GP0` から `GP3` の結果と一致している。
 - README から Pages 公開情報へ辿れる。
-- cache / rollback / retry の手順が failure artifact と整合している。
+- cache / rerun / redeploy の手順が failure artifact と整合している。
 - `M7` の preview support と `M9` の public demo が混線していない。
 
 ## 実装する unit テスト
@@ -69,8 +70,8 @@
 ## レビューする項目
 
 - README と運用メモが `GP0` から `GP3` の結果を過不足なく反映しているか。
-- public URL の表現が scope を盛っていないか。
-- cache / rollback / retry の手順が failure artifact と結び付いているか。
+- public URL の表現が `GP0` で固定した開示条件を超えていないか。
+- cache / rerun / redeploy の手順が failure artifact と結び付いているか。
 - `M9` と子チケットの完了条件が曖昧になっていないか。
 
 ## 一から作り直すとしたらどうするか
