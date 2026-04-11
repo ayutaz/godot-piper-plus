@@ -17,6 +17,17 @@ MODEL_CACHE_ROOT="${PIPER_PAGES_MODEL_CACHE:-$REPO_ROOT/.cache/pages-demo/models
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
 
+normalize_download_url() {
+  local url="$1"
+
+  if [[ "$url" == https://huggingface.co/*/resolve/* ]] && [[ "$url" != *\?* ]]; then
+    printf '%s?download=true\n' "$url"
+    return
+  fi
+
+  printf '%s\n' "$url"
+}
+
 if [[ -n "${PYTHON_BIN:-}" ]]; then
   PYTHON_CMD="$PYTHON_BIN"
 elif command -v python3 >/dev/null 2>&1; then
@@ -120,10 +131,11 @@ for file_entry in item.get("files", []):
     if filename.endswith(".onnx") or filename.endswith(".onnx.json"):
         print(f"{file_entry['url']}\t{filename}")
 PY
+    request_url="$(normalize_download_url "$url")"
     if [[ -f "$cache_dir/$filename" ]]; then
       continue
     fi
-    curl -L --fail --retry 3 --retry-delay 2 -o "$cache_dir/$filename.tmp" "$url"
+    curl -L --fail --retry 3 --retry-delay 2 -o "$cache_dir/$filename.tmp" "$request_url"
     mv "$cache_dir/$filename.tmp" "$cache_dir/$filename"
   done
 
