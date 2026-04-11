@@ -32,9 +32,9 @@
 - `src/piper_core/piper.cpp` の config / model load を byte / string ベースへ分離し、Web で memory session に寄せられる形へ整理する。
 - `src/piper_core/piper.cpp` の `cmudict_data.json` 解決を、`docs/requirements.md` の探索契約を崩さずに `FileAccess` 由来 resource へ寄せる。
 - `src/piper_tts.cpp` で `FileAccess` 由来の resource load と unsupported provider handling を追加し、`test/prepare-assets.sh` が作る fixture 配置でも読み込めるようにする。
-- `src/piper_core/openjtalk_wrapper.c` の `openjtalk-native` 分岐は Web で unsupported として固定し、Japanese text input / dictionary bootstrap は Phase 1 対象外として明示的な scope 判定を返す。
+- `src/piper_core/openjtalk_wrapper.c` の `openjtalk-native` 分岐は Web で unsupported として固定し、Japanese text input / dictionary bootstrap は Phase 1 対象外として明示的な scope 判定を返す。must follow-up は [`TKT-019`](./TKT-019-web-japanese-dictionary-bootstrap.md) で扱う。
 - Web では `execution_provider` を `EP_CPU` 固定にし、それ以外は machine-readable な error を返す方針を実装する。
-- Phase 1 の runtime scope は固定済みで、Japanese text input / dictionary bootstrap は Phase 2 扱いとします。
+- Phase 1 の runtime scope は固定済みで、Japanese text input / dictionary bootstrap の必須 follow-up は [`TKT-018`](./TKT-018-web-japanese-support.md) と [`TKT-019`](./TKT-019-web-japanese-dictionary-bootstrap.md) で扱います。
 
 ## 実装するために必要なエージェントチームの役割と人数
 
@@ -93,4 +93,5 @@
 
 - `TKT-011` へ、browser smoke で見るべき成功ログ、unsupported error、必要 resource 構成を渡す。
 - `TKT-002` へ、Phase 1 で実際に動く runtime scope、Japanese text input の扱い、除外機能を返す。
+- `TKT-019` へ、Phase 1 で除外した dictionary bootstrap と Japanese text path の制約を引き継ぐ。
 - `TKT-007` へ、README に明記すべき unsupported backend と preview 制約を引き継ぐ。

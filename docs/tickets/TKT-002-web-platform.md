@@ -5,7 +5,7 @@
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
 - 子チケット: [`TKT-008`](TKT-008-web-template-toolchain-bootstrap.md) [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md) [`TKT-011`](TKT-011-web-browser-smoke-ci-docs.md)
-- 後続チケット: [TKT-007](./TKT-007-release-finalization.md)
+- 後続チケット: [TKT-018](./TKT-018-web-japanese-support.md) [TKT-007](./TKT-007-release-finalization.md)
 
 ## 進捗
 
@@ -22,6 +22,7 @@
 - `W0` の調査結果と判断は、このチケット本文と [docs/milestones.md](../milestones.md) の `M7` セクションに反映しています。
 - 現時点の推奨方針は、`preview` 扱いの Web 対応として custom dlink template、CPU-only backend、addon load と最小モデル synthesize を見る browser smoke を先に閉じることです。
 - このチケットは umbrella と受け入れ条件の管理が責務で、実装本体は `TKT-008` から `TKT-011` が担当します。
+- 日本語 text input / synthesize と Pages 日本語 demo の must follow-up は [`TKT-018`](./TKT-018-web-japanese-support.md) から [`TKT-021`](./TKT-021-pages-japanese-demo-public-smoke.md) で管理します。
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` が成功し、`threads` / `no-threads` の両 browser smoke で `RESULT total=9 pass=4 fail=0 skip=5` と `WEB_SMOKE status=pass` を確認しました。
 
 ## 実装マイルストーン
@@ -102,4 +103,5 @@
 ## 後続タスクに連絡する内容
 
 - `TKT-007` へ、Web Phase 1 は `preview support` で固定し、custom template 前提、`CPU-only`、addon load と最小モデル synthesize を pass 条件にすることを渡す。
+- `TKT-018` へ、Phase 1 で除外した日本語 text input / dictionary bootstrap / Pages 日本語 demo を must follow-up として引き継ぐ。
 - `M5` 向けに Web smoke の pass 条件と失敗時ログ採取方法を共有する。

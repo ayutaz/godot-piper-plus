@@ -4,13 +4,14 @@
 - 主マイルストーン: [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4)
 - 関連要求: `FR-9` `NFR-6` release 完了条件
-- 依存チケット: `TKT-004` `TKT-005`
+- 依存チケット: `TKT-004` `TKT-005` `TKT-018`
 - 後続チケット: なし
 
 ## 進捗
 
 - [x] Web preview、macOS packaged smoke、iOS export/link smoke の結果を集約する
 - [ ] Android export / runtime 結果と Windows local 既知制約を集約する
+- [ ] Web 日本語対応と Pages 日本語 demo の結果を集約する
 - [ ] package / README / changelog / notice を最終状態へ更新する
 - [ ] Asset Library 向け説明文を確定する
 - [ ] final package と文書整合を確認する
@@ -25,6 +26,7 @@
 - `README.md`、addon README、`CHANGELOG.md`、license / third-party notice を最終状態へ更新する。
 - multilingual と Web のスコープ、platform の確定結果、既知制約を反映する。
 - 2026-04-10 に確定した Web browser smoke、macOS packaged smoke、iOS export smoke の結果を release 文書へ反映する。
+- `M10` の Web 日本語対応と Pages 日本語 demo の結果を release 文書へ反映する。
 - package 生成手順と validator 条件を最終確認する。
 - Asset Library 向け説明文、同梱範囲、注意事項を固定する。
 
@@ -48,6 +50,7 @@
 - package validator が最終 package に対して通ること。
 - README と addon README が最終スコープと矛盾しないこと。
 - Web preview の前提が `TKT-011` の smoke 条件と一致していること。
+- Web 日本語対応の前提が `TKT-018` から `TKT-021` の実装結果と一致していること。
 - サポート platform、未対応項目、既知制約が明記されていること。
 
 ## 実装する unit テスト
@@ -64,12 +67,14 @@
 
 - platform 結果が未確定のまま文書を閉じると、公開情報がすぐ陳腐化する。
 - multilingual と Web の扱いを正式対応と計画中のどちらで書くかを誤ると齟齬が出る。
+- English-only Pages demo の記述が残ったまま日本語対応を出すと、利用者に誤解を与える。
 
 ## レビューする項目
 
 - 配布物と README の境界が一致しているか。
 - 既知制約と未対応項目が隠れていないか。
 - change log が利用者視点で読める形になっているか。
+- Web 日本語対応の scope と必須 asset が過不足なく説明されているか。
 - Asset Library 向け記述が過大表現になっていないか。
 
 ## 一から作り直すとしたらどうするか

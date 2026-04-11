@@ -6,7 +6,7 @@
 - 関連要求: `FR-10` `FR-9` `NFR-5` `NFR-6`
 - 親チケット: [`TKT-002`](TKT-002-web-platform.md)
 - 依存チケット: [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md)
-- 後続チケット: [`TKT-007`](TKT-007-release-finalization.md)
+- 後続チケット: [`TKT-018`](TKT-018-web-japanese-support.md) [`TKT-007`](TKT-007-release-finalization.md)
 
 ## 進捗
 
@@ -89,5 +89,6 @@
 ## 後続のタスクに連絡する内容
 
 - `TKT-002` へ、Web preview support の最終 pass 条件、既知制約、残る Phase 2 項目を返す。
+- `TKT-018` へ、日本語 browser smoke を追加するときに再利用すべき server / smoke entrypoint と log 採取方針を渡す。
 - `TKT-007` へ、README と release note に載せるべき Web の前提、unsupported 項目、再現手順を渡す。
 - `M5` と `M8` へ、browser smoke のログ取得方法と release gate の扱いを引き継ぐ。

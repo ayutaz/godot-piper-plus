@@ -16,6 +16,7 @@
 - 2026-04-11 の GitHub Actions run `24282051911` では Pages demo の build、deploy、public URL smoke が成功しています。
 - 公開デモは [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/) で公開中です。
 - 現在の runtime contract は Web 向け `EP_CPU` 固定で、Pages demo は英語最小構成に絞っています。
+- 日本語 text input / synthesize と Pages 日本語 demo は must follow-up として [`M10 Web Japanese Support / Pages Japanese Demo 完成`](./milestones.md#m10) と [`TKT-018`](./tickets/TKT-018-web-japanese-support.md) から [`TKT-021`](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) で管理します。
 - M9 向けに一時的に作成した GitHub Pages ticket 群の内容は、完了時にこの文書と [`docs/milestones.md`](./milestones.md) へ吸収しています。
 
 ## 公開スコープ
@@ -53,10 +54,15 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 - `openjtalk-native` shared library は Web では使えません。
 - PWA / service worker ベースの cross-origin isolation workaround は cache の影響を受けやすく、更新反映や stale cache の切り分けが必要です。
 
-## 今後の拡張候補
+## 必須の後続作業
 
 - Japanese text input の dictionary bootstrap
 - `naist-jdic` を使う公開デモ
+- Japanese scenario を含む local / CI / public smoke
+- README と release 文書の日本語 Web scope 同期
+
+## 拡張候補
+
 - multilingual parity 拡張
 - Web 向け binary size 最適化
 - thread build を使った Pages 公開
