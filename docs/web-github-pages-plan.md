@@ -61,6 +61,7 @@
 - 公開対象は `test/project` とは分離した dedicated minimal public demo project [`pages_demo`](../pages_demo) に固定する
 - export 生成物は `index.html` を入口に揃え、[`scripts/ci/export-pages-demo.sh`](../scripts/ci/export-pages-demo.sh) が `public-demo-manifest.json` と `build-meta.json` を artifact 契約の正本として生成する
 - workflow は [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) で `build-pages-demo`、`deploy-pages-demo`、`smoke-pages-demo` の 3 job に分ける
+- deploy は `main` push の自動実行に加えて、`workflow_dispatch` で current ref を手動 deploy できるようにし、release 前の branch 検証を可能にする
 - deploy 後は `page_url` を [`scripts/ci/run-pages-demo-smoke.mjs`](../scripts/ci/run-pages-demo-smoke.mjs) へ渡し、addon load と最小 synthesize を確認する
 
 ## 受け入れ条件

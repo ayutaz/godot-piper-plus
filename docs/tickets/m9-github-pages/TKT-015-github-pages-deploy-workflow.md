@@ -26,7 +26,7 @@
 - Pages 専用 workflow [`.github/workflows/pages.yml`](../../../.github/workflows/pages.yml) を分離し、`build-pages-demo`、`deploy-pages-demo`、`smoke-pages-demo` に責務を分ける。
 - `actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages` を用いた deploy job の責務を定義する。
 - deploy 対象 artifact の入力ディレクトリ、必要ファイル、命名規則、成功条件を固定する。
-- workflow の permissions、environment、concurrency、branch 条件、manual trigger の扱いを整理する。
+- workflow の permissions、environment、concurrency、branch 条件、manual trigger の扱いを整理する。`main` push は自動 deploy、`workflow_dispatch` は current ref を手動 deploy できる前提に揃える。
 - deploy 後に `page_url` を後続 job へ受け渡す方法を固定し、`GP3` が同じ metadata を参照できるようにする。
 
 ## 実装するために必要なエージェントチームの役割と人数
@@ -63,6 +63,7 @@
 ## 実装に関する懸念事項
 
 - Pages deploy は branch 条件、repository settings、permissions に依存するため、CI 設定差分で失敗しやすい。
+- GitHub Pages は repo ごとに 1 つの公開 site なので、branch ごとの concurrency にすると deploy が競合しやすい。
 - `build.yml` に詰め込みすぎると Web preview の既存 job と責務が混線する。
 - artifact 契約を曖昧にしたまま workflow を組むと、`GP1` と `GP3` の変更で簡単に壊れる。
 
@@ -70,6 +71,7 @@
 
 - workflow が `GP1` の export artifact 契約をそのまま受け取れる構成になっているか。
 - Pages deploy に必要な permissions / environment だけを持ち、過剰な権限を要求していないか。
+- `main` 自動 deploy と branch 手動 deploy の条件が明確で、Pages site 競合を避ける concurrency になっているか。
 - `page_url` の出力や failure 時の診断情報が `GP3` で再利用しやすいか。
 - preview 用の既存 Web CI と public deploy 用 CI の責務が明確に分かれているか。
 

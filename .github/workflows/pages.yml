@@ -5,12 +5,18 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: Deploy the exported Pages site for this ref
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: github-pages-demo-${{ github.ref_name }}
+  group: github-pages-demo
   cancel-in-progress: true
 
 env:
@@ -201,18 +207,18 @@ jobs:
           if-no-files-found: ignore
 
       - name: Configure GitHub Pages
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
         uses: actions/configure-pages@v5
 
       - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
         uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/pages-export/site
 
   deploy-pages-demo:
     name: Deploy GitHub Pages Demo
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
     needs: build-pages-demo
     runs-on: ubuntu-22.04
     permissions:
