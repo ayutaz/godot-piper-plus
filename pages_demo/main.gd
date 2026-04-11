@@ -25,11 +25,6 @@ func _ready() -> void:
 	_build_ui()
 	_emit_status("boot")
 
-	if not _assets_exist():
-		_set_status("Pages demo assets are missing. Prepare the staged addon and model bundle first.")
-		_emit_status("fail")
-		return
-
 	if not ClassDB.class_exists("PiperTTS"):
 		_set_status("PiperTTS class is not available in this export.")
 		_emit_status("fail")
@@ -101,9 +96,6 @@ func _build_ui() -> void:
 	status_label = Label.new()
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(status_label)
-
-func _assets_exist() -> bool:
-	return FileAccess.file_exists(MODEL_PATH) and FileAccess.file_exists(CONFIG_PATH)
 
 func _update_contract_label() -> void:
 	var lines := PackedStringArray([
