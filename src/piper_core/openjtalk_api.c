@@ -134,12 +134,12 @@ HTS_Label* openjtalk_extract_fullcontext(OpenJTalk* oj, const char* text) {
     return label;
 }
 
-size_t HTS_Label_get_size(HTS_Label* label) {
+size_t openjtalk_label_get_size(HTS_Label* label) {
     if (!label || label->size < 0) return 0;
     return (size_t)label->size;
 }
 
-const char* HTS_Label_get_string(HTS_Label* label, size_t index) {
+const char* openjtalk_label_get_string(HTS_Label* label, size_t index) {
     if (!label || !label->jpcommon || label->size < 0 || index >= (size_t)label->size) return NULL;
     
     char** features = JPCommon_get_label_feature(label->jpcommon);
@@ -148,7 +148,7 @@ const char* HTS_Label_get_string(HTS_Label* label, size_t index) {
     return features[index];
 }
 
-void HTS_Label_clear(HTS_Label* label) {
+void openjtalk_label_clear(HTS_Label* label) {
     if (!label) return;
     // JPCommon cleanup is handled by openjtalk_finalize
     // Don't free the JPCommon here as it's owned by OpenJTalk

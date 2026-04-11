@@ -19,6 +19,22 @@ using json = nlohmann::json;
 namespace piper {
 namespace {
 
+bool loadCmuDictFromJson(const json &j,
+                         std::unordered_map<std::string, std::string> &dict) {
+    if (!j.is_object()) {
+        return false;
+    }
+
+    dict.clear();
+    dict.reserve(j.size());
+    for (auto it = j.begin(); it != j.end(); ++it) {
+        if (it.value().is_string()) {
+            dict[it.key()] = it.value().get<std::string>();
+        }
+    }
+    return true;
+}
+
 constexpr char32_t IPA_TURNED_A   = 0x0251;
 constexpr char32_t IPA_ASH        = 0x00E6;
 constexpr char32_t IPA_TURNED_V   = 0x028C;
@@ -337,19 +353,19 @@ bool loadCmuDict(const std::string &jsonPath,
     }
 
     try {
-        json j;
-        file >> j;
-        if (!j.is_object()) {
-            return false;
-        }
-        dict.clear();
-        dict.reserve(j.size());
-        for (auto it = j.begin(); it != j.end(); ++it) {
-            if (it.value().is_string()) {
-                dict[it.key()] = it.value().get<std::string>();
-            }
-        }
-        return true;
+        json j = json::parse(file);
+        return loadCmuDictFromJson(j, dict);
+    } catch (const json::exception &) {
+        return false;
+    }
+}
+
+bool loadCmuDictFromJsonString(const std::string &jsonText,
+                               std::unordered_map<std::string, std::string> &dict) {
+    dict.clear();
+    try {
+        json j = json::parse(jsonText);
+        return loadCmuDictFromJson(j, dict);
     } catch (const json::exception &) {
         return false;
     }

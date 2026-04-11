@@ -19,6 +19,11 @@
 - Windows + Godot 4.6 環境で出ている generic configuration error の原因を切り分ける。
 - ゴールは、CI 専用問題か local 設定問題か script 問題かを判定し、恒久対応または既知制約として固定すること。
 
+## 実装メモ
+
+- 2026-04-10 の GitHub Actions run `24223195868` では `Android Export Smoke` が `success` で、CI 上の package / preset / export 手順は blocker ではないことが確認できました。
+- このチケットの対象は、Windows local に残る generic configuration error の再現性と恒久対策に絞られています。
+
 ## 実装する内容の詳細
 
 - Windows local の export 条件を洗い出す。

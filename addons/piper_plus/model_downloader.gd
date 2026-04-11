@@ -4,91 +4,7 @@ extends RefCounted
 ## Provides a dialog UI to select and download models/dictionaries
 ## required for TTS synthesis.
 
-# ---------------------------------------------------------------------------
-# Download item definitions
-# ---------------------------------------------------------------------------
-# Each entry may contain multiple files to download individually.
-# "type" is either "model" or "dictionary".
-# "files" is an array of { "url": ..., "filename": ... } dicts.
-# "dest" is the target directory under the project (res:// path).
-# ---------------------------------------------------------------------------
-
-const DOWNLOAD_ITEMS: Dictionary = {
-	"css10": {
-		"type": "model",
-		"description": "Default CSS10 6-language model (Japanese/English/Chinese/Spanish/French/Portuguese, ~40 MB)",
-		"dest": "res://addons/piper_plus/models/css10/",
-		"files": [
-			{
-				"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/css10-ja-6lang-fp16.onnx?download=true",
-				"filename": "css10-ja-6lang-fp16.onnx",
-			},
-			{
-				"url": "https://huggingface.co/ayousanz/piper-plus-css10-ja-6lang/resolve/main/config.json?download=true",
-				"filename": "config.json",
-			},
-		],
-	},
-	"ja_JP-test-medium": {
-		"type": "model",
-		"description": "Japanese test model (medium quality, ~60 MB)",
-		"dest": "res://addons/piper_plus/models/ja_JP-test-medium/",
-		"files": [
-			{
-				"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx?download=true",
-				"filename": "ja_JP-test-medium.onnx",
-			},
-			{
-				"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/ja_JP-test-medium.onnx.json?download=true",
-				"filename": "ja_JP-test-medium.onnx.json",
-			},
-		],
-	},
-	"tsukuyomi-chan": {
-		"type": "model",
-		"description": "Tsukuyomi-chan Japanese model (high quality with prosody, ~60 MB)",
-		"dest": "res://addons/piper_plus/models/tsukuyomi-chan/",
-		"files": [
-			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/tsukuyomi-chan.onnx",
-				"filename": "tsukuyomi-chan.onnx",
-			},
-			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/tsukuyomi-chan.onnx.json",
-				"filename": "tsukuyomi-chan.onnx.json",
-			},
-		],
-	},
-	"en_US-ljspeech-medium": {
-		"type": "model",
-		"description": "English LJSpeech model (medium quality, ~60 MB)",
-		"dest": "res://addons/piper_plus/models/en_US-ljspeech-medium/",
-		"files": [
-			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/en_US-ljspeech-medium.onnx",
-				"filename": "en_US-ljspeech-medium.onnx",
-			},
-			{
-				"url": "https://github.com/ayutaz/piper-plus/releases/download/v1.0.0/en_US-ljspeech-medium.onnx.json",
-				"filename": "en_US-ljspeech-medium.onnx.json",
-			},
-		],
-	},
-	"naist-jdic": {
-		"type": "dictionary",
-		"description": "OpenJTalk dictionary naist-jdic (required for Japanese, ~23 MB zip)",
-		"dest": "res://addons/piper_plus/dictionaries/",
-		"files": [
-			{
-				"url": "https://huggingface.co/ccds/vits_onnx/resolve/main/open_jtalk_dic_utf_8-1.11.zip?download=true",
-				"filename": "open_jtalk_dic_utf_8-1.11.zip",
-				"extract": true,
-			},
-		],
-	},
-}
-
-const OPENJTALK_DICT_PATH := "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
+const DownloadCatalog = preload("res://addons/piper_plus/download_catalog.gd")
 
 # ---------------------------------------------------------------------------
 # Internal state keys (used as node names / meta)
@@ -131,8 +47,8 @@ static func create_dialog() -> AcceptDialog:
 
 	var checkboxes: Dictionary = {}  # key -> CheckBox
 
-	for key: String in DOWNLOAD_ITEMS:
-		var item: Dictionary = DOWNLOAD_ITEMS[key]
+	for key: String in DownloadCatalog.list_item_keys():
+		var item: Dictionary = DownloadCatalog.get_item_definition(key)
 		var hbox := HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 8)
 		items_vbox.add_child(hbox)
@@ -145,7 +61,7 @@ static func create_dialog() -> AcceptDialog:
 
 		# Show installed indicator
 		var dest_path: String = item["dest"]
-		var installed := _is_item_installed(key, item)
+		var installed := DownloadCatalog.is_item_installed(key)
 		var status_label := Label.new()
 		if installed:
 			status_label.text = "[installed]"
@@ -201,86 +117,39 @@ static func create_dialog() -> AcceptDialog:
 
 
 static func list_item_keys() -> PackedStringArray:
-	var keys := PackedStringArray()
-	for key in DOWNLOAD_ITEMS.keys():
-		keys.append(String(key))
-	return keys
+	return DownloadCatalog.list_item_keys()
 
 
 static func list_model_item_keys() -> PackedStringArray:
-	var keys := PackedStringArray()
-	for key in DOWNLOAD_ITEMS.keys():
-		var item := Dictionary(DOWNLOAD_ITEMS[key])
-		if String(item.get("type", "")) == "model":
-			keys.append(String(key))
-	return keys
+	return DownloadCatalog.list_model_item_keys()
 
 
 static func get_item_definition(key: String) -> Dictionary:
-	if not DOWNLOAD_ITEMS.has(key):
-		return {}
-	return Dictionary(DOWNLOAD_ITEMS[key]).duplicate(true)
+	return DownloadCatalog.get_item_definition(key)
 
 
 static func get_primary_model_path(key: String) -> String:
-	var item := get_item_definition(key)
-	if item.is_empty() or String(item.get("type", "")) != "model":
-		return ""
-
-	var dest := String(item.get("dest", ""))
-	var files: Array = item.get("files", [])
-	for file_entry: Dictionary in files:
-		var filename := String(file_entry.get("filename", ""))
-		if filename.ends_with(".onnx"):
-			return dest + filename
-	return ""
+	return DownloadCatalog.get_primary_model_path(key)
 
 
 static func get_recommended_dictionary_path(key: String) -> String:
-	if key == "css10" or key == "ja_JP-test-medium" or key == "tsukuyomi-chan":
-		if _has_compiled_openjtalk_dictionary(OPENJTALK_DICT_PATH):
-			return OPENJTALK_DICT_PATH
-	return ""
+	return DownloadCatalog.get_recommended_dictionary_path(key)
 
 
 static func is_item_installed(key: String) -> bool:
-	var item := get_item_definition(key)
-	if item.is_empty():
-		return false
-	return _is_item_installed(key, item)
+	return DownloadCatalog.is_item_installed(key)
 
 
 # ---------------------------------------------------------------------------
 # Check if an item is already installed
 # ---------------------------------------------------------------------------
 
-static func _is_item_installed(key: String, item: Dictionary) -> bool:
-	var dest: String = item["dest"]
-	var files: Array = item["files"]
-	# A Japanese dictionary is usable only after the compiled OpenJTalk files exist.
-	if item["type"] == "dictionary":
-		return _has_compiled_openjtalk_dictionary(dest + "open_jtalk_dic_utf_8-1.11")
-	# For models, check if all non-zip files exist
-	for file_entry: Dictionary in files:
-		var extract: bool = file_entry.get("extract", false)
-		if extract:
-			continue
-		var full_path: String = dest + file_entry["filename"]
-		if not FileAccess.file_exists(full_path):
-			return false
-	return true
+static func _is_item_installed(key: String, _item: Dictionary) -> bool:
+	return DownloadCatalog.is_item_installed(key)
 
 
 static func _has_compiled_openjtalk_dictionary(path: String) -> bool:
-	var absolute_path := ProjectSettings.globalize_path(path)
-	if not DirAccess.dir_exists_absolute(absolute_path):
-		return false
-
-	for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
-		if not FileAccess.file_exists(absolute_path.path_join(required_file)):
-			return false
-
-	return true
+	return DownloadCatalog._has_compiled_openjtalk_dictionary(path)
 
 
 # ---------------------------------------------------------------------------
@@ -312,13 +181,13 @@ static func _on_download_pressed(
 	# Count total files to download
 	var total_files := 0
 	for key: String in selected_keys:
-		var item: Dictionary = DOWNLOAD_ITEMS[key]
+		var item: Dictionary = DownloadCatalog.get_item_definition(key)
 		total_files += item["files"].size()
 
 	var completed_files := 0
 
 	for key: String in selected_keys:
-		var item: Dictionary = DOWNLOAD_ITEMS[key]
+		var item: Dictionary = DownloadCatalog.get_item_definition(key)
 		var dest: String = item["dest"]
 		var global_dest: String = ProjectSettings.globalize_path(dest)
 

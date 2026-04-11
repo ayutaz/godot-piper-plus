@@ -14,6 +14,10 @@ android.debug.arm64 = "res://addons/piper_plus/bin/libpiper_plus.android.templat
 android.release.arm64 = "res://addons/piper_plus/bin/libpiper_plus.android.template_release.arm64.so"
 ios.debug = "res://addons/piper_plus/bin/libpiper_plus.ios.template_debug.arm64.a"
 ios.release = "res://addons/piper_plus/bin/libpiper_plus.ios.template_release.arm64.a"
+web.debug.threads.wasm32 = "res://addons/piper_plus/bin/libpiper_plus.web.template_debug.wasm32.wasm"
+web.release.threads.wasm32 = "res://addons/piper_plus/bin/libpiper_plus.web.template_release.wasm32.wasm"
+web.debug.wasm32 = "res://addons/piper_plus/bin/libpiper_plus.web.template_debug.wasm32.nothreads.wasm"
+web.release.wasm32 = "res://addons/piper_plus/bin/libpiper_plus.web.template_release.wasm32.nothreads.wasm"
 
 [dependencies]
 windows.debug.x86_64 = {"res://addons/piper_plus/bin/onnxruntime.dll": "", "res://addons/piper_plus/bin/onnxruntime_providers_shared.dll": ""}

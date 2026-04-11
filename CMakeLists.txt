@@ -28,6 +28,17 @@ if(MSVC)
   add_compile_definitions(WIN32_LEAN_AND_MEAN)
 endif()
 
+set(PIPER_PLUS_USE_PTHREADS ON)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  if(DEFINED GODOTCPP_THREADS)
+    set(PIPER_PLUS_WEB_THREADS "${GODOTCPP_THREADS}" CACHE BOOL "Enable pthread-backed Web builds" FORCE)
+  else()
+    option(PIPER_PLUS_WEB_THREADS "Enable pthread-backed Web builds" ON)
+    set(GODOTCPP_THREADS "${PIPER_PLUS_WEB_THREADS}" CACHE BOOL "" FORCE)
+  endif()
+  set(PIPER_PLUS_USE_PTHREADS "${PIPER_PLUS_WEB_THREADS}")
+endif()
+
 # External CMake args propagation for ExternalProject builds
 set(EXTERNAL_CMAKE_ARGS "")
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -46,6 +57,56 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
       -DCMAKE_OSX_ARCHITECTURES=arm64
       -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
       -DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT}
+    )
+  endif()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set(EXTERNAL_CMAKE_ARGS
+    -DCMAKE_SYSTEM_NAME=Emscripten
+    -DPIPER_PLUS_USE_PTHREADS:BOOL=${PIPER_PLUS_USE_PTHREADS}
+  )
+  if(CMAKE_TOOLCHAIN_FILE)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+    )
+  endif()
+  if(CMAKE_C_COMPILER)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+    )
+  endif()
+  if(CMAKE_CXX_COMPILER)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+    )
+  endif()
+  if(CMAKE_AR)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_AR=${CMAKE_AR}
+    )
+  endif()
+  if(CMAKE_RANLIB)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_RANLIB=${CMAKE_RANLIB}
+    )
+  endif()
+  if(CMAKE_C_COMPILER_AR)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_C_COMPILER_AR=${CMAKE_C_COMPILER_AR}
+    )
+  endif()
+  if(CMAKE_CXX_COMPILER_AR)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_CXX_COMPILER_AR=${CMAKE_CXX_COMPILER_AR}
+    )
+  endif()
+  if(CMAKE_C_COMPILER_RANLIB)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_C_COMPILER_RANLIB=${CMAKE_C_COMPILER_RANLIB}
+    )
+  endif()
+  if(CMAKE_CXX_COMPILER_RANLIB)
+    list(APPEND EXTERNAL_CMAKE_ARGS
+      -DCMAKE_CXX_COMPILER_RANLIB=${CMAKE_CXX_COMPILER_RANLIB}
     )
   endif()
 elseif(APPLE)
@@ -116,6 +177,24 @@ endif()
 
 add_subdirectory(thirdparty/godot-cpp)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # SIDE_MODULE=2 keeps side-module relocation enabled without switching em++
+  # into LINKABLE mode, which otherwise wraps every static archive in
+  # --whole-archive and breaks ORT/HTSEngine linkage.
+  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_MODULE_CREATE_C_FLAGS "-sSIDE_MODULE=2")
+  set(CMAKE_SHARED_MODULE_CREATE_CXX_FLAGS "-sSIDE_MODULE=2")
+
+  get_target_property(_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS godot-cpp INTERFACE_LINK_OPTIONS)
+  if(_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS)
+    list(REMOVE_ITEM _PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS -shared)
+    set_target_properties(godot-cpp PROPERTIES
+      INTERFACE_LINK_OPTIONS "${_PIPER_PLUS_GODOTCPP_INTERFACE_LINK_OPTIONS}"
+    )
+  endif()
+endif()
+
 # ---- External dependencies ----
 # Japanese G2P: OpenJTalk (Modified BSD) + HTSEngine (Modified BSD)
 # English G2P: Flite (BSD-like) - TODO M2
@@ -130,6 +209,9 @@ include(cmake/FindOnnxRuntime.cmake)
 set(PIPER_PLUS_SOURCES
   src/register_types.cpp
   src/piper_tts.cpp
+  src/piper_tts_paths.cpp
+  src/piper_language_support.cpp
+  src/piper_runtime_support.cpp
   src/piper_core/piper.cpp
   src/piper_core/piper_test_utils.cpp
   src/piper_core/english_phonemize.cpp
@@ -194,12 +276,31 @@ if(APPLE)
     INSTALL_RPATH "@loader_path"
     BUILD_WITH_INSTALL_RPATH TRUE
   )
-elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+elseif(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set_target_properties(piper_plus PROPERTIES
     INSTALL_RPATH "$ORIGIN"
     BUILD_WITH_INSTALL_RPATH TRUE
   )
   target_link_libraries(piper_plus PRIVATE pthread dl)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  message(STATUS "Web build detected (threads=${PIPER_PLUS_USE_PTHREADS})")
+  set_target_properties(piper_plus PROPERTIES NO_SONAME ON)
+  target_compile_definitions(piper_plus PRIVATE WEB_ENABLED UNIX_ENABLED)
+  target_compile_options(piper_plus PRIVATE
+    -sSIDE_MODULE=2
+    -sSUPPORT_LONGJMP=wasm
+  )
+  target_link_options(piper_plus PRIVATE
+    -sSIDE_MODULE=2
+    -sWASM_BIGINT
+    -sSUPPORT_LONGJMP=wasm
+    -fvisibility=hidden
+    LINKER:--export=piper_plus_library_init
+  )
+  if(PIPER_PLUS_USE_PTHREADS)
+    target_compile_options(piper_plus PRIVATE -sUSE_PTHREADS=1)
+    target_link_options(piper_plus PRIVATE -sUSE_PTHREADS=1)
+  endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
   # Android: RPATH not applicable, pthread linked automatically by NDK
 endif()
@@ -236,6 +337,9 @@ set_target_properties(piper_plus PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin>"
   RUNTIME_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/addons/piper_plus/bin>"
 )
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set_target_properties(piper_plus PROPERTIES SUFFIX ".wasm")
+endif()
 
 set(_PIPER_PLUS_RUNTIME_DEPENDENCY_FILES "")
 set(_PIPER_PLUS_RUNTIME_DEPENDENCY_ALIAS_SRC "")

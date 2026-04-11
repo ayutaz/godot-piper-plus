@@ -10,6 +10,12 @@ var _async_completed_audio = null
 var _async_failed_error := ""
 var _streaming_completed := false
 
+func _is_web_runtime() -> bool:
+    return OS.has_feature("web")
+
+func _is_web_smoke() -> bool:
+    return OS.has_feature("web_smoke")
+
 func _addon_available() -> bool:
     return ClassDB.class_exists("PiperTTS")
 
@@ -263,11 +269,29 @@ func _expected_sample_rate(bundle: Dictionary) -> int:
     return 22050
 
 func list_test_names() -> Array[String]:
+    if _is_web_smoke():
+        return [
+            "test_node_creation",
+            "test_properties",
+            "test_execution_provider_enum",
+            "test_runtime_contract",
+            "test_initialize_with_model",
+            "test_initialize_with_config_fallback",
+            "test_web_non_cpu_execution_provider_rejected",
+            "test_web_openjtalk_native_rejected",
+            "test_synthesize_basic",
+        ]
+
     return [
         "test_node_creation",
         "test_properties",
         "test_speech_rate_range",
         "test_execution_provider_enum",
+        "test_runtime_contract",
+        "test_runtime_state",
+        "test_language_capabilities_without_init_is_side_effect_free",
+        "test_editor_download_catalog_paths",
+        "test_preview_controller_session_config",
         "test_initialize_without_model",
         "test_synthesize_without_init",
         "test_synthesize_async_without_init",
@@ -283,6 +307,8 @@ func list_test_names() -> Array[String]:
         "test_multilingual_language_selector_conflict_rejected",
         "test_gpu_device_id_clamp",
         "test_invalid_openjtalk_library_path_falls_back",
+        "test_web_non_cpu_execution_provider_rejected",
+        "test_web_openjtalk_native_rejected",
         "test_initialize_with_config_fallback",
         "test_inspect_text",
         "test_inspect_request_with_phonemes",
@@ -382,6 +408,134 @@ func test_execution_provider_enum() -> void:
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_AUTO"), 4, "EP_AUTO should match the bound enum")
     assert_equal(ClassDB.class_get_integer_constant("PiperTTS", "EP_CUDA"), 5, "EP_CUDA should match the bound enum")
     await Engine.get_main_loop().process_frame
+
+func test_runtime_contract() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+
+    if not _require_method(tts, "get_runtime_contract"):
+        _cleanup_tts(tts)
+        return
+
+    var contract: Dictionary = tts.get_runtime_contract()
+    assert_true(contract.has("is_web_export"), "get_runtime_contract() should expose is_web_export")
+    assert_true(contract.has("execution_provider_policy"), "get_runtime_contract() should expose execution_provider_policy")
+    assert_true(contract.has("supports_non_cpu_execution_provider"), "get_runtime_contract() should expose supports_non_cpu_execution_provider")
+    assert_true(contract.has("supports_openjtalk_native"), "get_runtime_contract() should expose supports_openjtalk_native")
+    assert_true(contract.has("resource_source_mode"), "get_runtime_contract() should expose resource_source_mode")
+    assert_true(contract.has("resource_path_mode"), "get_runtime_contract() should expose resource_path_mode")
+    assert_true(contract.has("preview_support_tier"), "get_runtime_contract() should expose preview_support_tier")
+    assert_true(contract.has("phase1_minimal_synthesize_mode"), "get_runtime_contract() should expose phase1_minimal_synthesize_mode")
+    assert_true(contract.has("phase1_supported_text_frontends"), "get_runtime_contract() should expose phase1_supported_text_frontends")
+    assert_true(contract.has("phase1_excluded_features"), "get_runtime_contract() should expose phase1_excluded_features")
+    assert_true(contract.has("runtime_state"), "get_runtime_contract() should expose runtime_state")
+
+    if OS.has_feature("web"):
+        var supported_frontends: PackedStringArray = contract.get("phase1_supported_text_frontends", PackedStringArray())
+        var excluded_features: PackedStringArray = contract.get("phase1_excluded_features", PackedStringArray())
+        assert_true(bool(contract.get("is_web_export", false)), "web builds should report is_web_export=true")
+        assert_equal(String(contract.get("execution_provider_policy", "")), "cpu_only", "web builds should report a CPU-only execution policy")
+        assert_false(bool(contract.get("supports_non_cpu_execution_provider", true)), "web builds should reject non-CPU execution providers")
+        assert_false(bool(contract.get("supports_openjtalk_native", true)), "web builds should reject openjtalk-native")
+        assert_false(bool(contract.get("supports_openjtalk_library_path", true)), "web builds should reject openjtalk-native library paths")
+        assert_equal(String(contract.get("resource_source_mode", "")), "godot_file_access", "web builds should source runtime resources through FileAccess")
+        assert_equal(String(contract.get("resource_path_mode", "")), "memory_fileaccess", "web builds should describe the FileAccess-backed resource mode")
+        assert_equal(String(contract.get("preview_support_tier", "")), "preview", "web builds should report preview support tier")
+        assert_equal(String(contract.get("phase1_minimal_synthesize_mode", "")), "en_text_cmu_dict_or_phoneme_string", "web builds should report the minimal Phase 1 synthesize mode")
+        assert_true(supported_frontends.has("en_text_cmu_dict"), "web builds should report the English CMU dict frontend as the Phase 1 minimal text path")
+        assert_true(excluded_features.has("japanese_text_input"), "web builds should report Japanese text input as a Phase 1 exclusion")
+        assert_true(excluded_features.has("openjtalk_dictionary_bootstrap"), "web builds should report OpenJTalk dictionary bootstrap as a Phase 1 exclusion")
+    else:
+        var native_supported_frontends: PackedStringArray = contract.get("phase1_supported_text_frontends", PackedStringArray())
+        var native_excluded_features: PackedStringArray = contract.get("phase1_excluded_features", PackedStringArray())
+        assert_false(bool(contract.get("is_web_export", true)), "native builds should report is_web_export=false")
+        assert_equal(String(contract.get("execution_provider_policy", "")), "multi_provider", "native builds should report multi-provider execution policy")
+        assert_true(bool(contract.get("supports_non_cpu_execution_provider", false)), "native builds should allow non-CPU execution providers")
+        assert_true(bool(contract.get("supports_openjtalk_native", false)), "native builds should allow openjtalk-native")
+        assert_true(bool(contract.get("supports_openjtalk_library_path", false)), "native builds should allow openjtalk-native library paths")
+        assert_equal(String(contract.get("resource_source_mode", "")), "filesystem", "native builds should use filesystem resource loading")
+        assert_equal(String(contract.get("resource_path_mode", "")), "globalize_path", "runtime contract should describe the current path strategy")
+        assert_equal(String(contract.get("preview_support_tier", "")), "native", "native builds should report native support tier")
+        assert_equal(String(contract.get("phase1_minimal_synthesize_mode", "")), "platform_default", "native builds should report the default non-web runtime mode")
+        assert_equal(native_supported_frontends.size(), 0, "native builds should not advertise Web Phase 1 frontend restrictions")
+        assert_equal(native_excluded_features.size(), 0, "native builds should not advertise Web Phase 1 exclusions")
+
+    _cleanup_tts(tts)
+
+func test_runtime_state() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+
+    if not _require_method(tts, "get_runtime_state"):
+        _cleanup_tts(tts)
+        return
+
+    assert_equal(String(tts.get_runtime_state()), "uninitialized", "new PiperTTS instances should start in the uninitialized state")
+
+    if not _configure_test_model(tts):
+        skip("Bundled or environment-provided test model is unavailable")
+        _cleanup_tts(tts)
+        return
+
+    assert_equal(tts.initialize(), OK, "initialize() should succeed before checking runtime_state")
+    assert_equal(String(tts.get_runtime_state()), "ready", "successful initialize() should move runtime_state to ready")
+    _cleanup_tts(tts)
+
+func test_language_capabilities_without_init_is_side_effect_free() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+
+    if not _require_method(tts, "get_language_capabilities") or not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    assert_true(tts.get_last_error().is_empty(), "get_last_error() should start empty before initialize()")
+    var capabilities: Dictionary = tts.get_language_capabilities()
+    assert_true(capabilities.is_empty(), "get_language_capabilities() should return an empty dictionary before initialize()")
+    assert_true(tts.get_last_error().is_empty(), "get_language_capabilities() should not mutate get_last_error() when uninitialized")
+    _cleanup_tts(tts)
+
+func test_editor_download_catalog_paths() -> void:
+    var catalog_script = load("res://addons/piper_plus/download_catalog.gd")
+    assert_not_null(catalog_script, "download_catalog.gd should be loadable")
+    if catalog_script == null:
+        return
+
+    var keys: PackedStringArray = catalog_script.list_model_item_keys()
+    assert_true(keys.has("css10"), "download catalog should expose the css10 preset")
+    var item: Dictionary = catalog_script.get_item_definition("css10")
+    assert_equal(String(item.get("dest", "")), "res://piper_plus_assets/models/css10/", "download catalog should install models into the project asset root")
+    assert_equal(String(item.get("legacy_dest", "")), "res://addons/piper_plus/models/css10/", "download catalog should preserve the legacy addon asset fallback")
+    assert_equal(String(catalog_script.get_canonical_model_path("css10")), "res://piper_plus_assets/models/css10/css10-ja-6lang-fp16.onnx", "download catalog should expose the canonical project model path")
+
+func test_preview_controller_session_config() -> void:
+    var controller_script = load("res://addons/piper_plus/preview_controller.gd")
+    assert_not_null(controller_script, "preview_controller.gd should be loadable")
+    if controller_script == null:
+        return
+
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+
+    tts.model_path = "res://piper_plus_assets/models/css10/css10-ja-6lang-fp16.onnx"
+    tts.dictionary_path = "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
+    tts.language_code = "en"
+    tts.execution_provider = ClassDB.class_get_integer_constant("PiperTTS", "EP_CPU")
+
+    var config: Dictionary = controller_script.build_session_config(tts)
+    assert_equal(String(config.get("model_path", "")), tts.model_path, "preview controller should snapshot model_path")
+    assert_equal(String(config.get("dictionary_path", "")), tts.dictionary_path, "preview controller should snapshot dictionary_path")
+    assert_equal(String(config.get("language_code", "")), "en", "preview controller should snapshot language_code")
+    assert_equal(int(config.get("execution_provider", -1)), tts.execution_provider, "preview controller should snapshot execution_provider")
+    _cleanup_tts(tts)
 
 func test_initialize_without_model() -> void:
     var tts = _create_tts()
@@ -784,6 +938,54 @@ func test_initialize_with_config_fallback() -> void:
     assert_true(tts.is_ready(), "PiperTTS should be ready after fallback config resolution")
     _cleanup_tts(tts)
 
+func test_web_non_cpu_execution_provider_rejected() -> void:
+    if not _is_web_runtime():
+        skip("web runtime only")
+        return
+
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    tts.execution_provider = ClassDB.class_get_integer_constant("PiperTTS", "EP_CUDA")
+    assert_equal(tts.initialize(), ERR_UNAVAILABLE, "Web initialize() should reject non-CPU execution providers")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_UNSUPPORTED_EXECUTION_PROVIDER", "Web initialize() should expose an unsupported execution provider error code")
+    assert_equal(String(last_error.get("stage", "")), "initialize", "Web initialize() should report the failure stage")
+    _cleanup_tts(tts)
+
+func test_web_openjtalk_native_rejected() -> void:
+    if not _is_web_runtime():
+        skip("web runtime only")
+        return
+
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _configure_test_model(tts):
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    tts.openjtalk_library_path = "res://addons/piper_plus/bin/openjtalk_native.js"
+    assert_equal(tts.initialize(), ERR_UNAVAILABLE, "Web initialize() should reject openjtalk-native shared libraries")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_OPENJTALK_NATIVE_UNSUPPORTED", "Web initialize() should expose an unsupported openjtalk-native error code")
+    assert_equal(String(last_error.get("stage", "")), "initialize", "Web initialize() should report the failure stage")
+    _cleanup_tts(tts)
+
 func test_inspect_text() -> void:
     var tts = _create_tts()
     if tts == null:
@@ -1102,6 +1304,8 @@ func test_synthesize_async() -> void:
     tts.synthesis_failed.connect(_on_synthesis_failed_for_test)
 
     assert_equal(tts.synthesize_async(_test_text(bundle)), OK, "synthesize_async() should start successfully")
+    if _require_method(tts, "get_runtime_state"):
+        assert_equal(String(tts.get_runtime_state()), "busy", "synthesize_async() should move runtime_state to busy while work is in flight")
 
     var deadline = Time.get_ticks_msec() + 15000
     while _async_completed_audio == null and _async_failed_error.is_empty() and Time.get_ticks_msec() < deadline:
@@ -1112,6 +1316,8 @@ func test_synthesize_async() -> void:
 
     assert_true(_async_failed_error.is_empty(), "synthesize_async() should not emit synthesis_failed")
     assert_not_null(_async_completed_audio, "synthesize_async() should emit synthesis_completed")
+    if _require_method(tts, "get_runtime_state"):
+        assert_equal(String(tts.get_runtime_state()), "ready", "completed synthesize_async() should restore runtime_state to ready")
     _cleanup_tts(tts)
 
 func test_synthesize_async_request() -> void:
@@ -1214,6 +1420,8 @@ func test_synthesize_streaming_request() -> void:
     }
     assert_equal(tts.synthesize_streaming_request(request, playback_setup["playback"]), OK, "synthesize_streaming_request() should start successfully")
     assert_true(tts.get_last_error().is_empty(), "synthesize_streaming_request() should clear last_error after starting successfully")
+    if _require_method(tts, "get_runtime_state"):
+        assert_equal(String(tts.get_runtime_state()), "busy", "streaming synthesis should move runtime_state to busy while work is in flight")
 
     var deadline = Time.get_ticks_msec() + 15000
     while not _streaming_completed and Time.get_ticks_msec() < deadline:
@@ -1227,6 +1435,8 @@ func test_synthesize_streaming_request() -> void:
     assert_equal(String(synth_result.get("selection_mode", "")), "language_code_exact", "streaming synthesis should expose the selection mode")
     assert_true((synth_result.get("resolved_segments", []) as Array).size() > 0, "streaming synthesis should expose resolved_segments")
     assert_true(tts.get_last_error().is_empty(), "completed streaming synthesis should leave last_error empty")
+    if _require_method(tts, "get_runtime_state"):
+        assert_equal(String(tts.get_runtime_state()), "ready", "completed streaming synthesis should restore runtime_state to ready")
 
     var container = playback_setup.get("container")
     if container != null and is_instance_valid(container):

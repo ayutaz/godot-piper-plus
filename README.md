@@ -1,131 +1,182 @@
 # godot-piper-plus
 
-[piper-plus](https://github.com/ayutaz/piper-plus)のGodotプラグイン - 高品質なニューラル音声合成エンジン
+Godot 4.4 以降で使える、オフライン音声合成 addon です。
+[`piper-plus`](https://github.com/ayutaz/piper-plus) を Godot 向け GDExtension として提供し、`PiperTTS` ノードと editor ツールを通してゲームやツールにローカル TTS を組み込めます。
 
-## 概要
+## できること
 
-godot-piper-plusは、[piper-plus](https://github.com/ayutaz/piper-plus)（VITS ニューラルTTSエンジン）をGodotエンジン向けにGDExtensionとして移植するプロジェクトです。ローカルで動作する高品質な音声合成をGodotゲームに組み込むことができます。
-
-## Godotでの開き方
-
-Godotプロジェクトとして開く場合は、このリポジトリのルートディレクトリを指定してください。デモシーンは `res://demo/main.tscn` です。
-
-## 機能
-
-- 高品質なニューラル音声合成（VITS / piper-plusベース）
-- 日本語テキスト音声合成（OpenJTalk）
-- 英語テキスト音声合成（CMU辞書ベースの英語 G2P）
-- multilingual capability matrix に基づく言語サポート
-- GDExtension（C++）によるネイティブパフォーマンス
-- OpenJTalk による日本語音素化
-- `openjtalk-native` DLL の任意利用と builtin OpenJTalk fallback
-- `language_id` / `language_code` 指定とモデル名/エイリアス解決
-- Prosody（韻律）サポート：より自然なイントネーション（A1/A2/A3）
+- ローカル完結のニューラル音声合成
+- 日本語 text input と英語 text input
+- multilingual capability matrix に基づく言語ルーティング
 - 同期 / 非同期 / streaming 合成
-- カスタム辞書エディタと runtime 適用（`custom_dictionary_path`）
-- CUDA 実行プロバイダと `gpu_device_id` 指定
-- オフライン動作（クラウド不要）
+- `inspect_*` API による dry-run / timing 取得
+- model downloader、dictionary editor、Inspector 拡張、test speech UI
+- `openjtalk-native` の任意利用と builtin OpenJTalk fallback
+- `execution_provider` と `gpu_device_id` による backend 切り替え
+- Web 向け preview support
 
-## 現在の対応状況
+## 導入方法
 
-現時点で repo 内の `P0` `P1` `P2` の機能実装は完了しています。release package と platform verification は継続中ですが、`R1` から `R4` の package/CI 是正は実装済みです。現実装のスコープは次のとおりです。
+1. Godot 4.4 以降の project に `addons/piper_plus` を配置します。
+2. `Project > Project Settings > Plugins` で **Piper Plus TTS** を有効化します。
+3. `Piper Plus: Download Models...` を開き、少なくとも 1 つモデルを追加します。
+4. 日本語合成を使う場合は `naist-jdic` も追加します。
 
-- 日本語 OpenJTalk と英語 CMU 辞書ベース G2P を使った text input 合成
-- bilingual / multilingual モデルに対する capability-based routing
-- `get_language_capabilities()` / `get_last_error()` による multilingual contract と machine-readable failure の取得
-- `language_id` と `language_code` による言語選択
-- `model_path` の実ファイル指定、モデル名/エイリアス解決、`config_path` fallback
-- `synthesize_request` / `inspect_request` による request ベース API
-- `synthesize_phoneme_string` / `inspect_phoneme_string` による raw phoneme 入力
-- `sentence_silence_seconds` / `phoneme_silence_seconds` の制御
-- `inspect_*` と `get_last_synthesis_result()` による dry-run / timing / 結果取得
-- `custom_dictionary_path` による辞書前処理と `[[ phonemes ]]` 直入力
-- `resolved_segments` を含む inspection / synthesis metadata の取得
-- `openjtalk_library_path` による `openjtalk-native` shared library 指定と builtin OpenJTalk fallback
-- `execution_provider = EP_CUDA` と `gpu_device_id` による GPU device 指定
-- Inspector 拡張、preset 適用、テスト発話 UI、モデル downloader、辞書 editor
-- multilingual text input の現状サポートは capability matrix 基準です。`ja` / `en` は preview auto / explicit、`es` / `fr` / `pt` は experimental explicit-only、`zh` は phoneme-only です。正本は `tests/fixtures/multilingual_capability_matrix.json`、人が読む投影は `docs/generated/multilingual_capability_matrix.md` です
-- 英語 text input では `cmudict_data.json` が必要です。`addons/piper_plus/dictionaries/`、モデル同梱ディレクトリ、または config 同階層を探索します。
-- CUDA を使う場合は CUDA 対応 ONNX Runtime binary を別途用意してください。既定の CPU 向け binary では自動的に CPU fallback します。
+この repository 自体を Godot project として開いて試すこともできます。
+demo scene は `res://demo/main.tscn` です。
 
-## 検証状況
+## クイックスタート
 
-- 2026-04-06 時点で `ctest --test-dir build-p1-debug -C Debug --output-on-failure` は `131/131` pass です。multilingual capability matrix の freshness check と matrix-first C++ test を含みます
-- 2026-04-06 時点で Godot headless の `test/project` は `32 pass / 0 fail / 1 skip` です。skip は OpenJTalk dictionary asset が無い環境の既知ケースで、multilingual request / streaming test は通過しています
-- 2026-03-23 時点で `scripts/ci/package-addon.sh` は `.gdextension` に書かれた debug / release binary を全 platform 分拾い、Windows の `onnxruntime_providers_shared.dll` も package へ含めます
-- 2026-03-23 時点で `scripts/ci/validate-addon-package.sh` は manifest 上の全 binary / dependency を検証し、local で Windows だけの partial package を渡した場合も Android/iOS binary 欠落で失敗することを確認しています
-- 2026-03-23 時点で Windows の packaged addon は、現在の local build bin から組み立てた package を使う headless smoke (`scripts/ci/smoke-test-packaged-addon.sh`) で再確認済みです
-- Windows の headless 実行では `addons/piper_plus/bin/onnxruntime.dll` が必要です。`test/prepare-assets.sh` は `onnxruntime.windows.x86_64.dll` しか無い場合でも plain 名へ複製します
-- 2026-03-23 時点で `openjtalk-native` 無効パス時の builtin fallback と `gpu_device_id` の GDScript test を追加済みです。compiled `naist-jdic` が無い環境では builtin fallback の日本語 test は skip されます
-- `test/project/main.gd` と `test/run-tests.sh` は all-skip / pass 0 / `PiperTTS class is unavailable` / model bundle 欠落を CI failure として扱うように更新済みです
-- GitHub Actions には Windows / macOS packaged addon smoke test に加えて、Android export smoke と iOS export/link smoke の job を追加しました。初回実行結果の確認はまだ残っています
-- 2026-03-23 時点で Android arm64 の debug GDExtension build は Windows local で通過しています。`test/project/export_presets.cfg` と `scripts/ci/export-android-smoke.sh` / `scripts/ci/export-ios-smoke.sh` / `scripts/ci/install-godot-export-templates.sh` を追加しました
-- 2026-03-23 時点で Windows + Godot 4.6 の local Android headless export は generic な configuration error でまだ通っていません。Android/iOS の可否確定は CI の初回結果待ちです
+最短で試すなら、英語モデルを使う構成が一番簡単です。英語用の `cmudict_data.json` は addon 側に同梱されています。
 
-## サポートプラットフォーム
+```gdscript
+extends Node
 
-| プラットフォーム | アーキテクチャ | 状態 | 備考 |
-|----------------|-------------|------|------|
-| Windows | x86_64 | source build と local packaged smoke で動作確認済み | packaged addon smoke の CI job も追加済み |
-| Linux | x86_64 | CI build と headless integration あり | all-skip / pass 0 を failure 扱いに更新済み |
-| macOS | arm64 (Apple Silicon) | CI build と C++ test 済み | packaged addon smoke の CI job を追加済み。初回実行結果は未確認 |
-| Android | arm64-v8a | CI build / package gate / export smoke job 追加済み | debug / release binary は validator 対象。初回 CI 結果と runtime 可否の確定待ち |
-| iOS | arm64 | CI build / package gate / export-link smoke job 追加済み | debug / release binary は validator 対象。初回 CI 結果の確定待ち |
-| Web | - | 未対応 | `web.*` GDExtension entry と build/export 導線がありません |
+@onready var player: AudioStreamPlayer = $AudioStreamPlayer
 
-release package をそのまま「全 platform で使える addon」と言い切るにはまだ早く、残っている主作業は macOS packaged runtime の確認と Android/iOS export smoke の初回結果確認、必要ならその場で出る export/link 問題の修正です。
+func _ready() -> void:
+    var tts := PiperTTS.new()
+    add_child(tts)
 
-## 対応モデル
+    tts.model_path = "res://piper_plus_assets/models/en_US-ljspeech-medium/en_US-ljspeech-medium.onnx"
+    tts.config_path = "res://piper_plus_assets/models/en_US-ljspeech-medium/en_US-ljspeech-medium.onnx.json"
 
-モデルは `addons/piper_plus/models/` へ手動配置するか、エディタの downloader から取得する前提です。`model_path` には `.onnx` の実ファイルだけでなく、登録済みモデル名やエイリアスも指定できます。`config_path` を省略した場合は `<model>.json`、次に同じディレクトリの `config.json` を探索します。
+    tts.synthesis_completed.connect(func(audio: AudioStreamWAV) -> void:
+        player.stream = audio
+        player.play()
+    )
+    tts.synthesis_failed.connect(func(message: String) -> void:
+        push_error(message)
+    )
 
-| モデル名 | 言語 | Prosody対応 | 説明 |
-|---------|------|------------|------|
-| ja_JP-test-medium | 日本語 | なし | 標準日本語モデル |
-| en_US-ljspeech-medium | 英語 | なし | 英語 G2P 対応の英語モデル |
-| tsukuyomi-chan | 日本語 | あり | Prosody対応日本語モデル（より自然なイントネーション） |
+    var err := tts.initialize()
+    if err != OK:
+        push_error("PiperTTS initialize failed: %s" % err)
+        return
 
-## アーキテクチャ
-
-```
-テキスト入力
-    ↓
-[任意] `custom_dictionary_path` による前処理
-    ↓
-`[[ phonemes ]]` 直入力のパース
-    ↓
-Phonemizer（音素変換）
-    • 日本語: builtin OpenJTalk または `openjtalk-native`
-    • 英語: CMU辞書ベースの英語 G2P
-    • bilingual / multilingual:
-        - `ja/en`: capability-based auto / explicit routing
-        - `es/fr/pt`: explicit-only
-        - `zh`: phoneme-only
-    ↓
-音素エンコーディング（PUA マッピング）
-    ↓
-VITS推論（ONNX Runtime / CPU, DirectML, CoreML, NNAPI, CUDA）
-    ↓
-AudioStreamWAV / AudioStreamGenerator 出力（22050Hz, 16bit PCM）
+    err = tts.synthesize_async("Hello from Piper Plus.")
+    if err != OK:
+        push_error("PiperTTS synthesize_async failed: %s" % err)
 ```
 
-## 依存ライブラリ
+日本語を使う場合は、モデルに加えて `naist-jdic` を用意し、`dictionary_path` を設定してください。
 
-| ライブラリ | 用途 | リンク方式 |
-|-----------|------|-----------|
-| [godot-cpp](https://github.com/godotengine/godot-cpp) | GDExtension C++バインディング | サブモジュール |
-| [ONNX Runtime](https://onnxruntime.ai/) | VITS推論エンジン | 動的リンク |
-| [OpenJTalk](https://open-jtalk.sourceforge.net/) | 日本語音素化 | 静的リンク |
-| `openjtalk-native` | 日本語音素化 backend（任意） | 動的ロード |
+## 主な API
+
+- `synthesize(text)` / `synthesize_async(text)`
+- `synthesize_streaming(text, playback)`
+- `synthesize_request(request)`
+- `synthesize_phoneme_string(phoneme_string)`
+- `inspect_text(text)` / `inspect_request(request)` / `inspect_phoneme_string(phoneme_string)`
+- `get_last_synthesis_result()`
+- `get_last_inspection_result()`
+- `get_language_capabilities()`
+- `get_last_error()`
+
+より詳しい API は [doc_classes/PiperTTS.xml](./doc_classes/PiperTTS.xml) を参照してください。
+
+## モデルと言語サポート
+
+モデル本体は package に同梱していません。
+`res://piper_plus_assets/models/` に手動配置するか、editor の downloader から取得する前提です。
+
+downloader の既定対象:
+
+- `ja_JP-test-medium`
+- `tsukuyomi-chan`
+- `en_US-ljspeech-medium`
+- `naist-jdic`
+
+現在の言語サポート:
+
+- `ja` / `en`: preview auto / explicit 対応
+- `es` / `fr` / `pt`: experimental explicit-only
+- `zh`: phoneme-only
+
+正本は [tests/fixtures/multilingual_capability_matrix.json](./tests/fixtures/multilingual_capability_matrix.json)、人が読む投影は [docs/generated/multilingual_capability_matrix.md](./docs/generated/multilingual_capability_matrix.md) です。
+
+## サポート状況
+
+`2026-04-10` の GitHub Actions run `24223195868` では、`Build Web`、`Package Complete Addon`、Windows / macOS packaged smoke、Android export smoke、iOS export smoke が成功しています。
+
+| プラットフォーム | アーキテクチャ | 状態 | 補足 |
+|---|---|---|---|
+| Windows | x86_64 | 確認済み | source build と packaged addon smoke を確認済み |
+| Linux | x86_64 | 確認済み | CI build と headless integration を継続実行中 |
+| macOS | arm64 | 確認済み | packaged addon smoke を CI で確認済み |
+| Android | arm64-v8a | 進行中 | export smoke は CI で確認済み。残りは runtime 可否と Windows local export 差分 |
+| iOS | arm64 | 確認済み | export / link smoke を CI で確認済み |
+| Web | wasm32 | preview support | browser smoke を CI で確認済み。custom template と `EP_CPU` 前提 |
+
+## Web Preview
+
+Web は preview support です。
+
+- custom Web export template が必要です
+- toolchain は Godot 4.4.1 向けに `emsdk 3.1.62` を前提にしています
+- `execution_provider` は `EP_CPU` 固定です
+- `openjtalk-native` shared library は Web では使えません
+- ブラウザ実行には `COOP` / `COEP` を付けた static server が必要です
+- 2026-04-10 の CI では `threads` / `no-threads` の両 browser smoke が通過しています
+
+ローカルで Web smoke を回す場合:
+
+```bash
+GODOT_SOURCE_DIR=/path/to/godot-source INSTALL_TO_EXPORT_TEMPLATES=1 bash scripts/ci/build-godot-web-templates.sh /tmp/godot-web-templates
+bash scripts/ci/build-onnxruntime-web.sh /path/to/onnxruntime-source /tmp/ort-web
+ONNXRUNTIME_DIR=/tmp/ort-web bash scripts/ci/build-web-side-module.sh /tmp/web-artifacts
+GODOT=/path/to/godot bash scripts/ci/export-web-smoke.sh
+```
+
+`run-web-smoke.mjs` には Node.js と Playwright が必要です。
+`npm install --no-save playwright` の後に `npx playwright install chromium` を実行してください。
+
+## Editor ツール
+
+addon は次の editor command を提供します。
+
+- `Piper Plus: Download Models...`
+- `Piper Plus: Dictionary Editor...`
+- `Piper Plus: Test Speech...`
+
+`PiperTTS` ノードには custom Inspector が入り、preset 適用、ダウンロード導線、辞書編集、試聴 UI を Inspector から開けます。
+
+## package に含まれるもの / 含まれないもの
+
+含まれるもの:
+
+- `addons/piper_plus` 配下の GDExtension と editor plugin
+- 英語用 `cmudict_data.json`
+- Web preview 用 `web.*` entry
+
+含まれないもの:
+
+- 音声モデル (`.onnx` / `.onnx.json`)
+- 日本語用 `naist-jdic`
+- `openjtalk-native` 本体
+
+## 既知の制約
+
+- Android は CI export smoke まで確認済みですが、runtime 可否の最終確認が残っています
+- Windows local の Android headless export では generic configuration error の切り分けが残っています
+- Web は preview support です。正式サポートではありません
+- `zh` は phoneme-only で、text input には使えません
+
+## 開発者向け情報
+
+詳しい進捗や技術メモは次を参照してください。
+
+- [docs/milestones.md](./docs/milestones.md)
+- [docs/tickets/README.md](./docs/tickets/README.md)
+- [docs/web-platform-research.md](./docs/web-platform-research.md)
+- [doc_classes/PiperTTS.xml](./doc_classes/PiperTTS.xml)
 
 ## 関連プロジェクト
 
-| プロジェクト | 説明 |
-|-------------|------|
-| [piper-plus](https://github.com/ayutaz/piper-plus) | TTSエンジン本体（C++/Python） |
-| [uPiper](https://github.com/ayutaz/uPiper) | Unity向けプラグイン |
-| [dot-net-g2p](https://github.com/ayutaz/dot-net-g2p) | 純C# 日英G2Pライブラリ |
+- [piper-plus](https://github.com/ayutaz/piper-plus)
+- [uPiper](https://github.com/ayutaz/uPiper)
+- [dot-net-g2p](https://github.com/ayutaz/dot-net-g2p)
 
 ## ライセンス
 
-[Apache License 2.0](LICENSE)
+[Apache License 2.0](./LICENSE)

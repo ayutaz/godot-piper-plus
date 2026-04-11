@@ -1,9 +1,6 @@
 name: Build GDExtension
 
 on:
-  push:
-    branches:
-      - "**"
   pull_request:
     branches:
       - main
@@ -14,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-gdextension-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: build-gdextension-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -26,6 +23,11 @@ env:
   GODOT_LINUX_ZIP: "Godot_v4.4.1-stable_linux.x86_64.zip"
   GODOT_MACOS_ZIP: "Godot_v4.4.1-stable_macos.universal.zip"
   GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4.1-stable_export_templates.tpz"
+  EMSDK_VERSION: "3.1.62"
+  NODE_VERSION: "20"
+  WEB_ORT_CACHE_VERSION: "2"
+  WEB_GODOT_TEMPLATES_CACHE_VERSION: "2"
+  WEB_ORT_BUILD_SIGNATURE: "wasm-static-lib-simd-dual-threads-v1"
 
 jobs:
   build-desktop:
@@ -347,11 +349,245 @@ jobs:
           path: addons/piper_plus/bin/
           if-no-files-found: ignore
 
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build scons
+
+      - name: Set up emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore ONNX Runtime Web no-thread cache
+        id: cache-ort-web-nothreads
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-
+
+      - name: Restore legacy ONNX Runtime Web no-thread cache
+        if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
+        id: cache-ort-web-nothreads-legacy
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-
+
+      - name: Restore ONNX Runtime Web threads cache
+        id: cache-ort-web-threads
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-threads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-threads-
+
+      - name: Restore legacy ONNX Runtime Web threads cache
+        if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
+        id: cache-ort-web-threads-legacy
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-threads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-
+
+      - name: Check restored ONNX Runtime Web packages
+        id: ort-web-packages
+        shell: bash
+        run: |
+          ort_package_ready() {
+            local package_root="$1"
+            local header_root="$package_root/include/onnxruntime_cxx_api.h"
+            local header_nested="$package_root/include/onnxruntime/core/session/onnxruntime_cxx_api.h"
+
+            [[ -f "$package_root/lib/libonnxruntime_webassembly.a" ]] && \
+            ([[ -f "$header_root" ]] || [[ -f "$header_nested" ]])
+          }
+
+          nothreads_ready=false
+          if ort_package_ready "$RUNNER_TEMP/onnxruntime-web-nothreads"; then
+            nothreads_ready=true
+          fi
+
+          threads_ready=false
+          if ort_package_ready "$RUNNER_TEMP/onnxruntime-web-threads"; then
+            threads_ready=true
+          fi
+
+          echo "nothreads_ready=$nothreads_ready" >> "$GITHUB_OUTPUT"
+          echo "threads_ready=$threads_ready" >> "$GITHUB_OUTPUT"
+          echo "nothreads_ready=$nothreads_ready"
+          echo "threads_ready=$threads_ready"
+
+      - name: Build ONNX Runtime Web static library packages
+        if: steps.ort-web-packages.outputs.nothreads_ready != 'true' || steps.ort-web-packages.outputs.threads_ready != 'true'
+        shell: bash
+        run: |
+          if [[ ! -d "$RUNNER_TEMP/onnxruntime" ]]; then
+            git clone --recursive --shallow-submodules --depth 1 --branch "v${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "$RUNNER_TEMP/onnxruntime"
+          fi
+          chmod +x scripts/ci/build-onnxruntime-web.sh
+          if [[ ! -f "$RUNNER_TEMP/onnxruntime-web-nothreads/lib/libonnxruntime_webassembly.a" ]]; then
+            ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
+            ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --build_dir build-wasm-static-nothreads --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
+            bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web-nothreads"
+          fi
+          if [[ ! -f "$RUNNER_TEMP/onnxruntime-web-threads/lib/libonnxruntime_webassembly.a" ]]; then
+            ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
+            ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --enable_wasm_threads --skip_tests --disable_rtti --config Release --build_dir build-wasm-static-threads --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
+            bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web-threads"
+          fi
+
+      - name: Save ONNX Runtime Web no-thread cache
+        if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+
+      - name: Save ONNX Runtime Web threads cache
+        if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-threads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+
+      - name: Restore custom Godot Web export templates cache
+        id: cache-godot-web-templates
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/godot-web-templates
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
+          restore-keys: |
+            web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-
+
+      - name: Check restored custom Godot Web export templates
+        id: godot-web-templates
+        shell: bash
+        run: |
+          templates_ready=false
+          if [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_release.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_release.zip" ]]; then
+            templates_ready=true
+          fi
+
+          echo "ready=$templates_ready" >> "$GITHUB_OUTPUT"
+          echo "templates_ready=$templates_ready"
+
+      - name: Build custom Godot Web export templates
+        if: steps.godot-web-templates.outputs.ready != 'true'
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_release.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_release.zip" ]]; then
+            echo "Using restored custom Godot Web export templates from cache."
+            exit 0
+          fi
+          git clone --depth 1 --branch "$GODOT_VERSION" https://github.com/godotengine/godot.git "$RUNNER_TEMP/godot-source"
+          chmod +x scripts/ci/build-godot-web-templates.sh
+          GODOT_SOURCE_DIR="$RUNNER_TEMP/godot-source" bash scripts/ci/build-godot-web-templates.sh "$RUNNER_TEMP/godot-web-templates"
+
+      - name: Save custom Godot Web export templates cache
+        if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/godot-web-templates
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
+
+      - name: Install custom Godot Web export templates
+        shell: bash
+        run: |
+          chmod +x scripts/ci/install-godot-export-templates.sh
+          GODOT_SKIP_OFFICIAL_TEMPLATES=1 \
+          GODOT_WEB_TEMPLATES_DIR="$RUNNER_TEMP/godot-web-templates" \
+          bash scripts/ci/install-godot-export-templates.sh
+
+      - name: Build Web addon binaries
+        shell: bash
+        run: |
+          chmod +x scripts/ci/build-web-side-module.sh
+          ONNXRUNTIME_DIR_NOTHREADS="$RUNNER_TEMP/onnxruntime-web-nothreads" \
+          ONNXRUNTIME_DIR_THREADS="$RUNNER_TEMP/onnxruntime-web-threads" \
+          bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
+
+      - name: Download Linux addon bin artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: piper-plus-bin-linux-x86_64
+          path: addons/piper_plus/bin
+
+      - name: Download Godot Linux binary
+        shell: bash
+        run: |
+          curl -L -o "${GODOT_LINUX_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          sha512sum -c godot.sha512
+          unzip -q "${GODOT_LINUX_ZIP}" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/${GODOT_LINUX_ZIP%.zip}"
+          echo "GODOT=$RUNNER_TEMP/godot/${GODOT_LINUX_ZIP%.zip}" >> "$GITHUB_ENV"
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run Web smoke
+        shell: bash
+        run: |
+          chmod +x scripts/ci/export-web-smoke.sh
+          bash scripts/ci/export-web-smoke.sh "$RUNNER_TEMP/web-smoke"
+
+      - name: Upload Web smoke export artifact
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-web-smoke-export
+          path: ${{ runner.temp }}/web-smoke/
+          if-no-files-found: ignore
+
+      - name: Upload Web addon bin artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-bin-web-wasm32
+          path: addons/piper_plus/bin/
+          if-no-files-found: ignore
+
   package-addon:
     name: Package Complete Addon
     runs-on: ubuntu-22.04
     needs:
       - build-mobile
+      - build-web
       - test-desktop
       - integration-linux
 

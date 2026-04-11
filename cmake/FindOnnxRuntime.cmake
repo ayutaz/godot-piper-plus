@@ -10,6 +10,7 @@
 #   ONNXRUNTIME_DLL (Windows only)
 
 set(ONNXRUNTIME_VERSION "1.24.3" CACHE STRING "ONNX Runtime version")
+set(ONNXRUNTIME_WEB_STATIC_LIB "" CACHE FILEPATH "Path to libonnxruntime_webassembly.a for Web builds")
 
 # Determine platform suffix for download
 if(WIN32)
@@ -40,26 +41,54 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
   set(_ORT_PLATFORM "android")
   set(_ORT_EXT "aar")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # Web builds require a pre-built static ONNX Runtime; no auto-download available.
+  # Set ONNXRUNTIME_DIR to the package root or ONNXRUNTIME_WEB_STATIC_LIB directly.
+  message(STATUS "Web detected: ONNX Runtime auto-download is not available. Set ONNXRUNTIME_DIR or ONNXRUNTIME_WEB_STATIC_LIB manually.")
 endif()
 
 # Search user-specified dir first
 if(ONNXRUNTIME_DIR)
-  find_library(ONNXRUNTIME_LIB
-    NAMES onnxruntime
-    PATHS "${ONNXRUNTIME_DIR}/lib"
-    NO_DEFAULT_PATH
-    NO_CMAKE_FIND_ROOT_PATH
-  )
+  if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(_ORT_WEB_STATIC_LIB_CANDIDATE "${ONNXRUNTIME_DIR}/lib/libonnxruntime_webassembly.a")
+    if(EXISTS "${_ORT_WEB_STATIC_LIB_CANDIDATE}")
+      set(ONNXRUNTIME_LIB "${_ORT_WEB_STATIC_LIB_CANDIDATE}")
+    endif()
+
+    find_library(ONNXRUNTIME_LIB
+      NAMES onnxruntime_webassembly onnxruntime
+      PATHS "${ONNXRUNTIME_DIR}/lib"
+      NO_DEFAULT_PATH
+      NO_CMAKE_FIND_ROOT_PATH
+    )
+  else()
+    find_library(ONNXRUNTIME_LIB
+      NAMES onnxruntime
+      PATHS "${ONNXRUNTIME_DIR}/lib"
+      NO_DEFAULT_PATH
+      NO_CMAKE_FIND_ROOT_PATH
+    )
+  endif()
   find_path(ONNXRUNTIME_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     PATHS "${ONNXRUNTIME_DIR}/include"
+    PATH_SUFFIXES "" "onnxruntime/core/session"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH
   )
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND ONNXRUNTIME_WEB_STATIC_LIB AND NOT ONNXRUNTIME_LIB)
+  set(ONNXRUNTIME_LIB "${ONNXRUNTIME_WEB_STATIC_LIB}")
+endif()
+
 # Auto-download if not found
 if(NOT ONNXRUNTIME_LIB OR NOT ONNXRUNTIME_INCLUDE_DIR)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(ONNXRUNTIME_FOUND FALSE)
+    message(FATAL_ERROR "ONNX Runtime Web static library not found. Set ONNXRUNTIME_DIR or ONNXRUNTIME_WEB_STATIC_LIB for Emscripten builds.")
+  endif()
+
   set(_ORT_DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onnxruntime")
   set(_ORT_ARCHIVE "${_ORT_DOWNLOAD_DIR}/onnxruntime.${_ORT_EXT}")
 
@@ -126,6 +155,7 @@ if(NOT ONNXRUNTIME_LIB OR NOT ONNXRUNTIME_INCLUDE_DIR)
   find_path(ONNXRUNTIME_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     PATHS "${ONNXRUNTIME_DIR}/include"
+    PATH_SUFFIXES "" "onnxruntime/core/session"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH
   )

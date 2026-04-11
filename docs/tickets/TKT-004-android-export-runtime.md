@@ -9,15 +9,20 @@
 
 ## 進捗
 
-- [ ] Android export smoke の初回 CI 結果を確定する
-- [ ] export 条件と package bin の不足を修正する
+- [x] Android export smoke の CI 結果を確定する
+- [x] export 条件と package bin の不足を修正する
 - [ ] runtime 可否を確認する
-- [ ] 結果を文書へ反映する
+- [x] CI export smoke の結果と未確定な runtime 条件を文書へ反映する
 
 ## タスク目的とゴール
 
 - Android arm64-v8a 向け export smoke と runtime 可否を確定し、release gate を閉じる。
 - APK 生成だけではなく、native library 同梱と最小 runtime 成立を確認する。
+
+## 実装メモ
+
+- 2026-04-10 の GitHub Actions run `24223195868` で `Android Export Smoke` は `success` でした。package、export preset、SDK/bootstrap 導線、APK 生成までは CI で成立しています。
+- 残件は、export 成功を超えた runtime 可否の最終確認です。Windows local の generic configuration error は [`TKT-005`](TKT-005-windows-android-export-error.md) に切り分け済みです。
 
 ## 実装する内容の詳細
 

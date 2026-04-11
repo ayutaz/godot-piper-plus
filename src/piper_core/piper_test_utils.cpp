@@ -212,6 +212,20 @@ void parseModelConfig(json &configRoot, ModelConfig &modelConfig) {
     }
 }
 
+bool parseJsonConfigFromString(const std::string &jsonText, json &configRoot,
+                               std::string *errorMessage) {
+    configRoot = json();
+    try {
+        configRoot = json::parse(jsonText);
+        return true;
+    } catch (const json::exception &e) {
+        if (errorMessage) {
+            *errorMessage = e.what();
+        }
+        return false;
+    }
+}
+
 std::vector<PhonemeInfo> extractTimingsFromDurations(
     const std::vector<float> &durations,
     const std::vector<PhonemeId> &phonemeIds,

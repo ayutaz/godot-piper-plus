@@ -1,6 +1,8 @@
 @tool
 extends RefCounted
 
+const PreviewControllerScript = preload("res://addons/piper_plus/preview_controller.gd")
+
 const _META_TARGET := &"_piper_preview_target"
 const _META_PREVIEW_TTS := &"_piper_preview_tts"
 const _META_PLAYER := &"_piper_preview_player"
@@ -89,27 +91,6 @@ static func _default_preview_text(target: Object) -> String:
 	return DEFAULT_JA_PREVIEW_TEXT
 
 
-static func _copy_target_properties(preview_tts: Object, target: Object) -> void:
-	for property_name in [
-		"model_path",
-		"config_path",
-		"dictionary_path",
-		"openjtalk_library_path",
-		"custom_dictionary_path",
-		"speaker_id",
-		"language_id",
-		"language_code",
-		"speech_rate",
-		"noise_scale",
-		"noise_w",
-		"sentence_silence_seconds",
-		"phoneme_silence_seconds",
-		"execution_provider",
-		"gpu_device_id",
-	]:
-		preview_tts.set(property_name, target.get(property_name))
-
-
 static func _on_preview_pressed(
 	dialog: AcceptDialog,
 	text_edit: TextEdit,
@@ -131,18 +112,15 @@ static func _on_preview_pressed(
 
 	_cleanup_preview(dialog)
 
-	var preview_tts = ClassDB.instantiate("PiperTTS")
+	var session := PreviewControllerScript.create_preview_session(dialog, target)
+	var preview_tts = session.get("tts", null)
 	if preview_tts == null:
-		status_label.text = "PiperTTS クラスを生成できませんでした。GDExtension の読み込み状態を確認してください。"
+		status_label.text = String(session.get("error", "PiperTTS クラスを生成できませんでした。"))
 		return
 
-	var player := AudioStreamPlayer.new()
-	dialog.add_child(preview_tts)
-	dialog.add_child(player)
+	var player = session.get("player", null)
 	dialog.set_meta(_META_PREVIEW_TTS, preview_tts)
 	dialog.set_meta(_META_PLAYER, player)
-
-	_copy_target_properties(preview_tts, target)
 
 	preview_tts.synthesis_completed.connect(
 		_on_preview_completed.bind(dialog, status_label, preview_btn, stop_btn)
