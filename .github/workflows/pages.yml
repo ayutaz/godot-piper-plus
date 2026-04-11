@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: github-pages-demo
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   ORT_VERSION: "1.24.3"
