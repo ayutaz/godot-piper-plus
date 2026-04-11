@@ -30,7 +30,7 @@
 - 現在の export target は `test/project` の smoke fixture で、出力も `piper-plus-tests.html` 前提です。公開ページ向けの `index.html`、導線、見た目、説明は未整備です。
 - `demo/` は `CSS10` モデルと `naist-jdic` を前提にしており、preview support の最小公開デモとしては重すぎます。
 - addon package 方針では model file を同梱しないため、GitHub Pages 公開物だけ別扱いでどのモデルをどう載せるかを決める必要があります。
-- 初回 public demo の asset policy は `TKT-013` で、`en_US-ljspeech-medium` 1 モデルを Pages artifact へ同梱し、runtime download は行わない前提に固定します。
+- 初回 public demo の asset policy は `TKT-013` で、`multilingual-test-medium` 1 モデルを Pages artifact へ同梱し、runtime download は行わない前提に固定します。
 
 ## 推奨スコープ
 

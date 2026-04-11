@@ -33,6 +33,21 @@
 				}
 			]
 		},
+		"multilingual-test-medium": {
+			"type": "model",
+			"description": "Multilingual test model used by Web smoke and Pages demo (~40 MB)",
+			"dest_subdir": "models/multilingual-test-medium",
+			"files": [
+				{
+					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/multilingual-test-medium.onnx?download=true",
+					"filename": "multilingual-test-medium.onnx"
+				},
+				{
+					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/multilingual-test-medium.onnx.json?download=true",
+					"filename": "multilingual-test-medium.onnx.json"
+				}
+			]
+		},
 		"tsukuyomi-chan": {
 			"type": "model",
 			"description": "Tsukuyomi-chan Japanese model (high quality with prosody, ~60 MB)",
