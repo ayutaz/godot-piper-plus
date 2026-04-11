@@ -19,7 +19,7 @@
 
 ## 技術調査
 
-- 設計と一次ソース調査は [docs/web-platform-research.md](../web-platform-research.md) に集約しています。
+- `W0` の調査結果と判断は、このチケット本文と [docs/milestones.md](../milestones.md) の `M7` セクションに反映しています。
 - 現時点の推奨方針は、`preview` 扱いの Web 対応として custom dlink template、CPU-only backend、addon load と最小モデル synthesize を見る browser smoke を先に閉じることです。
 - このチケットは umbrella と受け入れ条件の管理が責務で、実装本体は `TKT-008` から `TKT-011` が担当します。
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` が成功し、`threads` / `no-threads` の両 browser smoke で `RESULT total=9 pass=4 fail=0 skip=5` と `WEB_SMOKE status=pass` を確認しました。
@@ -28,7 +28,7 @@
 
 | ID | チケット | 状態 | 目的 | 主な変更対象 | 完了条件 | 依存 |
 |---|---|---|---|---|---|---|
-| `W0` | [`TKT-002`](TKT-002-web-platform.md) | `完了` | feasibility と Phase 1 scope を固定し、分割チケットの境界を確定する | `docs/web-platform-research.md`, `docs/milestones.md`, `docs/tickets/TKT-002-web-platform.md` | `preview`、`CPU-only`、custom template、addon load と最小モデル synthesize を見る CI browser smoke 前提を固定し、`W1` から `W4` の責務分担が定義済み | - |
+| `W0` | [`TKT-002`](TKT-002-web-platform.md) | `完了` | feasibility と Phase 1 scope を固定し、分割チケットの境界を確定する | `docs/milestones.md`, `docs/tickets/TKT-002-web-platform.md` | `preview`、`CPU-only`、custom template、addon load と最小モデル synthesize を見る CI browser smoke 前提を固定し、`W1` から `W4` の責務分担が定義済み | - |
 | `W1` | [`TKT-008`](TKT-008-web-template-toolchain-bootstrap.md) | `完了` | custom Web export template と Emscripten build の入口を作る | `CMakeLists.txt`, `cmake/HTSEngine.cmake`, `scripts/ci/install-godot-export-templates.sh`, 必要なら Web template build script | `dlink_enabled=yes` 前提の custom template が再現でき、thread / no-thread の binary 方針、artifact 名、出力配置が固定され、`W4` の成功 run で成立確認済み | - |
 | `W2` | [`TKT-009`](TKT-009-web-manifest-package-export-preset.md) | `完了` | `web.*` manifest、package、validator、export preset を揃える | `addons/piper_plus/piper_plus.gdextension`, `test/project/addons/piper_plus/piper_plus.gdextension`, `test/project/export_presets.cfg`, `scripts/ci/package-addon.sh`, `scripts/ci/validate-addon-package.sh`, `test/prepare-assets.sh` | `W1` で固定した Web artifact matrix を manifest、package、validator、export preset へ反映でき、`W4` の成功 run で成立確認済み | `W1` |
 | `W3` | [`TKT-010`](TKT-010-web-runtime-ort-adaptation.md) | `完了` | Web 向け runtime backend と resource I/O を成立させる | `cmake/FindOnnxRuntime.cmake`, `src/piper_core/piper.cpp`, `src/piper_tts.cpp`, 必要なら `src/piper_core/openjtalk_wrapper.c` | `libonnxruntime_webassembly.a` を link でき、model / config / `cmudict_data.json` を含む path 非依存 load と unsupported backend error が実装され、`W4` の成功 run で最小 synthesize まで確認済み | `W1` `W2` |

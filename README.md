@@ -183,7 +183,6 @@ addon は次の editor command を提供します。
 - 進捗とサポート状況: [`docs/milestones.md`](./docs/milestones.md)
 - チケット一覧: [`docs/tickets/README.md`](./docs/tickets/README.md)
 - Pages 公開メモ: [`docs/web-github-pages-plan.md`](./docs/web-github-pages-plan.md)
-- Web 技術調査: [`docs/web-platform-research.md`](./docs/web-platform-research.md)
 - CI / CD: [`.github/workflows/build.yml`](./.github/workflows/build.yml) と [`.github/workflows/pages.yml`](./.github/workflows/pages.yml)
 
 ## 関連プロジェクト

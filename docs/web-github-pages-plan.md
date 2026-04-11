@@ -7,7 +7,6 @@
 - [README.md](../README.md)
 - [マイルストーン管理](./milestones.md)
 - [チケット一覧](./tickets/README.md)
-- [Web Platform 技術調査](./web-platform-research.md)
 
 ## 現状
 

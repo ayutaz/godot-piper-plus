@@ -22,7 +22,7 @@
 ## 運用メモ
 
 - 完了したチケットは、依存する umbrella ticket や release ticket が結果を取り込むまではこのディレクトリに残し、進捗可視化を優先します。整理タイミングで成果だけを `docs/milestones.md` と残存チケットへ反映して削除します。
-- `TKT-002` は Web 要求全体を束ねる umbrella ticket です。`W0` feasibility / scope 固定を持ち、実装は `TKT-008` から `TKT-011` の `W1` から `W4` に分割しています。技術調査は `docs/web-platform-research.md` に集約しています。`親チケット` は進捗の集約先を示し、`依存` と `後続` は実行順だけを表します。
+- `TKT-002` は Web 要求全体を束ねる umbrella ticket です。`W0` feasibility / scope 固定を持ち、実装は `TKT-008` から `TKT-011` の `W1` から `W4` に分割しています。`W0` の判断結果は `TKT-002` 本文と `docs/milestones.md` に集約しています。`親チケット` は進捗の集約先を示し、`依存` と `後続` は実行順だけを表します。
 - Web の `TKT-008` から `TKT-011` は、2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通り、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - multilingual contract は `tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として扱います。
 - `TKT-003` から `TKT-006` は platform verification の結果確定チケットです。2026-04-10 時点で macOS packaged smoke と iOS export smoke は完了、Android は export smoke 成功後の runtime / local 再現性だけが残っています。
