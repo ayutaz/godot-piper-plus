@@ -40,11 +40,13 @@
 			"files": [
 				{
 					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/multilingual-test-medium.onnx?download=true",
-					"filename": "multilingual-test-medium.onnx"
+					"filename": "multilingual-test-medium.onnx",
+					"sha256": "7c8e909967370a01230ca173fd4541364f30aa3178597b6000122bec92597644"
 				},
 				{
 					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/multilingual-test-medium.onnx.json?download=true",
-					"filename": "multilingual-test-medium.onnx.json"
+					"filename": "multilingual-test-medium.onnx.json",
+					"sha256": "6ed89102f8bb6ec004aa4a010695b8cfd9fd91759145e8f547caabae836eac87"
 				}
 			]
 		},
