@@ -146,6 +146,11 @@ func _tts_call_audio(method_name: StringName, arg0: Variant = null) -> AudioStre
 		result = tts.call(method_name, arg0)
 	return result as AudioStreamWAV
 
+func _tts_last_error() -> Dictionary:
+	if tts != null and tts.has_method("get_last_error"):
+		return tts.call("get_last_error") as Dictionary
+	return {}
+
 func _on_tts_initialized(success: bool) -> void:
 	if not success:
 		_set_status("Initialization failed.")
@@ -158,7 +163,7 @@ func _on_tts_initialized(success: bool) -> void:
 func _run_startup_probe() -> void:
 	var audio := _tts_call_audio("synthesize", DEFAULT_TEXT)
 	if audio == null:
-		var last_error := _tts.call("get_last_error") if tts != null and tts.has_method("get_last_error") else {}
+		var last_error: Dictionary = _tts_last_error()
 		var message := String(last_error.get("message", "Synchronous synthesis returned no audio."))
 		_set_status("Startup self-test failed: %s" % message)
 		_emit_status("fail")
@@ -183,7 +188,7 @@ func _on_synthesize_pressed() -> void:
 	_set_status("Synthesizing...")
 	var audio := _tts_call_audio("synthesize", text)
 	if audio == null:
-		var last_error := _tts.call("get_last_error") if tts != null and tts.has_method("get_last_error") else {}
+		var last_error: Dictionary = _tts_last_error()
 		var message := String(last_error.get("message", "Synchronous synthesis returned no audio."))
 		synthesize_button.disabled = false
 		_set_status("Synthesis failed: %s" % message)
