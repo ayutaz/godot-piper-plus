@@ -173,19 +173,28 @@ func _last_synthesis_result() -> Dictionary:
 
 func _update_contract_label() -> void:
 	var contract := _runtime_contract()
-	var dictionary_mode := String(contract.get("openjtalk_dictionary_bootstrap_mode", "staged_asset"))
-	var dictionary_path := String(contract.get("resolved_dictionary_path", "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"))
-	var supports_japanese := bool(contract.get("supports_japanese_text_input", true))
 	var lines := PackedStringArray([
 		"Contract: EP_CPU / no-threads / PWA export / startup self-test on load.",
 		"Model: %s" % MODEL_KEY,
 		"Demo languages: ja / en",
 		"Default startup probe: %s (%s)" % [_sample_text(DEFAULT_LANGUAGE_CODE), DEFAULT_LANGUAGE_CODE],
-		"Japanese dictionary bootstrap: %s" % dictionary_mode,
-		"Japanese dictionary path: %s" % dictionary_path,
-		"supports_japanese_text_input: %s" % ("true" if supports_japanese else "false"),
 		"Licenses: see LICENSE.txt and THIRD_PARTY_LICENSES.txt in the published site root.",
 	])
+
+	if contract.is_empty():
+		lines.append("Runtime contract: unavailable")
+		lines.append("Japanese dictionary bootstrap: unknown")
+		lines.append("Japanese dictionary path: unknown")
+		lines.append("supports_japanese_text_input: unknown")
+	else:
+		var dictionary_mode := String(contract.get("openjtalk_dictionary_bootstrap_mode", "unknown"))
+		var dictionary_path := String(contract.get("resolved_dictionary_path", "unknown"))
+		var supports_japanese := bool(contract.get("supports_japanese_text_input", false))
+		lines.append("Runtime contract: available")
+		lines.append("Japanese dictionary bootstrap: %s" % dictionary_mode)
+		lines.append("Japanese dictionary path: %s" % dictionary_path)
+		lines.append("supports_japanese_text_input: %s" % ("true" if supports_japanese else "false"))
+
 	contract_label.text = "\n".join(lines)
 
 func _emit_status(status: String) -> void:
@@ -204,6 +213,7 @@ func _publish_state(
 	_last_action = action
 	if not text.is_empty():
 		_last_input_text = text
+	_update_contract_label()
 	if status_label != null:
 		status_label.text = "Status: %s" % message
 
