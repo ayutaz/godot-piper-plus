@@ -1,6 +1,6 @@
 # チケット一覧
 
-更新日: 2026-04-11
+更新日: 2026-04-12
 
 このディレクトリは [docs/milestones.md](../milestones.md) から分解した実行チケットを管理します。各チケットは関連マイルストーンへリンクし、[docs/milestones.md](../milestones.md) 側も対応するチケットへリンクします。進捗を更新するときは、対象チケットと関連マイルストーンの両方を同じコミットで更新してください。
 
@@ -8,23 +8,20 @@
 
 | 状態 | Ticket | タイトル | 親チケット | 関連マイルストーン | 依存 | 後続 |
 |---|---|---|---|---|---|---|
-| 完了 | [TKT-002](TKT-002-web-platform.md) | Web platform 対応 | - | `M7` `M4` `M5` `M8` | - | `TKT-007` |
-| 完了 | [TKT-003](TKT-003-macos-packaged-smoke.md) | macOS arm64 packaged addon smoke 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-004](TKT-004-android-export-runtime.md) | Android arm64 export / runtime 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-005](TKT-005-windows-android-export-error.md) | Windows local Android export error 切り分け | - | `M6` `M5` | - | `TKT-004` `TKT-007` |
-| 完了 | [TKT-006](TKT-006-ios-export-link-smoke.md) | iOS arm64 export / link smoke 確認 | - | `M6` `M5` `M8` | - | `TKT-007` |
-| 進行中 | [TKT-007](TKT-007-release-finalization.md) | package / 文書 / Asset Library 最終化 | - | `M4` `M8` | `TKT-004` `TKT-005` | - |
-| 完了 | [TKT-008](TKT-008-web-template-toolchain-bootstrap.md) | Web custom template / toolchain bootstrap | `TKT-002` | `M7` `M5` | - | `TKT-009` `TKT-010` |
-| 完了 | [TKT-009](TKT-009-web-manifest-package-export-preset.md) | Web manifest / package / export preset 整備 | `TKT-002` | `M7` `M4` `M5` | `TKT-008` | `TKT-010` `TKT-011` |
-| 完了 | [TKT-010](TKT-010-web-runtime-ort-adaptation.md) | Web runtime adaptation / ORT Web 対応 | `TKT-002` | `M7` `M5` | `TKT-008` `TKT-009` | `TKT-011` |
-| 完了 | [TKT-011](TKT-011-web-browser-smoke-ci-docs.md) | Web browser smoke / CI / 文書反映 | `TKT-002` | `M7` `M4` `M5` `M8` | `TKT-009` `TKT-010` | `TKT-007` |
+| 進行中 | [TKT-007](TKT-007-release-finalization.md) | package / 文書 / Asset Library 最終化 | - | `M4` `M8` | `TKT-004` `TKT-005` `TKT-018` | - |
+| 進行中 | [TKT-018](TKT-018-web-japanese-support.md) | Web 日本語対応 | - | `M10` `M4` `M5` `M8` | - | `TKT-007` |
+| 未着手 | [TKT-019](TKT-019-web-japanese-dictionary-bootstrap.md) | Web 日本語 dictionary bootstrap / runtime | `TKT-018` | `M10` `M5` | `TKT-018` | `TKT-020` `TKT-021` |
+| 未着手 | [TKT-020](TKT-020-web-japanese-browser-smoke-ci.md) | Web 日本語 browser smoke / CI gate | `TKT-018` | `M10` `M5` | `TKT-019` | `TKT-021` `TKT-007` |
+| 未着手 | [TKT-021](TKT-021-pages-japanese-demo-public-smoke.md) | GitHub Pages 日本語 demo / public smoke | `TKT-018` | `M10` `M4` `M8` | `TKT-019` `TKT-020` | `TKT-007` |
 
 ## 運用メモ
 
-- 完了したチケットは、依存する umbrella ticket や release ticket が結果を取り込むまではこのディレクトリに残し、進捗可視化を優先します。整理タイミングで成果だけを `docs/milestones.md` と残存チケットへ反映して削除します。
-- `TKT-002` は Web 要求全体を束ねる umbrella ticket です。`W0` feasibility / scope 固定を持ち、実装は `TKT-008` から `TKT-011` の `W1` から `W4` に分割しています。技術調査は `docs/web-platform-research.md` に集約しています。`親チケット` は進捗の集約先を示し、`依存` と `後続` は実行順だけを表します。
-- Web の `TKT-008` から `TKT-011` は、2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通り、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
+- 完了したチケットは、成果を `docs/milestones.md` と残存チケットへ吸収したうえで、このディレクトリから削除します。履歴の正本は milestone と関連計画メモです。
+- `M7 Web Support` の `W0` から `W4` は完了済みで、結果は `docs/milestones.md` に集約しています。個別 ticket は削除済みです。
+- macOS / iOS の完了済み platform 確認も `docs/milestones.md` の `M6` へ吸収しています。
+- `TKT-018` から `TKT-021` は Web 日本語対応の follow-up track です。Phase 1 preview と English-only Pages demo は完了扱いのまま残し、`naist-jdic` bootstrap、日本語 text input / synthesize、browser smoke、Pages public smoke を `M10` として追跡します。
 - multilingual contract は `tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として扱います。
-- `TKT-003` から `TKT-006` は platform verification の結果確定チケットです。2026-04-10 時点で macOS packaged smoke と iOS export smoke は完了、Android は export smoke 成功後の runtime / local 再現性だけが残っています。
-- `TKT-008` から `TKT-011` は `M7 Web Support` を `W1` から `W4` に分解した実装チケットです。進捗更新時は `TKT-002` と `docs/milestones.md` の `M7` セクションも同時に更新します。
-- `TKT-007` は release 完了条件の最終集約チケットで、他チケットの結果を取り込みます。Web については `TKT-002` の umbrella 状態だけでなく、`TKT-011` の smoke / README 反映完了も依存に含めます。
+- `TKT-007` は release 完了条件の最終集約チケットで、他チケットの結果を取り込みます。Web については `M7` / `M9` の完了結果と `TKT-018` 系の日本語対応完了を依存に含めます。
+- `M9 GitHub Pages Public Demo / Deploy` は English-only scope として完了済みです。branch 上で一時的に作成していた `TKT-012` から `TKT-017` は、成果を [`docs/milestones.md`](../milestones.md) と [`docs/web-github-pages-plan.md`](../web-github-pages-plan.md) へ吸収したため、この一覧から削除しています。

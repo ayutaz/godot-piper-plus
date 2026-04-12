@@ -1,0 +1,322 @@
+name: Deploy GitHub Pages Demo
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: Deploy the exported Pages site for this ref
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages-demo-site
+  cancel-in-progress: false
+
+env:
+  ORT_VERSION: "1.24.3"
+  GODOT_VERSION: "4.4.1-stable"
+  GODOT_TEMPLATES_VERSION: "4.4.1.stable"
+  GODOT_LINUX_ZIP: "Godot_v4.4.1-stable_linux.x86_64.zip"
+  GODOT_EXPORT_TEMPLATES_ARCHIVE: "Godot_v4.4.1-stable_export_templates.tpz"
+  EMSDK_VERSION: "3.1.62"
+  NODE_VERSION: "20"
+  WEB_ORT_CACHE_VERSION: "2"
+  WEB_GODOT_TEMPLATES_CACHE_VERSION: "2"
+  WEB_ORT_BUILD_SIGNATURE: "wasm-static-lib-simd-dual-threads-v1"
+
+jobs:
+  build-pages-demo:
+    name: Build Pages Demo
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build scons
+
+      - name: Set up emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache desktop Linux build dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            build-release/h
+            build-release/he
+            build-release/o
+            build-release/oj
+            build-debug/h
+            build-debug/he
+            build-debug/o
+            build-debug/oj
+          key: linux-x86_64-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
+
+      - name: Cache desktop Linux ONNX Runtime
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            build-release/onnxruntime
+            build-debug/onnxruntime
+          key: linux-x86_64-onnxruntime-${{ env.ORT_VERSION }}
+
+      - name: Configure Linux release addon for export host
+        shell: bash
+        run: cmake -B build-release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DGODOTCPP_TARGET=template_release
+
+      - name: Build Linux release addon for export host and validation
+        shell: bash
+        run: cmake --build build-release --config Release --parallel 2 --target piper_plus
+
+      - name: Configure Linux debug addon for export host
+        shell: bash
+        run: cmake -B build-debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Debug -DGODOTCPP_TARGET=template_debug
+
+      - name: Build Linux debug addon for export host and validation
+        shell: bash
+        run: cmake --build build-debug --config Debug --parallel 2 --target piper_plus
+
+      - name: Copy Linux ONNX Runtime for export host
+        shell: bash
+        run: cp build-release/onnxruntime/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so addons/piper_plus/bin/libonnxruntime.linux.x86_64.so
+
+      - name: Restore ONNX Runtime Web no-thread cache
+        id: cache-ort-web-nothreads
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+          restore-keys: |
+            web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-nothreads-
+
+      - name: Check restored ONNX Runtime Web no-thread package
+        id: ort-web-package
+        shell: bash
+        run: |
+          package_root="$RUNNER_TEMP/onnxruntime-web-nothreads"
+          header_root="$package_root/include/onnxruntime_cxx_api.h"
+          header_nested="$package_root/include/onnxruntime/core/session/onnxruntime_cxx_api.h"
+
+          ready=false
+          if [[ -f "$package_root/lib/libonnxruntime_webassembly.a" ]] && [[ -f "$header_root" || -f "$header_nested" ]]; then
+            ready=true
+          fi
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
+      - name: Build ONNX Runtime Web no-thread package
+        if: steps.ort-web-package.outputs.ready != 'true'
+        shell: bash
+        run: |
+          if [[ ! -d "$RUNNER_TEMP/onnxruntime" ]]; then
+            git clone --recursive --shallow-submodules --depth 1 --branch "v${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "$RUNNER_TEMP/onnxruntime"
+          fi
+          chmod +x scripts/ci/build-onnxruntime-web.sh
+          ORT_EMSDK_VERSION="${EMSDK_VERSION}" \
+          ORT_BUILD_FLAGS="--build_wasm_static_lib --enable_wasm_simd --skip_tests --disable_rtti --config Release --build_dir build-wasm-static-nothreads --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF --skip_submodule_sync" \
+          bash scripts/ci/build-onnxruntime-web.sh "$RUNNER_TEMP/onnxruntime" "$RUNNER_TEMP/onnxruntime-web-nothreads"
+
+      - name: Save ONNX Runtime Web no-thread cache
+        if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/onnxruntime-web-nothreads
+          key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
+
+      - name: Restore custom Godot Web export templates cache
+        id: cache-godot-web-templates
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/godot-web-templates
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
+          restore-keys: |
+            web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-
+
+      - name: Check restored custom Godot Web export templates
+        id: godot-web-templates
+        shell: bash
+        run: |
+          ready=false
+          if [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_debug.zip" ]] && \
+             [[ -f "$RUNNER_TEMP/godot-web-templates/web_dlink_nothreads_release.zip" ]]; then
+            ready=true
+          fi
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
+      - name: Build custom Godot Web export templates
+        if: steps.godot-web-templates.outputs.ready != 'true'
+        shell: bash
+        run: |
+          git clone --depth 1 --branch "$GODOT_VERSION" https://github.com/godotengine/godot.git "$RUNNER_TEMP/godot-source"
+          chmod +x scripts/ci/build-godot-web-templates.sh
+          GODOT_SOURCE_DIR="$RUNNER_TEMP/godot-source" \
+          GODOT_WEB_TEMPLATE_VARIANTS="nothreads" \
+          bash scripts/ci/build-godot-web-templates.sh "$RUNNER_TEMP/godot-web-templates"
+
+      - name: Save custom Godot Web export templates cache
+        if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/godot-web-templates
+          key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
+
+      - name: Install custom Godot Web export templates
+        shell: bash
+        run: |
+          chmod +x scripts/ci/install-godot-export-templates.sh
+          GODOT_SKIP_OFFICIAL_TEMPLATES=1 \
+          GODOT_WEB_TEMPLATE_VARIANTS="nothreads" \
+          GODOT_WEB_TEMPLATES_DIR="$RUNNER_TEMP/godot-web-templates" \
+          bash scripts/ci/install-godot-export-templates.sh
+
+      - name: Build Web addon binary for Pages
+        shell: bash
+        run: |
+          chmod +x scripts/ci/build-web-side-module.sh
+          PIPER_PLUS_WEB_THREAD_MATRIX="nothreads" \
+          PIPER_PLUS_WEB_CONFIG_MATRIX="Debug,Release" \
+          ONNXRUNTIME_DIR_NOTHREADS="$RUNNER_TEMP/onnxruntime-web-nothreads" \
+          bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
+
+      - name: Download Godot Linux binary
+        shell: bash
+        run: |
+          curl -L -o "${GODOT_LINUX_ZIP}" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${GODOT_LINUX_ZIP}"
+          curl -L -o SHA512-SUMS.txt "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/SHA512-SUMS.txt"
+          grep " ${GODOT_LINUX_ZIP}\$" SHA512-SUMS.txt > godot.sha512
+          sha512sum -c godot.sha512
+          unzip -q "${GODOT_LINUX_ZIP}" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/${GODOT_LINUX_ZIP%.zip}"
+          echo "GODOT=$RUNNER_TEMP/godot/${GODOT_LINUX_ZIP%.zip}" >> "$GITHUB_ENV"
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Export Pages demo site
+        shell: bash
+        run: |
+          chmod +x scripts/ci/export-pages-demo.sh scripts/ci/prepare-pages-demo-assets.sh
+          bash scripts/ci/export-pages-demo.sh "$RUNNER_TEMP/pages-export"
+
+      - name: Run local Pages smoke
+        shell: bash
+        run: |
+          node scripts/ci/run-pages-demo-smoke.mjs \
+            --root "$RUNNER_TEMP/pages-export/site" \
+            --manifest "public-demo-manifest.json" \
+            --label "pages-local" \
+            --screenshot "$RUNNER_TEMP/pages-debug/local-smoke.png" \
+            --console-log "$RUNNER_TEMP/pages-debug/local-smoke-console.json"
+
+      - name: Upload preview site artifact
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-pages-site-preview
+          path: ${{ runner.temp }}/pages-export/site/
+          if-no-files-found: ignore
+
+      - name: Upload local smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-pages-local-smoke-debug
+          path: ${{ runner.temp }}/pages-debug/
+          if-no-files-found: ignore
+
+      - name: Configure GitHub Pages
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: ${{ runner.temp }}/pages-export/site
+
+  deploy-pages-demo:
+    name: Deploy GitHub Pages Demo
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+    needs: build-pages-demo
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+
+  smoke-pages-demo:
+    name: Smoke GitHub Pages Public URL
+    if: needs.deploy-pages-demo.result == 'success'
+    needs: deploy-pages-demo
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run public URL smoke
+        shell: bash
+        run: |
+          node scripts/ci/run-pages-demo-smoke.mjs \
+            --url "${{ needs.deploy-pages-demo.outputs.page_url }}" \
+            --manifest "public-demo-manifest.json" \
+            --label "pages-public" \
+            --screenshot "$RUNNER_TEMP/pages-public-debug/public-smoke.png" \
+            --console-log "$RUNNER_TEMP/pages-public-debug/public-smoke-console.json"
+
+      - name: Upload public smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: piper-plus-pages-public-smoke-debug
+          path: ${{ runner.temp }}/pages-public-debug/
+          if-no-files-found: ignore

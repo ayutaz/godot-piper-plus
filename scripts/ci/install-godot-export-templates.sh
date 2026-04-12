@@ -11,6 +11,7 @@ RELEASE_BASE_URL="${GODOT_RELEASE_BASE_URL:-https://github.com/godotengine/godot
 GODOT_SKIP_OFFICIAL_TEMPLATES="${GODOT_SKIP_OFFICIAL_TEMPLATES:-0}"
 GODOT_WEB_TEMPLATES_DIR="${GODOT_WEB_TEMPLATES_DIR:-}"
 CUSTOM_WEB_TEMPLATE_INSTALL_DIR="${GODOT_CUSTOM_WEB_TEMPLATE_INSTALL_DIR:-$REPO_ROOT/.ci/godot-web-templates/${GODOT_TEMPLATES_VERSION}}"
+GODOT_WEB_TEMPLATE_VARIANTS="${GODOT_WEB_TEMPLATE_VARIANTS:-threads,nothreads}"
 
 case "$(uname -s)" in
   Darwin)
@@ -39,16 +40,44 @@ copy_tree_contents() {
 install_custom_web_templates() {
   local src_dir="$1"
   local install_dir="${CUSTOM_WEB_TEMPLATE_INSTALL_DIR}"
-  local -a required_archives=(
-    "web_dlink_debug.zip"
-    "web_dlink_release.zip"
-    "web_dlink_nothreads_debug.zip"
-    "web_dlink_nothreads_release.zip"
-  )
+  local -a required_archives=()
+  local -a variants=()
   local archive_name=""
+  local variant=""
 
   if [[ ! -d "${src_dir}" ]]; then
     echo "ERROR: custom Web template directory not found: ${src_dir}" >&2
+    exit 1
+  fi
+
+  IFS=',' read -r -a variants <<< "${GODOT_WEB_TEMPLATE_VARIANTS}"
+  for variant in "${variants[@]}"; do
+    variant="${variant#"${variant%%[![:space:]]*}"}"
+    variant="${variant%"${variant##*[![:space:]]}"}"
+    [[ -n "${variant}" ]] || continue
+
+    case "${variant}" in
+      threads)
+        required_archives+=(
+          "web_dlink_debug.zip"
+          "web_dlink_release.zip"
+        )
+        ;;
+      nothreads)
+        required_archives+=(
+          "web_dlink_nothreads_debug.zip"
+          "web_dlink_nothreads_release.zip"
+        )
+        ;;
+      *)
+        echo "ERROR: unsupported GODOT_WEB_TEMPLATE_VARIANTS entry: ${variant}" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ "${#required_archives[@]}" -eq 0 ]]; then
+    echo "ERROR: no custom Web template archives requested." >&2
     exit 1
   fi
 

@@ -1,0 +1,12 @@
+; Engine configuration file.
+
+[application]
+
+config/name="Piper Plus Pages Demo"
+config/icon="res://addons/piper_plus/icon.svg"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.4")
+
+[audio]
+
+driver/mix_rate=22050
