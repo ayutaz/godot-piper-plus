@@ -541,8 +541,19 @@ Error PiperTTS::initialize() {
 		resolved_dictionary_source = piper_tts_paths::resolve_web_dictionary_source(
 				dictionary_path, resolved_model_source, resolved_config_source);
 		if (!resolved_dictionary_source.is_empty()) {
-			resolved_dictionary_source =
-					piper_tts_paths::resolve_global_path(resolved_dictionary_source);
+			String web_dictionary_error;
+			String staged_dictionary_path;
+			if (!piper_tts_paths::stage_web_dictionary_to_user(
+						resolved_dictionary_source, staged_dictionary_path,
+						web_dictionary_error)) {
+				UtilityFunctions::push_error(web_dictionary_error);
+				set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY",
+						web_dictionary_error, "initialize");
+				set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
+				emit_signal("initialized", false);
+				return ERR_UNCONFIGURED;
+			}
+			resolved_dictionary_source = staged_dictionary_path;
 		}
 	} else if (!dictionary_path.is_empty()) {
 		resolved_dictionary_source = resolve_path(dictionary_path);

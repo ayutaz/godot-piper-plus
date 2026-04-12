@@ -19,6 +19,8 @@ String resolve_web_config_source(
 		const String &configured_config_path, const String &resolved_model_path);
 String resolve_web_dictionary_source(const String &configured_dictionary_path,
 		const String &resolved_model_path, const String &resolved_config_path);
+bool stage_web_dictionary_to_user(const String &source_directory,
+		String &staged_directory, String &error_message);
 bool read_web_file_bytes(const String &source_path, std::vector<uint8_t> &data,
 		String &error_message);
 bool read_web_file_text(const String &source_path, String &text,

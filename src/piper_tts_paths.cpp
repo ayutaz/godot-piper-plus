@@ -24,6 +24,8 @@ constexpr const char *WEB_OPENJTALK_REQUIRED_FILES[] = {
 	"matrix.bin",
 	"char.bin",
 };
+constexpr const char *WEB_OPENJTALK_USER_STAGE_DIR =
+		"user://piper/dictionaries/open_jtalk_dic_utf_8-1.11";
 
 struct ModelCatalogEntry {
 	std::string key;
@@ -166,6 +168,43 @@ bool resource_directory_has_required_files(const String &directory) {
 		if (!FileAccess::file_exists(directory.path_join(required_file))) {
 			return false;
 		}
+	}
+
+	return true;
+}
+
+bool write_web_file_bytes(const String &destination_path,
+		const std::vector<uint8_t> &data, String &error_message) {
+	if (destination_path.is_empty()) {
+		error_message = "PiperTTS: web resource destination path is empty.";
+		return false;
+	}
+
+	Ref<FileAccess> output = FileAccess::open(destination_path, FileAccess::WRITE);
+	if (output.is_null()) {
+		error_message =
+				String("PiperTTS: failed to open web resource destination: ") +
+				destination_path;
+		return false;
+	}
+
+	PackedByteArray bytes;
+	bytes.resize(static_cast<int64_t>(data.size()));
+	if (!data.empty()) {
+		std::memcpy(bytes.ptrw(), data.data(), data.size());
+	}
+	output->store_buffer(bytes);
+	if (output->get_error() != OK) {
+		error_message = String("PiperTTS: failed to write web resource destination: ") +
+				destination_path;
+		return false;
+	}
+
+	output->flush();
+	if (output->get_error() != OK) {
+		error_message = String("PiperTTS: failed to flush web resource destination: ") +
+				destination_path;
+		return false;
 	}
 
 	return true;
@@ -422,6 +461,47 @@ String resolve_web_dictionary_source(
 	}
 
 	return String();
+}
+
+bool stage_web_dictionary_to_user(const String &source_directory,
+		String &staged_directory, String &error_message) {
+	const String normalized_source = normalize_dictionary_candidate(source_directory);
+	if (normalized_source.is_empty()) {
+		error_message =
+				String("PiperTTS: staged OpenJTalk dictionary asset is missing: ") +
+				source_directory;
+		return false;
+	}
+
+	const String user_stage_directory = String(WEB_OPENJTALK_USER_STAGE_DIR);
+	const String absolute_stage_directory =
+			ProjectSettings::get_singleton()->globalize_path(user_stage_directory);
+	const Error mkdir_error =
+			DirAccess::make_dir_recursive_absolute(absolute_stage_directory);
+	if (mkdir_error != OK &&
+			!DirAccess::dir_exists_absolute(absolute_stage_directory)) {
+		error_message =
+				String("PiperTTS: failed to create staged OpenJTalk directory: ") +
+				user_stage_directory;
+		return false;
+	}
+
+	for (const char *required_file : WEB_OPENJTALK_REQUIRED_FILES) {
+		const String source_file = normalized_source.path_join(required_file);
+		std::vector<uint8_t> source_bytes;
+		if (!read_web_file_bytes(source_file, source_bytes, error_message)) {
+			return false;
+		}
+
+		const String destination_file =
+				user_stage_directory.path_join(String(required_file));
+		if (!write_web_file_bytes(destination_file, source_bytes, error_message)) {
+			return false;
+		}
+	}
+
+	staged_directory = absolute_stage_directory;
+	return true;
 }
 
 bool read_web_file_bytes(const String &source_path, std::vector<uint8_t> &data,
