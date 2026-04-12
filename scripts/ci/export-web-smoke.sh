@@ -36,6 +36,9 @@ stage_web_runtime_payload() {
   local export_dir="$1"
   local export_addon_dir="$export_dir/addons/piper_plus"
   local export_addon_bin_dir="$export_addon_dir/bin"
+  local export_addon_dict_dir="$export_addon_dir/dictionaries"
+  local export_model_dir="$export_dir/models"
+  local export_project_asset_dir="$export_dir/piper_plus_assets"
 
   if [[ ! -f "$PROJECT_ADDON_DIR/piper_plus.gdextension" ]]; then
     echo "ERROR: staged test project manifest not found: $PROJECT_ADDON_DIR/piper_plus.gdextension" >&2
@@ -47,9 +50,19 @@ stage_web_runtime_payload() {
     exit 1
   fi
 
-  mkdir -p "$export_addon_bin_dir"
+  mkdir -p "$export_addon_bin_dir" "$export_addon_dict_dir"
+  rm -rf "$export_model_dir" "$export_project_asset_dir"
   cp -f "$PROJECT_ADDON_DIR/piper_plus.gdextension" "$export_addon_dir/piper_plus.gdextension"
   find "$PROJECT_ADDON_DIR/bin" -mindepth 1 -maxdepth 1 ! -name '.gitignore' -exec cp -a {} "$export_addon_bin_dir"/ \;
+  if [[ -d "$PROJECT_ADDON_DIR/dictionaries" ]]; then
+    find "$PROJECT_ADDON_DIR/dictionaries" -mindepth 1 -maxdepth 1 -exec cp -a {} "$export_addon_dict_dir"/ \;
+  fi
+  if [[ -d "$PROJECT_DIR/models" ]]; then
+    cp -a "$PROJECT_DIR/models" "$export_model_dir"
+  fi
+  if [[ -d "$PROJECT_DIR/piper_plus_assets" ]]; then
+    cp -a "$PROJECT_DIR/piper_plus_assets" "$export_project_asset_dir"
+  fi
 }
 
 export PIPER_ADDON_SRC="$ADDON_SRC"
