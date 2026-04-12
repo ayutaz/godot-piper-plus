@@ -380,8 +380,7 @@ String resolve_web_dictionary_source(
 		const String &resolved_config_path) {
 	const String configured_candidate =
 			normalize_dictionary_candidate(configured_dictionary_path);
-	if (!configured_dictionary_path.strip_edges().is_empty() &&
-			!configured_candidate.is_empty()) {
+	if (!configured_dictionary_path.strip_edges().is_empty()) {
 		return configured_candidate;
 	}
 

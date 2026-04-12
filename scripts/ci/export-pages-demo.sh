@@ -16,6 +16,12 @@ MODEL_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx"
 CONFIG_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx.json"
 OPENJTALK_DICT_KEY="${PIPER_OPENJTALK_DICTIONARY_KEY:-naist-jdic}"
 OPENJTALK_DICT_RELATIVE_PATH="piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
+OPENJTALK_REQUIRED_FILES=(
+	"sys.dic"
+	"unk.dic"
+	"matrix.bin"
+	"char.bin"
+)
 CMUDICT_RELATIVE_PATH="addons/piper_plus/dictionaries/cmudict_data.json"
 ADDON_GDEXTENSION_RELATIVE_PATH="addons/piper_plus/piper_plus.gdextension"
 ADDON_BIN_RELATIVE_DIR="addons/piper_plus/bin"
@@ -166,10 +172,12 @@ if [[ ! -f "$PROJECT_DIR/$MODEL_RELATIVE_PATH" || ! -f "$PROJECT_DIR/$CONFIG_REL
 	exit 1
 fi
 
-if [[ ! -f "$PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH/sys.dic" ]]; then
-	echo "ERROR: staged OpenJTalk dictionary is missing: $PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH" >&2
-	exit 1
-fi
+for required_file in "${OPENJTALK_REQUIRED_FILES[@]}"; do
+	if [[ ! -f "$PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH/$required_file" ]]; then
+		echo "ERROR: staged OpenJTalk dictionary is incomplete; missing $PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH/$required_file" >&2
+		exit 1
+	fi
+done
 
 if [[ ! -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" ]]; then
 	echo "ERROR: staged cmudict is missing: $PROJECT_DIR/$CMUDICT_RELATIVE_PATH" >&2

@@ -52,6 +52,23 @@ verify_dictionary_dir() {
   return 0
 }
 
+resolve_extracted_dictionary_dir() {
+  local extracted_root="$1"
+  local nested_root="$extracted_root/$install_directory"
+
+  if verify_dictionary_dir "$extracted_root"; then
+    printf '%s\n' "$extracted_root"
+    return 0
+  fi
+
+  if verify_dictionary_dir "$nested_root"; then
+    printf '%s\n' "$nested_root"
+    return 0
+  fi
+
+  return 1
+}
+
 verify_sha256() {
   local file_path="$1"
   local expected_sha="$2"
@@ -146,6 +163,7 @@ if [[ -n "$DICTIONARY_SOURCE_DIR" ]]; then
 else
   archive_path="$ARCHIVE_CACHE_DIR/$archive_filename"
   extracted_root="$EXTRACT_CACHE_DIR/$install_directory"
+  resolved_extracted_dir=""
 
   if [[ -f "$archive_path" ]]; then
     verify_sha256 "$archive_path" "$archive_sha256"
@@ -155,16 +173,16 @@ else
     mv "$archive_path.tmp" "$archive_path"
   fi
 
-  if ! verify_dictionary_dir "$extracted_root"; then
+  if ! resolved_extracted_dir="$(resolve_extracted_dictionary_dir "$extracted_root")"; then
     extract_archive "$archive_path" "$EXTRACT_CACHE_DIR"
   fi
 
-  if ! verify_dictionary_dir "$extracted_root"; then
+  if ! resolved_extracted_dir="$(resolve_extracted_dictionary_dir "$extracted_root")"; then
     echo "ERROR: extracted dictionary is not ready: $extracted_root" >&2
     exit 1
   fi
 
-  source_dir="$extracted_root"
+  source_dir="$resolved_extracted_dir"
 fi
 
 for destination_dir in "$@"; do
