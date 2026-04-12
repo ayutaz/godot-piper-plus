@@ -14,6 +14,8 @@ GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 MODEL_RELATIVE_DIR="piper_plus_assets/models/$MODEL_KEY"
 MODEL_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx"
 CONFIG_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx.json"
+OPENJTALK_DICT_KEY="${PIPER_OPENJTALK_DICTIONARY_KEY:-naist-jdic}"
+OPENJTALK_DICT_RELATIVE_PATH="piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
 CMUDICT_RELATIVE_PATH="addons/piper_plus/dictionaries/cmudict_data.json"
 ADDON_GDEXTENSION_RELATIVE_PATH="addons/piper_plus/piper_plus.gdextension"
 ADDON_BIN_RELATIVE_DIR="addons/piper_plus/bin"
@@ -164,6 +166,11 @@ if [[ ! -f "$PROJECT_DIR/$MODEL_RELATIVE_PATH" || ! -f "$PROJECT_DIR/$CONFIG_REL
 	exit 1
 fi
 
+if [[ ! -f "$PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH/sys.dic" ]]; then
+	echo "ERROR: staged OpenJTalk dictionary is missing: $PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH" >&2
+	exit 1
+fi
+
 if [[ ! -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" ]]; then
 	echo "ERROR: staged cmudict is missing: $PROJECT_DIR/$CMUDICT_RELATIVE_PATH" >&2
 	exit 1
@@ -172,12 +179,16 @@ fi
 mkdir -p \
 	"$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR" \
 	"$SITE_ROOT/$(dirname "$MODEL_RELATIVE_PATH")" \
+	"$SITE_ROOT/$(dirname "$OPENJTALK_DICT_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$CMUDICT_RELATIVE_PATH")"
 
 cp -f "$PROJECT_DIR/$ADDON_GDEXTENSION_RELATIVE_PATH" "$SITE_ROOT/$ADDON_GDEXTENSION_RELATIVE_PATH"
 find "$PROJECT_DIR/$ADDON_BIN_RELATIVE_DIR" -mindepth 1 -maxdepth 1 ! -name '.gitignore' -exec cp -a {} "$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR"/ \;
 cp -f "$PROJECT_DIR/$MODEL_RELATIVE_PATH" "$SITE_ROOT/$MODEL_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/$CONFIG_RELATIVE_PATH" "$SITE_ROOT/$CONFIG_RELATIVE_PATH"
+rm -rf "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
+mkdir -p "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
+cp -R "$PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH"/. "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"/
 cp -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" "$SITE_ROOT/$CMUDICT_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/addons/piper_plus/LICENSE" "$SITE_ROOT/LICENSE.txt"
 cp -f "$PROJECT_DIR/addons/piper_plus/THIRD_PARTY_LICENSES.txt" "$SITE_ROOT/THIRD_PARTY_LICENSES.txt"
@@ -200,7 +211,17 @@ cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
     "config_path": "$CONFIG_RELATIVE_PATH"
   },
   "dictionary": {
-    "cmudict_path": "$CMUDICT_RELATIVE_PATH"
+    "key": "$OPENJTALK_DICT_KEY",
+    "bootstrap_mode": "staged_asset",
+    "cmudict_path": "$CMUDICT_RELATIVE_PATH",
+    "openjtalk_path": "$OPENJTALK_DICT_RELATIVE_PATH",
+    "openjtalk_install_directory": "open_jtalk_dic_utf_8-1.11",
+    "openjtalk_required_files": [
+      "sys.dic",
+      "unk.dic",
+      "matrix.bin",
+      "char.bin"
+    ]
   },
   "notices": [
     "LICENSE.txt",

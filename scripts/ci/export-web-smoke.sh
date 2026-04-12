@@ -53,6 +53,7 @@ stage_web_runtime_payload() {
 
 export PIPER_ADDON_SRC="$ADDON_SRC"
 export PIPER_ADDON_BIN_SRC="$ADDON_BIN_SRC"
+export PIPER_TEST_STAGE_OPENJTALK_DICTIONARY=1
 
 bash "$REPO_ROOT/test/prepare-assets.sh"
 

@@ -24,6 +24,7 @@
 ## 実装する内容の詳細
 
 - `pages_demo` を English-only UI から、日本語入力を含む公開 demo UI へ拡張する。必要なら language selector、sample text、status 表示を追加する。
+- `TKT-019` の handoff を受け、初期の正本は `multilingual-test-medium` + staged `naist-jdic` + sample text `こんにちは` とする。別の日本語 model へ切り替える場合は catalog hash と staging contract を先に固定する。
 - `scripts/ci/prepare-pages-demo-assets.sh` と `scripts/ci/export-pages-demo.sh` を更新し、日本語用 dictionary と必要 model を Pages artifact へ stage する。
 - `.github/workflows/pages.yml` で PR build、main deploy、public URL smoke が日本語 scenario を確認するようにする。
 - `scripts/ci/run-pages-demo-smoke.mjs` で公開 URL 上の日本語 synthesize 成功を判定できるようにする。

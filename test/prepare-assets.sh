@@ -23,9 +23,12 @@ ADDON_MODEL_DST_PATH="$ADDON_MODEL_DST_DIR/multilingual-test-medium.onnx"
 ADDON_CONFIG_DST_PATH="$ADDON_MODEL_DST_DIR/multilingual-test-medium.onnx.json"
 BUNDLED_MODEL_SRC_PATH="$TEST_MODEL_SRC_DIR/multilingual-test-medium.onnx"
 BUNDLED_CONFIG_SRC_PATH="$TEST_MODEL_SRC_DIR/multilingual-test-medium.onnx.json"
-BUNDLED_DICT_SRC_PATH="$TEST_MODEL_SRC_DIR/openjtalk_dic"
+PROJECT_ASSET_DICT_DST="$PROJECT_DIR/piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
+LEGACY_DICT_DST_PATH="$MODEL_DST_DIR/openjtalk_dic"
+ADDON_OPENJTALK_DICT_DST="$ADDON_DICT_DST/open_jtalk_dic_utf_8-1.11"
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
+STAGE_OPENJTALK_DICTIONARY="${PIPER_TEST_STAGE_OPENJTALK_DICTIONARY:-0}"
 
 mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_DST_DIR" "$ADDON_MODEL_DST_DIR" "$PROJECT_GODOT_DIR"
 
@@ -88,6 +91,7 @@ if [[ -d "$ADDON_BIN_SRC" ]]; then
 fi
 
 find "$MODEL_DST_DIR" -mindepth 1 ! -name '.gitkeep' -exec rm -rf {} +
+rm -rf "$PROJECT_DIR/piper_plus_assets/dictionaries"
 
 if [[ -f "$BUNDLED_MODEL_SRC_PATH" ]]; then
   cp -f "$BUNDLED_MODEL_SRC_PATH" "$MODEL_DST_PATH"
@@ -97,11 +101,6 @@ fi
 if [[ -f "$BUNDLED_CONFIG_SRC_PATH" ]]; then
   cp -f "$BUNDLED_CONFIG_SRC_PATH" "$CONFIG_DST_PATH"
   cp -f "$BUNDLED_CONFIG_SRC_PATH" "$ADDON_CONFIG_DST_PATH"
-fi
-
-if [[ -d "$BUNDLED_DICT_SRC_PATH" ]]; then
-  mkdir -p "$DICT_DST_PATH"
-  cp -R "$BUNDLED_DICT_SRC_PATH"/. "$DICT_DST_PATH"/
 fi
 
 if [[ -n "${PIPER_TEST_MODEL_PATH:-}" && -f "${PIPER_TEST_MODEL_PATH}" ]]; then
@@ -118,11 +117,16 @@ elif [[ -n "${PIPER_TEST_MODEL_PATH:-}" && -f "${PIPER_TEST_MODEL_PATH}.json" ]]
 fi
 
 if [[ -n "${PIPER_TEST_DICT_PATH:-}" && -d "${PIPER_TEST_DICT_PATH}" ]]; then
-  rm -rf "$DICT_DST_PATH"
-  mkdir -p "$DICT_DST_PATH"
-  cp -R "${PIPER_TEST_DICT_PATH}"/. "$DICT_DST_PATH"/
+  STAGE_OPENJTALK_DICTIONARY="1"
 fi
 
 if [[ -f "$CMUDICT_SRC_PATH" ]]; then
   cp -f "$CMUDICT_SRC_PATH" "$CMUDICT_DST_PATH"
+fi
+
+if [[ "$STAGE_OPENJTALK_DICTIONARY" != "0" ]]; then
+  bash "$REPO_ROOT/scripts/ci/stage-openjtalk-dictionary.sh" \
+    "$PROJECT_ASSET_DICT_DST" \
+    "$LEGACY_DICT_DST_PATH" \
+    "$ADDON_OPENJTALK_DICT_DST"
 fi

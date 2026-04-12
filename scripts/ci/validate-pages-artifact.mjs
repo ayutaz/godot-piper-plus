@@ -81,6 +81,22 @@ for (const relativePath of requiredRelativeFiles) {
   assertCondition(fs.existsSync(absolutePath), `required artifact file is missing: ${relativePath}`);
 }
 
+if (manifest.dictionary?.openjtalk_path) {
+  assertCondition(typeof manifest.dictionary?.key === "string" && manifest.dictionary.key.length > 0, "manifest must declare dictionary.key when openjtalk_path is present");
+  assertCondition(manifest.dictionary?.bootstrap_mode === "staged_asset", "manifest must declare staged_asset bootstrap mode for OpenJTalk");
+  assertCondition(
+    String(manifest.dictionary?.openjtalk_install_directory ?? "") === "open_jtalk_dic_utf_8-1.11",
+    "manifest must declare open_jtalk_dic_utf_8-1.11 as the install directory",
+  );
+  const openjtalkRoot = path.join(siteRoot, manifest.dictionary.openjtalk_path);
+  assertCondition(fs.existsSync(openjtalkRoot), `OpenJTalk dictionary directory is missing: ${manifest.dictionary.openjtalk_path}`);
+  assertCondition(fs.statSync(openjtalkRoot).isDirectory(), `OpenJTalk dictionary path is not a directory: ${manifest.dictionary.openjtalk_path}`);
+  for (const filename of manifest.dictionary.openjtalk_required_files ?? []) {
+    const absolutePath = path.join(openjtalkRoot, filename);
+    assertCondition(fs.existsSync(absolutePath), `OpenJTalk dictionary file is missing: ${path.posix.join(manifest.dictionary.openjtalk_path, filename)}`);
+  }
+}
+
 const addonBinDir = path.join(siteRoot, path.dirname(manifest.addon.gdextension_path), "bin");
 assertCondition(fs.existsSync(addonBinDir), `addon runtime bin directory is missing: ${addonBinDir}`);
 assertCondition(fs.statSync(addonBinDir).isDirectory(), `addon runtime bin path is not a directory: ${addonBinDir}`);

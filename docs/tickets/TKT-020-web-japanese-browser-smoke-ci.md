@@ -24,6 +24,7 @@
 ## 実装する内容の詳細
 
 - `test/project` の smoke fixture に日本語 sample、dictionary 前提、期待ログを追加する。
+- `TKT-019` の handoff として、canonical model は `multilingual-test-medium`、sample text は `こんにちは`、dictionary 欠落時の canonical error code は `ERR_OPENJTALK_DICTIONARY_NOT_READY` とする。
 - `scripts/ci/export-web-smoke.sh`、`scripts/ci/run-web-smoke.mjs`、`scripts/ci/web-smoke-server.mjs` で日本語 scenario を選択・判定できるようにする。
 - workflow の `Build Web` または同等 job に、日本語 scenario の pass / fail を release gate として組み込む。
 - failure 時に browser console、runtime error、asset manifest のどこを見るかを固定し、CI artifact へ保存する。

@@ -4,7 +4,8 @@ const DEFAULT_JA_TEST_TEXT := "こんにちは"
 const DEFAULT_EN_TEST_TEXT := "hello from godot"
 const BUNDLED_MODEL_PATH := "res://models/multilingual-test-medium.onnx"
 const BUNDLED_CONFIG_PATH := "res://models/multilingual-test-medium.onnx.json"
-const BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
+const BUNDLED_DICT_PATH := "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
+const LEGACY_BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
 
 var _async_completed_audio = null
 var _async_failed_error := ""
@@ -61,6 +62,8 @@ func _model_bundle() -> Dictionary:
         }
         if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(BUNDLED_DICT_PATH)):
             bundled["dictionary_path"] = BUNDLED_DICT_PATH
+        elif DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LEGACY_BUNDLED_DICT_PATH)):
+            bundled["dictionary_path"] = LEGACY_BUNDLED_DICT_PATH
         return bundled
 
     var model_path = OS.get_environment("PIPER_TEST_MODEL_PATH")
@@ -279,6 +282,9 @@ func list_test_names() -> Array[String]:
             "test_initialize_with_config_fallback",
             "test_web_non_cpu_execution_provider_rejected",
             "test_web_openjtalk_native_rejected",
+            "test_japanese_dictionary_error_surface",
+            "test_japanese_request_time_dictionary_error_surface",
+            "test_japanese_text_input_with_dictionary",
             "test_synthesize_basic",
         ]
 
@@ -307,6 +313,9 @@ func list_test_names() -> Array[String]:
         "test_multilingual_language_selector_conflict_rejected",
         "test_gpu_device_id_clamp",
         "test_invalid_openjtalk_library_path_falls_back",
+        "test_japanese_dictionary_error_surface",
+        "test_japanese_request_time_dictionary_error_surface",
+        "test_japanese_text_input_with_dictionary",
         "test_web_non_cpu_execution_provider_rejected",
         "test_web_openjtalk_native_rejected",
         "test_initialize_with_config_fallback",
@@ -430,11 +439,16 @@ func test_runtime_contract() -> void:
     assert_true(contract.has("phase1_minimal_synthesize_mode"), "get_runtime_contract() should expose phase1_minimal_synthesize_mode")
     assert_true(contract.has("phase1_supported_text_frontends"), "get_runtime_contract() should expose phase1_supported_text_frontends")
     assert_true(contract.has("phase1_excluded_features"), "get_runtime_contract() should expose phase1_excluded_features")
+    assert_true(contract.has("supports_japanese_text_input"), "get_runtime_contract() should expose supports_japanese_text_input")
+    assert_true(contract.has("required_japanese_text_assets"), "get_runtime_contract() should expose required_japanese_text_assets")
+    assert_true(contract.has("openjtalk_dictionary_bootstrap_mode"), "get_runtime_contract() should expose openjtalk_dictionary_bootstrap_mode")
+    assert_true(contract.has("resolved_dictionary_path"), "get_runtime_contract() should expose resolved_dictionary_path")
     assert_true(contract.has("runtime_state"), "get_runtime_contract() should expose runtime_state")
 
     if OS.has_feature("web"):
         var supported_frontends: PackedStringArray = contract.get("phase1_supported_text_frontends", PackedStringArray())
         var excluded_features: PackedStringArray = contract.get("phase1_excluded_features", PackedStringArray())
+        var required_japanese_assets: PackedStringArray = contract.get("required_japanese_text_assets", PackedStringArray())
         assert_true(bool(contract.get("is_web_export", false)), "web builds should report is_web_export=true")
         assert_equal(String(contract.get("execution_provider_policy", "")), "cpu_only", "web builds should report a CPU-only execution policy")
         assert_false(bool(contract.get("supports_non_cpu_execution_provider", true)), "web builds should reject non-CPU execution providers")
@@ -443,10 +457,15 @@ func test_runtime_contract() -> void:
         assert_equal(String(contract.get("resource_source_mode", "")), "godot_file_access", "web builds should source runtime resources through FileAccess")
         assert_equal(String(contract.get("resource_path_mode", "")), "memory_fileaccess", "web builds should describe the FileAccess-backed resource mode")
         assert_equal(String(contract.get("preview_support_tier", "")), "preview", "web builds should report preview support tier")
-        assert_equal(String(contract.get("phase1_minimal_synthesize_mode", "")), "en_text_cmu_dict_or_phoneme_string", "web builds should report the minimal Phase 1 synthesize mode")
+        assert_equal(String(contract.get("phase1_minimal_synthesize_mode", "")), "en_text_cmu_dict_or_ja_text_openjtalk_dict_or_phoneme_string", "web builds should report the minimal Phase 1 synthesize mode once Japanese staged assets are present")
         assert_true(supported_frontends.has("en_text_cmu_dict"), "web builds should report the English CMU dict frontend as the Phase 1 minimal text path")
-        assert_true(excluded_features.has("japanese_text_input"), "web builds should report Japanese text input as a Phase 1 exclusion")
-        assert_true(excluded_features.has("openjtalk_dictionary_bootstrap"), "web builds should report OpenJTalk dictionary bootstrap as a Phase 1 exclusion")
+        assert_true(supported_frontends.has("ja_text_openjtalk_dict"), "web builds should report the Japanese OpenJTalk frontend once the staged dictionary is available")
+        assert_false(excluded_features.has("japanese_text_input"), "web builds should no longer report Japanese text input as a Phase 1 exclusion after dictionary bootstrap support lands")
+        assert_false(excluded_features.has("openjtalk_dictionary_bootstrap"), "web builds should no longer report OpenJTalk dictionary bootstrap as a Phase 1 exclusion after staged assets are supported")
+        assert_true(bool(contract.get("supports_japanese_text_input", false)), "web builds should expose Japanese text input support when a staged dictionary is present")
+        assert_equal(String(contract.get("openjtalk_dictionary_bootstrap_mode", "")), "staged_asset", "web builds should describe the staged OpenJTalk dictionary bootstrap mode")
+        assert_true(required_japanese_assets.has("open_jtalk_dic_utf_8-1.11"), "web builds should report the staged OpenJTalk dictionary asset requirement")
+        assert_false(String(contract.get("resolved_dictionary_path", "")).is_empty(), "web builds should resolve a staged OpenJTalk dictionary path")
     else:
         var native_supported_frontends: PackedStringArray = contract.get("phase1_supported_text_frontends", PackedStringArray())
         var native_excluded_features: PackedStringArray = contract.get("phase1_excluded_features", PackedStringArray())
@@ -461,6 +480,8 @@ func test_runtime_contract() -> void:
         assert_equal(String(contract.get("phase1_minimal_synthesize_mode", "")), "platform_default", "native builds should report the default non-web runtime mode")
         assert_equal(native_supported_frontends.size(), 0, "native builds should not advertise Web Phase 1 frontend restrictions")
         assert_equal(native_excluded_features.size(), 0, "native builds should not advertise Web Phase 1 exclusions")
+        assert_true(bool(contract.get("supports_japanese_text_input", false)), "native builds should expose Japanese text input support")
+        assert_equal(String(contract.get("openjtalk_dictionary_bootstrap_mode", "")), "filesystem", "native builds should describe filesystem dictionary bootstrap")
 
     _cleanup_tts(tts)
 
@@ -513,6 +534,8 @@ func test_editor_download_catalog_paths() -> void:
     assert_equal(String(item.get("dest", "")), "res://piper_plus_assets/models/css10/", "download catalog should install models into the project asset root")
     assert_equal(String(item.get("legacy_dest", "")), "res://addons/piper_plus/models/css10/", "download catalog should preserve the legacy addon asset fallback")
     assert_equal(String(catalog_script.get_canonical_model_path("css10")), "res://piper_plus_assets/models/css10/css10-ja-6lang-fp16.onnx", "download catalog should expose the canonical project model path")
+    var multilingual_item: Dictionary = catalog_script.get_item_definition("multilingual-test-medium")
+    assert_equal(String(multilingual_item.get("recommended_dictionary_key", "")), "naist-jdic", "multilingual Web test bundles should advertise the OpenJTalk dictionary dependency")
 
 func test_preview_controller_session_config() -> void:
     var controller_script = load("res://addons/piper_plus/preview_controller.gd")
@@ -936,6 +959,109 @@ func test_initialize_with_config_fallback() -> void:
     tts.config_path = ""
     assert_equal(tts.initialize(), OK, "initialize() should resolve config_path from the model path")
     assert_true(tts.is_ready(), "PiperTTS should be ready after fallback config resolution")
+    _cleanup_tts(tts)
+
+func test_japanese_dictionary_error_surface() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    tts.model_path = bundle["model_path"]
+    tts.config_path = _resolve_bundle_config_path(bundle)
+    tts.language_code = "ja"
+    tts.dictionary_path = "res://missing/open_jtalk_dic_utf_8-1.11"
+
+    assert_equal(tts.initialize(), ERR_UNCONFIGURED, "initialize() should reject Japanese text input when the OpenJTalk dictionary is missing")
+    var last_error: Dictionary = tts.get_last_error()
+    assert_equal(String(last_error.get("code", "")), "ERR_OPENJTALK_DICTIONARY_NOT_READY", "missing Japanese dictionary should produce a machine-readable error code")
+    assert_equal(String(last_error.get("stage", "")), "initialize", "missing Japanese dictionary should report initialize as the failing stage")
+    assert_equal(String(last_error.get("resolved_language_code", "")), "ja", "missing Japanese dictionary should preserve the resolved Japanese language code")
+    _cleanup_tts(tts)
+
+func test_japanese_request_time_dictionary_error_surface() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if not _require_method(tts, "get_last_error"):
+        _cleanup_tts(tts)
+        return
+
+    tts.model_path = bundle["model_path"]
+    tts.config_path = _resolve_bundle_config_path(bundle)
+    tts.language_code = "en"
+    tts.dictionary_path = "res://missing/open_jtalk_dic_utf_8-1.11"
+
+    assert_equal(tts.initialize(), OK, "initialize() should still succeed when the active language is English")
+
+    var inspect_request := {
+        "text": DEFAULT_JA_TEST_TEXT,
+        "language_code": "ja",
+    }
+    var inspected: Dictionary = tts.inspect_request(inspect_request)
+    assert_true(inspected.is_empty(), "inspect_request() should reject Japanese text when the OpenJTalk dictionary is missing")
+    var inspect_error: Dictionary = tts.get_last_error()
+    assert_equal(String(inspect_error.get("code", "")), "ERR_OPENJTALK_DICTIONARY_NOT_READY", "inspect_request() should expose a machine-readable missing dictionary error")
+    assert_equal(String(inspect_error.get("stage", "")), "inspect_request", "inspect_request() should report the failing stage")
+    assert_equal(String(inspect_error.get("resolved_language_code", "")), "ja", "inspect_request() should preserve the resolved Japanese language code")
+
+    var audio = tts.synthesize_request(inspect_request)
+    assert_true(audio == null, "synthesize_request() should reject Japanese text when the OpenJTalk dictionary is missing")
+    var synth_error: Dictionary = tts.get_last_error()
+    assert_equal(String(synth_error.get("code", "")), "ERR_OPENJTALK_DICTIONARY_NOT_READY", "synthesize_request() should expose a machine-readable missing dictionary error")
+    assert_equal(String(synth_error.get("stage", "")), "synthesize_request", "synthesize_request() should report the failing stage")
+    assert_equal(String(synth_error.get("resolved_language_code", "")), "ja", "synthesize_request() should preserve the resolved Japanese language code")
+    _cleanup_tts(tts)
+
+func test_japanese_text_input_with_dictionary() -> void:
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+    if String(bundle.get("dictionary_path", "")).is_empty():
+        skip("OpenJTalk dictionary is not available in the bundled test assets")
+        _cleanup_tts(tts)
+        return
+    if not _has_compiled_openjtalk_dictionary(bundle):
+        skip("compiled OpenJTalk dictionary is not available for Japanese text input test")
+        _cleanup_tts(tts)
+        return
+
+    tts.model_path = bundle["model_path"]
+    tts.config_path = _resolve_bundle_config_path(bundle)
+    tts.dictionary_path = bundle["dictionary_path"]
+    tts.language_code = "ja"
+
+    assert_equal(tts.initialize(), OK, "initialize() should succeed for Japanese text input when the OpenJTalk dictionary is staged")
+
+    var inspected: Dictionary = tts.inspect_text(DEFAULT_JA_TEST_TEXT)
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_true(phoneme_sentences.size() > 0, "inspect_text() should resolve Japanese phonemes when the staged dictionary is available")
+    assert_equal(String(inspected.get("resolved_language_code", "")), "ja", "inspect_text() should report Japanese as the resolved language")
+
+    var audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
+    assert_not_null(audio, "synthesize() should produce audio for Japanese text input when the staged dictionary is available")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("resolved_language_code", "")), "ja", "synthesize() should report Japanese as the resolved language")
     _cleanup_tts(tts)
 
 func test_web_non_cpu_execution_provider_rejected() -> void:

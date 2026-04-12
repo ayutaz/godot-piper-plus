@@ -49,6 +49,7 @@ private:
 	String model_path;
 	String config_path;
 	String dictionary_path; // OpenJTalk dictionary directory
+	String resolved_dictionary_path_;
 	String openjtalk_library_path; // Optional openjtalk-native shared library
 	String custom_dictionary_path; // Runtime custom dictionary JSON
 	int speaker_id = 0;

@@ -71,7 +71,7 @@ func _build_ui() -> void:
 	layout.add_child(title_label)
 
 	description_label = Label.new()
-	description_label.text = "English-only, CPU-only, no-threads Web demo using the smoke-tested multilingual-test-medium bundle."
+	description_label.text = "English-first, CPU-only, no-threads Web demo using the smoke-tested multilingual-test-medium bundle."
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(description_label)
 
@@ -99,7 +99,7 @@ func _update_contract_label() -> void:
 		"Contract: EP_CPU / no-threads / PWA export / startup self-test on load.",
 		"Model: %s" % MODEL_KEY,
 		"Route: language_code=en on a bundled multilingual model; no runtime downloads.",
-		"Not included: Japanese dictionary bootstrap, public multilingual UI, runtime downloads.",
+		"Japanese OpenJTalk dictionary assets are staged in the published artifact; the public UI remains English-first until the Japanese demo follow-up lands.",
 		"Licenses: see LICENSE.txt and THIRD_PARTY_LICENSES.txt in the published site root.",
 	])
 	contract_label.text = "\n".join(lines)
