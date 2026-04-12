@@ -14,7 +14,7 @@
 | 進行中 | [TKT-018](TKT-018-web-japanese-support.md) | Web 日本語対応 | - | `M10` `M4` `M5` `M8` | - | `TKT-007` |
 | 進行中 | [TKT-019](TKT-019-web-japanese-dictionary-bootstrap.md) | Web 日本語 dictionary bootstrap / runtime | `TKT-018` | `M10` `M5` | `TKT-018` | `TKT-020` `TKT-021` |
 | 進行中 | [TKT-020](TKT-020-web-japanese-browser-smoke-ci.md) | Web 日本語 browser smoke / CI gate | `TKT-018` | `M10` `M5` | `TKT-019` | `TKT-021` `TKT-007` |
-| 未着手 | [TKT-021](TKT-021-pages-japanese-demo-public-smoke.md) | GitHub Pages 日本語 demo / public smoke | `TKT-018` | `M10` `M4` `M8` | `TKT-019` `TKT-020` | `TKT-007` |
+| 進行中 | [TKT-021](TKT-021-pages-japanese-demo-public-smoke.md) | GitHub Pages 日本語 demo / public smoke | `TKT-018` | `M10` `M4` `M8` | `TKT-019` `TKT-020` | `TKT-007` |
 
 ## 運用メモ
 

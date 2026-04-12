@@ -15,7 +15,7 @@
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通っており、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - 2026-04-11 の GitHub Actions run `24282051911` では Pages demo の build、deploy、public URL smoke が成功しています。
 - 公開デモは [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/) で公開中です。
-- 現在の runtime contract は Web 向け `EP_CPU` 固定で、Pages demo は英語最小構成に絞っています。
+- 現在の runtime contract は Web 向け `EP_CPU` 固定です。Pages demo は `multilingual-test-medium` と staged `naist-jdic` を使う `ja/en` 公開デモとして拡張し、startup self-test と public smoke は日本語シナリオを正本にします。
 - 日本語 text input / synthesize と Pages 日本語 demo は must follow-up として [`M10 Web Japanese Support / Pages Japanese Demo 完成`](./milestones.md#m10) と [`TKT-018`](./tickets/TKT-018-web-japanese-support.md) から [`TKT-021`](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) で管理します。
 - M9 向けに一時的に作成した GitHub Pages ticket 群の内容は、完了時にこの文書と [`docs/milestones.md`](./milestones.md) へ吸収しています。
 
@@ -25,9 +25,10 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 
 - `no-threads`
 - `CPU-only`
-- English minimal demo
+- `ja/en` public demo
 - `index.html` export
 - `multilingual-test-medium` 1 model 同梱
+- staged `naist-jdic` 同梱
 - runtime download なし
 - PWA と cross-origin isolation workaround を有効化
 
@@ -42,8 +43,8 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 
 ## 運用
 
-- `pull_request` では `build-pages-demo` を実行し、Pages demo の build と local smoke を確認します。
-- `main` への push では Pages deploy と public URL smoke を実行します。
+- `pull_request` では `build-pages-demo` を実行し、Pages demo の build と local `ja` smoke を確認します。
+- `main` への push では Pages deploy と public URL `ja` smoke を実行します。
 - `workflow_dispatch` では current ref に対して手動実行でき、`deploy_pages=true` のときだけ deploy を試行します。
 - `pull_request` では本番 Pages を更新せず、preview artifact と local smoke の確認だけを行います。
 
@@ -54,12 +55,11 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 - `openjtalk-native` shared library は Web では使えません。
 - PWA / service worker ベースの cross-origin isolation workaround は cache の影響を受けやすく、更新反映や stale cache の切り分けが必要です。
 
-## 必須の後続作業
+## M10 の残作業
 
-- Japanese text input の dictionary bootstrap
-- `naist-jdic` を使う公開デモ
-- Japanese scenario を含む local / CI / public smoke
-- README と release 文書の日本語 Web scope 同期
+- `TKT-020` の CI gate を安定化し、`en/ja` browser smoke を継続通過させる
+- `TKT-021` の branch 実装を `main` へ反映し、public URL `ja` smoke の実 run を再確認する
+- `TKT-007` で release 文書へ Web 日本語 scope と既知制約を吸収する
 
 ## 拡張候補
 

@@ -12,7 +12,7 @@
 
 - [x] Web 向け `naist-jdic` asset policy を固定する
 - [x] export / Pages artifact に dictionary を staged する
-- [x] Web runtime contract から日本語 text input の exclusion を外す
+- [x] Web runtime contract を dictionary readiness に応じた日本語 capability 表現へ切り替える
 - [x] Japanese inspect / synthesize の success と failure を machine-readable にする
 - [x] `TKT-020` と `TKT-021` が使う fixture / sample / error surface を handoff する
 

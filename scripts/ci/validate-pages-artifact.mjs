@@ -63,6 +63,22 @@ assertCondition(manifest.runtime?.pwa_enabled === true, "manifest must declare P
 assertCondition(String(buildMeta.export_preset ?? "") === "Web Pages", "build-meta must record export_preset=Web Pages");
 assertCondition(String(buildMeta.entry ?? "") === manifest.entry, "build-meta entry must match manifest entry");
 assertCondition(String(buildMeta.model_key ?? "") === String(manifest.model?.key ?? ""), "build-meta model_key must match manifest");
+assertCondition(String(manifest.demo?.default_language_code ?? "") === "ja", "manifest must declare ja as the default language");
+assertCondition(Array.isArray(manifest.demo?.supported_language_codes), "manifest must declare demo.supported_language_codes");
+assertCondition(manifest.demo.supported_language_codes.includes("ja"), "manifest must include ja in demo.supported_language_codes");
+assertCondition(manifest.demo.supported_language_codes.includes("en"), "manifest must include en in demo.supported_language_codes");
+assertCondition(String(manifest.demo?.sample_texts?.ja ?? "") === "こんにちは", "manifest must declare the canonical Japanese sample text");
+assertCondition(String(manifest.demo?.sample_texts?.en ?? "") === "hello from godot", "manifest must declare the canonical English sample text");
+assertCondition(String(buildMeta.default_language_code ?? "") === String(manifest.demo?.default_language_code ?? ""), "build-meta default_language_code must match manifest");
+const japaneseSmoke = manifest.smoke?.scenarios?.ja;
+assertCondition(Boolean(japaneseSmoke), "manifest must declare smoke.scenarios.ja");
+assertCondition(String(japaneseSmoke?.action ?? "") === "startup_probe", "Japanese smoke scenario must validate the startup probe");
+assertCondition(String(japaneseSmoke?.selected_language_code ?? "") === "ja", "Japanese smoke scenario must select ja");
+assertCondition(String(japaneseSmoke?.resolved_language_code ?? "") === "ja", "Japanese smoke scenario must resolve ja");
+assertCondition(String(japaneseSmoke?.input_text ?? "") === "こんにちは", "Japanese smoke scenario must validate the canonical Japanese text");
+assertCondition(japaneseSmoke?.startup_probe_passed === true, "Japanese smoke scenario must require startup_probe_passed=true");
+assertCondition(japaneseSmoke?.supports_japanese_text_input === true, "Japanese smoke scenario must require Japanese text input support");
+assertCondition(String(japaneseSmoke?.dictionary_bootstrap_mode ?? "") === "staged_asset", "Japanese smoke scenario must require staged_asset bootstrap mode");
 
 const requiredRelativeFiles = [
   "index.html",

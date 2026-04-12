@@ -116,8 +116,9 @@ model 本体は package に同梱していません。
 公開デモは GitHub Pages で公開中です。
 
 - URL: [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/)
-- scope: `no-threads` / `CPU-only` / English minimal demo
+- scope: `no-threads` / `CPU-only` / Japanese + English public demo
 - 同梱 model: `multilingual-test-medium`
+- 日本語 text input は staged `naist-jdic` を使います
 
 公開デモは addon の雰囲気をすぐ確認するための入口です。addon 自体の Web export はまだ preview support です。
 
@@ -131,6 +132,7 @@ addon 自体の Web export は preview support です。
 - `openjtalk-native` shared library は Web では使えません
 - self-hosting する場合は `COOP` / `COEP` 付き static server か、同等の cross-origin isolation workaround が必要です
 - local browser smoke は `GODOT=/path/to/godot PIPER_WEB_SMOKE_SCENARIOS=en,ja bash scripts/ci/export-web-smoke.sh build/web-smoke` で再現できます。Node.js と Playwright が必要です
+- Pages demo の local smoke は `node scripts/ci/run-pages-demo-smoke.mjs --root <site_dir> --scenario ja` で再現できます
 
 公開デモの運用メモは [`docs/web-github-pages-plan.md`](./docs/web-github-pages-plan.md) を参照してください。
 

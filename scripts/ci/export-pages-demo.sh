@@ -210,6 +210,17 @@ cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
     "path": "$MODEL_RELATIVE_PATH",
     "config_path": "$CONFIG_RELATIVE_PATH"
   },
+  "demo": {
+    "supported_language_codes": [
+      "ja",
+      "en"
+    ],
+    "default_language_code": "ja",
+    "sample_texts": {
+      "ja": "こんにちは",
+      "en": "hello from godot"
+    }
+  },
   "dictionary": {
     "key": "$OPENJTALK_DICT_KEY",
     "bootstrap_mode": "staged_asset",
@@ -232,7 +243,21 @@ cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
     "summaryPrefix": "PAGES_DEMO summary=",
     "successStatus": "pass",
     "failureStatus": "fail",
-    "timeoutMs": 240000
+    "timeoutMs": 240000,
+    "scenarios": {
+      "ja": {
+        "status": "pass",
+        "action": "startup_probe",
+        "selected_language_code": "ja",
+        "resolved_language_code": "ja",
+        "input_text": "こんにちは",
+        "startup_probe_language_code": "ja",
+        "startup_probe_text": "こんにちは",
+        "startup_probe_passed": true,
+        "supports_japanese_text_input": true,
+        "dictionary_bootstrap_mode": "staged_asset"
+      }
+    }
   }
 }
 EOF
@@ -243,7 +268,8 @@ cat > "$SITE_ROOT/build-meta.json" <<EOF
   "generated_by": "scripts/ci/export-pages-demo.sh",
   "export_preset": "$PRESET_NAME",
   "entry": "$ENTRY_NAME",
-  "model_key": "$MODEL_KEY"
+  "model_key": "$MODEL_KEY",
+  "default_language_code": "ja"
 }
 EOF
 

@@ -12,7 +12,7 @@
 
 - [x] 日本語 Web 対応を must follow-up として `M10` へ昇格する
 - [x] `TKT-019` から `TKT-021` の責務を分割する
-- [ ] Web 日本語 runtime の asset policy と acceptance を固定する
+- [x] Web 日本語 runtime の asset policy と acceptance を固定する
 - [ ] Japanese browser smoke / CI gate を閉じる
 - [ ] GitHub Pages 日本語 demo / public smoke を閉じる
 - [ ] `TKT-007` へ release 文書化条件を handoff する
