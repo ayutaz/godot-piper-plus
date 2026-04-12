@@ -22,6 +22,8 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
+node "$SCRIPT_DIR/validate-web-smoke-presets.mjs" --project "$PROJECT_DIR"
+
 if [[ ! -d "$ADDON_SRC" ]]; then
   echo "ERROR: addon source directory not found: $ADDON_SRC" >&2
   exit 1
