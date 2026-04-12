@@ -60,9 +60,9 @@ func _model_bundle() -> Dictionary:
             "config_path": BUNDLED_CONFIG_PATH,
             "dictionary_path": "",
         }
-        if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(BUNDLED_DICT_PATH)):
+        if _dictionary_has_required_files(BUNDLED_DICT_PATH):
             bundled["dictionary_path"] = BUNDLED_DICT_PATH
-        elif DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LEGACY_BUNDLED_DICT_PATH)):
+        elif _dictionary_has_required_files(LEGACY_BUNDLED_DICT_PATH):
             bundled["dictionary_path"] = LEGACY_BUNDLED_DICT_PATH
         return bundled
 
@@ -237,20 +237,25 @@ func _absolute_test_path(path: String) -> String:
         return ProjectSettings.globalize_path(path)
     return path
 
-func _has_compiled_openjtalk_dictionary(bundle: Dictionary) -> bool:
-    var dictionary_path := String(bundle.get("dictionary_path", ""))
+func _path_points_to_required_openjtalk_files(base_path: String) -> bool:
+    for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
+        if not FileAccess.file_exists(base_path.path_join(required_file)):
+            return false
+    return true
+
+func _dictionary_has_required_files(dictionary_path: String) -> bool:
     if dictionary_path.is_empty():
         return false
 
+    if dictionary_path.begins_with("res://") or dictionary_path.begins_with("user://"):
+        return _path_points_to_required_openjtalk_files(dictionary_path)
+
     var absolute_path := _absolute_test_path(dictionary_path)
-    if not DirAccess.dir_exists_absolute(absolute_path):
-        return false
+    return _path_points_to_required_openjtalk_files(absolute_path)
 
-    for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
-        if not FileAccess.file_exists(absolute_path.path_join(required_file)):
-            return false
-
-    return true
+func _has_compiled_openjtalk_dictionary(bundle: Dictionary) -> bool:
+    var dictionary_path := String(bundle.get("dictionary_path", ""))
+    return _dictionary_has_required_files(dictionary_path)
 
 func _expected_sample_rate(bundle: Dictionary) -> int:
     var config_path := _resolve_bundle_config_path(bundle)
