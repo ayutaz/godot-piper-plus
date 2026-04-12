@@ -104,10 +104,22 @@ if (manifest.dictionary?.openjtalk_path) {
     String(manifest.dictionary?.openjtalk_install_directory ?? "") === "open_jtalk_dic_utf_8-1.11",
     "manifest must declare open_jtalk_dic_utf_8-1.11 as the install directory",
   );
+  const openjtalkRequiredFiles = manifest.dictionary.openjtalk_required_files;
+  const expectedOpenjtalkRequiredFiles = ["char.bin", "matrix.bin", "sys.dic", "unk.dic"];
+  assertCondition(Array.isArray(openjtalkRequiredFiles), "manifest must declare dictionary.openjtalk_required_files when openjtalk_path is present");
+  assertCondition(openjtalkRequiredFiles.length > 0, "manifest must declare at least one OpenJTalk required file when openjtalk_path is present");
+  assertCondition(
+    openjtalkRequiredFiles.every((filename) => typeof filename === "string" && filename.length > 0),
+    "manifest contains an empty OpenJTalk required file path",
+  );
+  assertCondition(
+    expectedOpenjtalkRequiredFiles.every((filename) => openjtalkRequiredFiles.includes(filename)),
+    `manifest must declare OpenJTalk required files: ${expectedOpenjtalkRequiredFiles.join(", ")}`,
+  );
   const openjtalkRoot = path.join(siteRoot, manifest.dictionary.openjtalk_path);
   assertCondition(fs.existsSync(openjtalkRoot), `OpenJTalk dictionary directory is missing: ${manifest.dictionary.openjtalk_path}`);
   assertCondition(fs.statSync(openjtalkRoot).isDirectory(), `OpenJTalk dictionary path is not a directory: ${manifest.dictionary.openjtalk_path}`);
-  for (const filename of manifest.dictionary.openjtalk_required_files ?? []) {
+  for (const filename of openjtalkRequiredFiles) {
     const absolutePath = path.join(openjtalkRoot, filename);
     assertCondition(fs.existsSync(absolutePath), `OpenJTalk dictionary file is missing: ${path.posix.join(manifest.dictionary.openjtalk_path, filename)}`);
   }
