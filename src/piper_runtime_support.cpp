@@ -314,6 +314,10 @@ Dictionary build_runtime_contract(bool web_export, const String &model_path,
 		}
 		phase1_excluded_features.push_back("non_cpu_execution_provider");
 		phase1_excluded_features.push_back("openjtalk_native");
+		if (!supports_japanese_text_input) {
+			phase1_excluded_features.push_back("japanese_text_input");
+			phase1_excluded_features.push_back("openjtalk_dictionary_bootstrap");
+		}
 		required_japanese_text_assets.push_back("open_jtalk_dic_utf_8-1.11");
 	}
 

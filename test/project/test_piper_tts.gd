@@ -496,6 +496,44 @@ func test_runtime_contract() -> void:
 
     _cleanup_tts(tts)
 
+func test_runtime_contract_missing_web_dictionary() -> void:
+    if not OS.has_feature("web"):
+        skip("web runtime only")
+        return
+
+    var tts = _create_tts()
+    if tts == null:
+        skip("PiperTTS class is unavailable")
+        return
+    if not _require_method(tts, "get_runtime_contract"):
+        _cleanup_tts(tts)
+        return
+
+    var bundle = _model_bundle()
+    if bundle.is_empty():
+        skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
+        _cleanup_tts(tts)
+        return
+
+    tts.model_path = bundle["model_path"]
+    tts.config_path = _resolve_bundle_config_path(bundle)
+    tts.language_code = "ja"
+    tts.dictionary_path = "res://missing/open_jtalk_dic_utf_8-1.11"
+
+    var contract: Dictionary = tts.get_runtime_contract()
+    var supported_frontends: PackedStringArray = contract.get("phase1_supported_text_frontends", PackedStringArray())
+    var excluded_features: PackedStringArray = contract.get("phase1_excluded_features", PackedStringArray())
+
+    assert_false(bool(contract.get("supports_japanese_text_input", true)), "web builds should report Japanese text input as unavailable when the staged dictionary is missing")
+    assert_equal(String(contract.get("openjtalk_dictionary_bootstrap_mode", "")), "missing_required_asset", "web builds should describe missing staged dictionary assets")
+    assert_equal(String(contract.get("phase1_minimal_synthesize_mode", "")), "en_text_cmu_dict_or_phoneme_string", "web builds should fall back to the English-only minimal synthesize mode when the staged dictionary is missing")
+    assert_false(supported_frontends.has("ja_text_openjtalk_dict"), "web builds should not advertise the Japanese OpenJTalk frontend when the staged dictionary is missing")
+    assert_true(excluded_features.has("japanese_text_input"), "web builds should report Japanese text input as excluded when the staged dictionary is missing")
+    assert_true(excluded_features.has("openjtalk_dictionary_bootstrap"), "web builds should report dictionary bootstrap as excluded when the staged dictionary is missing")
+    assert_true(String(contract.get("resolved_dictionary_path", "")).is_empty(), "web builds should not report a resolved dictionary path when the staged dictionary is missing")
+
+    _cleanup_tts(tts)
+
 func test_runtime_state() -> void:
     var tts = _create_tts()
     if tts == null:
