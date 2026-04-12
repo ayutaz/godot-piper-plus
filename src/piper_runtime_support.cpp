@@ -9,6 +9,7 @@
 #include <godot_cpp/variant/packed_int64_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 
+#include "piper_core/openjtalk_dictionary_manager.h"
 #include "piper_language_support.hpp"
 #include "piper_tts_paths.hpp"
 #include "piper_core/phoneme_parser.hpp"
@@ -127,6 +128,20 @@ Array resolved_segments_to_dictionary_array(
 		segments.push_back(entry);
 	}
 	return segments;
+}
+
+String resolve_native_dictionary_contract_path(const String &configured_dictionary_path) {
+	const String trimmed_dictionary_path = configured_dictionary_path.strip_edges();
+	if (!trimmed_dictionary_path.is_empty()) {
+		return piper_tts_paths::resolve_global_path(trimmed_dictionary_path);
+	}
+
+	const char *default_dictionary_path = get_openjtalk_dictionary_path();
+	if (default_dictionary_path == nullptr || default_dictionary_path[0] == '\0') {
+		return String();
+	}
+
+	return String(default_dictionary_path);
 }
 
 } // namespace
@@ -346,7 +361,8 @@ Dictionary build_runtime_contract(bool web_export, const String &model_path,
 			? (supports_japanese_text_input ? "staged_asset" : "missing_required_asset")
 			: "filesystem";
 	contract["resolved_dictionary_path"] =
-			web_export ? resolved_web_dictionary_path : dictionary_path;
+			web_export ? resolved_web_dictionary_path
+					   : resolve_native_dictionary_contract_path(dictionary_path);
 	contract["runtime_state"] = runtime_state_to_string(runtime_state);
 	contract["model_path"] = model_path;
 	contract["config_path"] = config_path;

@@ -10,7 +10,7 @@ const WEB_SMOKE_SUMMARY_PREFIX = 'WEB_SMOKE summary=';
 const RESULT_RE = /^RESULT total=(\d+) pass=(\d+) fail=(\d+) skip=(\d+)/;
 const PASS_RE = /^\s+PASS\s+(.+)$/;
 const SKIP_RE = /^\s+SKIP\s+(.+?)(?::\s+(.*))?$/;
-const FAIL_RE = /^\s+FAIL\s+(.+)$/;
+const FAIL_RE = /^\s+FAIL\s+(.+?)(?::\s+(.*))?$/;
 const SCENARIO_PROFILES = {
   en: {
     requiredPasses: [
@@ -273,6 +273,7 @@ async function main() {
       if (failMatch) {
         failedTests.push({
           test: failMatch[1].trim(),
+          message: (failMatch[2] ?? '').trim(),
         });
       }
     });

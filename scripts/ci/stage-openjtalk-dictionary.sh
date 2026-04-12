@@ -31,6 +31,15 @@ else
   exit 1
 fi
 
+if [[ -n "${CURL_BIN:-}" ]]; then
+  CURL_CMD="$CURL_BIN"
+elif command -v curl >/dev/null 2>&1; then
+  CURL_CMD="curl"
+else
+  echo "ERROR: curl is required to download the OpenJTalk dictionary archive." >&2
+  exit 1
+fi
+
 verify_dictionary_dir() {
   local dir_path="$1"
 
@@ -141,7 +150,7 @@ else
   if [[ -f "$archive_path" ]]; then
     verify_sha256 "$archive_path" "$archive_sha256"
   else
-    curl -L --fail --retry 3 --retry-delay 2 -o "$archive_path.tmp" "$archive_url"
+    "$CURL_CMD" -L --fail --retry 3 --retry-delay 2 -o "$archive_path.tmp" "$archive_url"
     verify_sha256 "$archive_path.tmp" "$archive_sha256"
     mv "$archive_path.tmp" "$archive_path"
   fi

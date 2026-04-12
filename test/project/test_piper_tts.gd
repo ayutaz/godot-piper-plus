@@ -278,6 +278,7 @@ func list_test_names() -> Array[String]:
             "test_properties",
             "test_execution_provider_enum",
             "test_runtime_contract",
+            "test_runtime_contract_missing_web_dictionary",
             "test_initialize_with_model",
             "test_initialize_with_config_fallback",
             "test_web_non_cpu_execution_provider_rejected",
@@ -294,6 +295,7 @@ func list_test_names() -> Array[String]:
         "test_speech_rate_range",
         "test_execution_provider_enum",
         "test_runtime_contract",
+        "test_runtime_contract_missing_web_dictionary",
         "test_runtime_state",
         "test_language_capabilities_without_init_is_side_effect_free",
         "test_editor_download_catalog_paths",
@@ -340,7 +342,7 @@ func get_test_tags(method_name: String) -> PackedStringArray:
             return PackedStringArray(["core", "web-smoke"])
         "test_initialize_with_model", "test_synthesize_basic":
             return PackedStringArray(["en", "web-smoke"])
-        "test_japanese_dictionary_error_surface", "test_japanese_request_time_dictionary_error_surface", "test_japanese_text_input_with_dictionary":
+        "test_runtime_contract_missing_web_dictionary", "test_japanese_dictionary_error_surface", "test_japanese_request_time_dictionary_error_surface", "test_japanese_text_input_with_dictionary":
             return PackedStringArray(["ja", "web-smoke"])
         _:
             return PackedStringArray()
