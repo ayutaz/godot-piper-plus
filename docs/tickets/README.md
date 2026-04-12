@@ -21,7 +21,7 @@
 - 完了したチケットは、成果を `docs/milestones.md` と残存チケットへ吸収したうえで、このディレクトリから削除します。履歴の正本は milestone と関連計画メモです。
 - `M7 Web Support` の `W0` から `W4` は完了済みで、結果は `docs/milestones.md` に集約しています。個別 ticket は削除済みです。
 - macOS / iOS の完了済み platform 確認も `docs/milestones.md` の `M6` へ吸収しています。
-- `TKT-018` から `TKT-021` は Web 日本語対応の follow-up track です。Phase 1 preview と English-only Pages demo は完了扱いのまま残し、`naist-jdic` bootstrap、日本語 text input / synthesize、browser smoke、Pages public smoke を `M10` として追跡します。
+- `TKT-018` から `TKT-021` は Web 日本語対応の follow-up track です。Phase 1 preview と M9 の English minimal Pages demo は完了扱いのまま残し、`naist-jdic` bootstrap、日本語 text input / synthesize、browser smoke、Pages public smoke を `M10` として追跡します。
 - multilingual contract は `tests/fixtures/multilingual_capability_matrix.json` を正本、`docs/generated/multilingual_capability_matrix.md` を投影として扱います。
 - `TKT-007` は release 完了条件の最終集約チケットで、他チケットの結果を取り込みます。Web については `M7` / `M9` の完了結果と `TKT-018` 系の日本語対応完了を依存に含めます。
 - `M9 GitHub Pages Public Demo / Deploy` は English-only scope として完了済みです。branch 上で一時的に作成していた `TKT-012` から `TKT-017` は、成果を [`docs/milestones.md`](../milestones.md) と [`docs/web-github-pages-plan.md`](../web-github-pages-plan.md) へ吸収したため、この一覧から削除しています。

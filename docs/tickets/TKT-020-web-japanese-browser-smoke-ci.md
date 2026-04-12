@@ -15,6 +15,7 @@
 - [x] CI の Web job で Japanese scenario を gate にする
 - [x] failure 時の log / artifact 採取を日本語 path でも揃える
 - [x] `TKT-021` が再利用できる判定条件を handoff する
+- [ ] `workflow_dispatch` と PR `Build Web` で `ja` scenario pass を実証する
 
 ## タスク目的とゴール
 

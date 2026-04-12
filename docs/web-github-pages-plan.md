@@ -15,8 +15,9 @@
 - 2026-04-10 の GitHub Actions run `24223195868` で `Build Web` と browser smoke が通っており、`threads` / `no-threads` の両方で `WEB_SMOKE status=pass` を確認済みです。
 - 2026-04-11 の GitHub Actions run `24282051911` では Pages demo の build、deploy、public URL smoke が成功しています。
 - 公開デモは [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/) で公開中です。
-- 現在の runtime contract は Web 向け `EP_CPU` 固定です。Pages demo は `multilingual-test-medium` と staged `naist-jdic` を使う `ja/en` 公開デモとして拡張し、startup self-test と public smoke は日本語シナリオを正本にします。
-- 日本語 text input / synthesize と Pages 日本語 demo は must follow-up として [`M10 Web Japanese Support / Pages Japanese Demo 完成`](./milestones.md#m10) と [`TKT-018`](./tickets/TKT-018-web-japanese-support.md) から [`TKT-021`](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) で管理します。
+- 現在の runtime contract は Web 向け `EP_CPU` 固定です。
+- current branch では Pages demo を `multilingual-test-medium` と staged `naist-jdic` を使う `ja/en` 公開デモへ拡張し、startup self-test と local / public smoke の Japanese scenario を実装済みです。
+- branch 実装の CI 実証、`main` 反映、release 文書化は [`M10 Web Japanese Support / Pages Japanese Demo 完成`](./milestones.md#m10) と [`TKT-018`](./tickets/TKT-018-web-japanese-support.md) から [`TKT-021`](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) で管理します。
 - M9 向けに一時的に作成した GitHub Pages ticket 群の内容は、完了時にこの文書と [`docs/milestones.md`](./milestones.md) へ吸収しています。
 
 ## 公開スコープ
@@ -58,7 +59,7 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 ## M10 の残作業
 
 - `TKT-020` の CI gate を安定化し、`en/ja` browser smoke を継続通過させる
-- `TKT-021` の branch 実装を `main` へ反映し、public URL `ja` smoke の実 run を再確認する
+- `TKT-021` の `workflow_dispatch` / `main` deploy で public URL `ja` smoke を実証する
 - `TKT-007` で release 文書へ Web 日本語 scope と既知制約を吸収する
 
 ## 拡張候補

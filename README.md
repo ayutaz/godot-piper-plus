@@ -109,18 +109,19 @@ model 本体は package に同梱していません。
 | macOS | 確認済み | packaged addon smoke を CI で確認済み |
 | Android | 進行中 | export smoke は確認済み。残りは runtime 可否と Windows local export 差分 |
 | iOS | 確認済み | export / link smoke を CI で確認済み |
-| Web export | preview support | browser smoke と Pages demo を確認済み。custom template と `EP_CPU` 前提 |
+| Web export | preview support | browser smoke は `en/ja` gate に拡張済みです。main では `M9` の English minimal Pages demo を公開中で、この branch では `ja/en` public demo と Japanese smoke を追加実装し、workflow で実証中です。custom template と `EP_CPU` 前提 |
 
 ## GitHub Pages 公開デモ
 
 公開デモは GitHub Pages で公開中です。
 
 - URL: [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/)
-- scope: `no-threads` / `CPU-only` / Japanese + English public demo
+- main の公開 scope: `M9` の `no-threads` / `CPU-only` / English minimal demo
+- current branch の追加 scope: `ja/en` public demo、Japanese startup self-test、public `ja` smoke の実装済み / 実証中
 - 同梱 model: `multilingual-test-medium`
 - 日本語 text input は staged `naist-jdic` を使います
 
-公開デモは addon の雰囲気をすぐ確認するための入口です。addon 自体の Web export はまだ preview support です。
+公開デモは addon の雰囲気をすぐ確認するための入口です。addon 自体の Web export はまだ preview support です。`ja/en` 公開デモはこの branch で実装済みですが、`workflow_dispatch` / `main` deploy での実証は継続中です。
 
 ## Web export
 

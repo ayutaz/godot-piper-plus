@@ -12,9 +12,10 @@
 
 - [x] Pages demo の UI に日本語入力導線を追加する
 - [x] Pages artifact に日本語用 dictionary / model staging を追加する
-- [x] deploy 後 public URL smoke を日本語シナリオまで広げる
+- [x] deploy 後 public URL smoke の日本語シナリオ対応を実装する
 - [x] README と運用メモを English-only 表記から更新する
 - [x] `TKT-007` へ public scope と既知制約を handoff する
+- [ ] `workflow_dispatch` / `main` deploy で public `ja` smoke を実証する
 
 ## タスク目的とゴール
 
