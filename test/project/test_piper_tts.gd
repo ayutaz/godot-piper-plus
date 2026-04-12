@@ -334,6 +334,17 @@ func list_test_names() -> Array[String]:
         "test_last_synthesis_result_timing",
     ]
 
+func get_test_tags(method_name: String) -> PackedStringArray:
+    match method_name:
+        "test_runtime_contract", "test_initialize_with_config_fallback", "test_web_non_cpu_execution_provider_rejected", "test_web_openjtalk_native_rejected":
+            return PackedStringArray(["core", "web-smoke"])
+        "test_initialize_with_model", "test_synthesize_basic":
+            return PackedStringArray(["en", "web-smoke"])
+        "test_japanese_dictionary_error_surface", "test_japanese_request_time_dictionary_error_surface", "test_japanese_text_input_with_dictionary":
+            return PackedStringArray(["ja", "web-smoke"])
+        _:
+            return PackedStringArray()
+
 func run_test(method_name: String) -> void:
     if not has_method(method_name):
         failures.append("Unknown test: %s" % method_name)

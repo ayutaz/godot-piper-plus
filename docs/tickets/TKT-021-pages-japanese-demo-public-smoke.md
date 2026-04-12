@@ -29,6 +29,7 @@
 - `.github/workflows/pages.yml` で PR build、main deploy、public URL smoke が日本語 scenario を確認するようにする。
 - `scripts/ci/run-pages-demo-smoke.mjs` で公開 URL 上の日本語 synthesize 成功を判定できるようにする。
 - `docs/web-github-pages-plan.md`、`README.md`、addon README の scope 表記を実装に合わせて更新する。
+- `TKT-020` の handoff として、public smoke でも `WEB_SMOKE summary=<json>` 相当の machine-readable summary か、同等の `required pass test` 判定を持たせる。
 
 ## 実装するために必要なエージェントチームの役割と人数
 

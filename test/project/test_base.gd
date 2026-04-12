@@ -11,6 +11,9 @@ func reset_results() -> void:
     failures.clear()
     skips.clear()
 
+func get_test_tags(_method_name: String) -> PackedStringArray:
+    return PackedStringArray()
+
 func assert_true(value: bool, message: String) -> void:
     if not value:
         failures.append(message)

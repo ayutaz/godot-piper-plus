@@ -1,6 +1,6 @@
 # TKT-020 Web 日本語 browser smoke / CI gate
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `NFR-5` `NFR-6`
@@ -10,11 +10,11 @@
 
 ## 進捗
 
-- [ ] `test/project` に日本語 smoke scenario を追加する
-- [ ] local 再現 script に日本語 path を追加する
-- [ ] CI の Web job で Japanese scenario を gate にする
-- [ ] failure 時の log / artifact 採取を日本語 path でも揃える
-- [ ] `TKT-021` が再利用できる判定条件を handoff する
+- [x] `test/project` に日本語 smoke scenario を追加する
+- [x] local 再現 script に日本語 path を追加する
+- [x] CI の Web job で Japanese scenario を gate にする
+- [x] failure 時の log / artifact 採取を日本語 path でも揃える
+- [x] `TKT-021` が再利用できる判定条件を handoff する
 
 ## タスク目的とゴール
 
@@ -29,6 +29,11 @@
 - workflow の `Build Web` または同等 job に、日本語 scenario の pass / fail を release gate として組み込む。
 - failure 時に browser console、runtime error、asset manifest のどこを見るかを固定し、CI artifact へ保存する。
 - 既存 English smoke を温存しつつ、最低でも `en` と `ja` の 2 系統を回す。
+- canonical browser smoke contract:
+  - scenario `en`: `test_piper_tts.test_initialize_with_model`, `test_piper_tts.test_synthesize_basic` が pass
+  - scenario `ja`: `test_piper_tts.test_japanese_dictionary_error_surface`, `test_piper_tts.test_japanese_request_time_dictionary_error_surface`, `test_piper_tts.test_japanese_text_input_with_dictionary` が pass
+  - machine-readable console summary: `WEB_SMOKE summary=<json>`
+  - failure diagnostics: `web-smoke-report-*.json` と `web-smoke-report-*.png` を export artifact に残す
 
 ## 実装するために必要なエージェントチームの役割と人数
 

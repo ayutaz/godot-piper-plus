@@ -8,6 +8,7 @@ ADDON_SRC="${PIPER_ADDON_SRC:-$REPO_ROOT/addons/piper_plus}"
 ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
 EXPORT_ROOT="${1:-${PIPER_WEB_EXPORT_ROOT:-$REPO_ROOT/build/web-smoke}}"
 PRESETS="${PIPER_WEB_PRESETS:-Web,Web Threads}"
+SCENARIOS="${PIPER_WEB_SMOKE_SCENARIOS:-en,ja}"
 ENTRY_NAME="${PIPER_WEB_ENTRY_NAME:-piper-plus-tests.html}"
 PROJECT_ADDON_DIR="$PROJECT_DIR/addons/piper_plus"
 
@@ -60,6 +61,7 @@ bash "$REPO_ROOT/test/prepare-assets.sh"
 mkdir -p "$EXPORT_ROOT"
 
 IFS=',' read -r -a preset_names <<< "$PRESETS"
+IFS=',' read -r -a scenario_names <<< "$SCENARIOS"
 for preset_name in "${preset_names[@]}"; do
   preset_name="$(printf '%s' "$preset_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   [[ -n "$preset_name" ]] || continue
@@ -81,8 +83,29 @@ for preset_name in "${preset_names[@]}"; do
   stage_web_runtime_payload "$preset_dir"
   node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$preset_dir"
 
-  node "$SCRIPT_DIR/run-web-smoke.mjs" \
-    --root "$preset_dir" \
-    --entry "$ENTRY_NAME" \
-    --label "$preset_name"
+  for scenario_name in "${scenario_names[@]}"; do
+    scenario_name="$(printf '%s' "$scenario_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [[ -n "$scenario_name" ]] || continue
+
+    timeout_ms="240000"
+    case "$scenario_name" in
+      en)
+        timeout_ms="240000"
+        ;;
+      ja)
+        timeout_ms="300000"
+        ;;
+      *)
+        echo "ERROR: unsupported PIPER_WEB_SMOKE_SCENARIOS entry: $scenario_name" >&2
+        exit 1
+        ;;
+    esac
+
+    node "$SCRIPT_DIR/run-web-smoke.mjs" \
+      --root "$preset_dir" \
+      --entry "$ENTRY_NAME" \
+      --label "$preset_name-$scenario_name" \
+      --scenario "$scenario_name" \
+      --timeout-ms "$timeout_ms"
+  done
 done
