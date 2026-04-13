@@ -199,6 +199,9 @@ async function main() {
     const browserUrl = new URL(args.entry, baseUrl).toString();
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
+    await page.addInitScript(({ scenario }) => {
+      globalThis.__PIPER_WEB_SMOKE_SCENARIO = scenario || '';
+    }, { scenario: args.scenario || '' });
     let completed = false;
 
     const hasSuccessfulSummary = () =>

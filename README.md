@@ -109,7 +109,7 @@ model 本体は package に同梱していません。
 | macOS | 確認済み | packaged addon smoke を CI で確認済み |
 | Android | 進行中 | export smoke は確認済み。残りは runtime 可否と Windows local export 差分 |
 | iOS | 確認済み | export / link smoke を CI で確認済み |
-| Web export | preview support | browser smoke は `en/ja` gate に拡張済みです。main では `M9` の English minimal Pages demo を公開中で、この branch では `ja/en` public demo と Japanese smoke を追加実装し、workflow で実証中です。custom template と `EP_CPU` 前提 |
+| Web export | preview support | browser smoke は `no-threads` preset で `en/ja` gate、`Web Threads` preset で English/core regression smoke を回す構成です。main では `M9` の English minimal Pages demo を公開中で、この branch では `ja/en` public demo と Japanese smoke を追加実装し、workflow で実証中です。custom template と `EP_CPU` 前提 |
 
 ## GitHub Pages 公開デモ
 
@@ -132,7 +132,7 @@ addon 自体の Web export は preview support です。
 - `execution_provider` は `EP_CPU` 固定です
 - `openjtalk-native` shared library は Web では使えません
 - self-hosting する場合は `COOP` / `COEP` 付き static server か、同等の cross-origin isolation workaround が必要です
-- local browser smoke は `GODOT=/path/to/godot PIPER_WEB_SMOKE_SCENARIOS=en,ja bash scripts/ci/export-web-smoke.sh build/web-smoke` で再現できます。Node.js と Playwright が必要です
+- local browser smoke は `GODOT=/path/to/godot PIPER_WEB_SMOKE_SCENARIOS=en,ja bash scripts/ci/export-web-smoke.sh build/web-smoke` で再現できます。既定では `Web` preset が `en,ja`、`Web Threads` preset が `en` を実行します。Node.js と Playwright が必要です
 - Pages demo の local smoke は `node scripts/ci/run-pages-demo-smoke.mjs --root <site_dir> --scenario ja` で再現できます
 
 公開デモの運用メモは [`docs/web-github-pages-plan.md`](./docs/web-github-pages-plan.md) を参照してください。

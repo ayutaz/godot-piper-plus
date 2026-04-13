@@ -67,6 +67,19 @@ stage_web_runtime_payload() {
   fi
 }
 
+scenarios_for_preset() {
+  local preset_name="$1"
+
+  case "$preset_name" in
+    "Web Threads")
+      printf '%s\n' "${PIPER_WEB_SMOKE_SCENARIOS_WEB_THREADS:-en}"
+      ;;
+    *)
+      printf '%s\n' "$SCENARIOS"
+      ;;
+  esac
+}
+
 export PIPER_ADDON_SRC="$ADDON_SRC"
 export PIPER_ADDON_BIN_SRC="$ADDON_BIN_SRC"
 export PIPER_TEST_STAGE_OPENJTALK_DICTIONARY=1
@@ -76,7 +89,6 @@ bash "$REPO_ROOT/test/prepare-assets.sh"
 mkdir -p "$EXPORT_ROOT"
 
 IFS=',' read -r -a preset_names <<< "$PRESETS"
-IFS=',' read -r -a scenario_names <<< "$SCENARIOS"
 for preset_name in "${preset_names[@]}"; do
   preset_name="$(printf '%s' "$preset_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   [[ -n "$preset_name" ]] || continue
@@ -98,6 +110,8 @@ for preset_name in "${preset_names[@]}"; do
   stage_web_runtime_payload "$preset_dir"
   node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$preset_dir"
 
+  preset_scenarios="$(scenarios_for_preset "$preset_name")"
+  IFS=',' read -r -a scenario_names <<< "$preset_scenarios"
   for scenario_name in "${scenario_names[@]}"; do
     scenario_name="$(printf '%s' "$scenario_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
     [[ -n "$scenario_name" ]] || continue

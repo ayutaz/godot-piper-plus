@@ -17,6 +17,23 @@ func _is_web_runtime() -> bool:
 func _is_web_smoke() -> bool:
     return OS.has_feature("web_smoke")
 
+func _web_smoke_scenario() -> String:
+    if not _is_web_smoke():
+        return ""
+
+    var scenario := OS.get_environment("PIPER_WEB_SMOKE_SCENARIO").strip_edges().to_lower()
+    if not scenario.is_empty():
+        return scenario
+
+    if _is_web_runtime() and ClassDB.class_exists("JavaScriptBridge"):
+        var js_value: Variant = JavaScriptBridge.eval(
+            "(globalThis.__PIPER_WEB_SMOKE_SCENARIO || '').toString()",
+            true
+        )
+        scenario = String(js_value).strip_edges().to_lower()
+
+    return scenario
+
 func _addon_available() -> bool:
     return ClassDB.class_exists("PiperTTS")
 
@@ -208,7 +225,7 @@ func _create_streaming_playback() -> Dictionary:
     container.queue_free()
     return {}
 
-func _configure_test_model(tts) -> bool:
+func _configure_test_model(tts, include_dictionary: bool = true) -> bool:
     var bundle = _model_bundle()
     if bundle.is_empty():
         return false
@@ -223,7 +240,7 @@ func _configure_test_model(tts) -> bool:
     tts.model_path = bundle["model_path"]
     if not String(bundle["config_path"]).is_empty():
         tts.config_path = bundle["config_path"]
-    if not String(bundle["dictionary_path"]).is_empty():
+    if include_dictionary and not String(bundle["dictionary_path"]).is_empty():
         tts.dictionary_path = bundle["dictionary_path"]
 
     var preferred_language := _preferred_test_language_code(bundle)
@@ -553,7 +570,7 @@ func test_runtime_state() -> void:
 
     assert_equal(String(tts.get_runtime_state()), "uninitialized", "new PiperTTS instances should start in the uninitialized state")
 
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, not (_is_web_smoke() and _web_smoke_scenario() == "en")):
         skip("Bundled or environment-provided test model is unavailable")
         _cleanup_tts(tts)
         return
@@ -662,7 +679,7 @@ func test_initialize_with_model() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, false):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
@@ -711,7 +728,7 @@ func test_language_capabilities() -> void:
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, not (_is_web_smoke() and _web_smoke_scenario() == "en")):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
@@ -1007,7 +1024,7 @@ func test_initialize_with_config_fallback() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, false):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
@@ -1129,7 +1146,7 @@ func test_web_non_cpu_execution_provider_rejected() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, false):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
@@ -1153,7 +1170,7 @@ func test_web_openjtalk_native_rejected() -> void:
     if tts == null:
         skip("PiperTTS class is unavailable")
         return
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, false):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
@@ -1267,7 +1284,7 @@ func test_synthesize_basic() -> void:
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return
-    if not _configure_test_model(tts):
+    if not _configure_test_model(tts, false):
         skip("test model bundle is not available in res://models or PIPER_TEST_* env vars")
         _cleanup_tts(tts)
         return

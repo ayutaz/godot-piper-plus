@@ -20,6 +20,7 @@ var _require_pass := false
 var _passed_tests: Array[Dictionary] = []
 var _skipped_tests: Array[Dictionary] = []
 var _failed_tests: Array[Dictionary] = []
+var _web_smoke_scenario := ""
 
 func _env_flag(name: String) -> bool:
     var value := OS.get_environment(name).strip_edges().to_lower()
@@ -72,6 +73,34 @@ func _normalize_tags(value: Variant) -> Array[String]:
             tags.append(String(item))
     return tags
 
+func _detect_web_smoke_scenario() -> String:
+    if not OS.has_feature("web_smoke"):
+        return ""
+
+    var scenario := OS.get_environment("PIPER_WEB_SMOKE_SCENARIO").strip_edges().to_lower()
+    if not scenario.is_empty():
+        return scenario
+
+    if OS.has_feature("web") and ClassDB.class_exists("JavaScriptBridge"):
+        var js_value: Variant = JavaScriptBridge.eval(
+            "(globalThis.__PIPER_WEB_SMOKE_SCENARIO || '').toString()",
+            true
+        )
+        scenario = String(js_value).strip_edges().to_lower()
+    return scenario
+
+func _should_run_web_smoke_test(tags: Array[String]) -> bool:
+    if _web_smoke_scenario.is_empty():
+        return true
+
+    if tags.is_empty():
+        return true
+
+    if tags.has("core"):
+        return true
+
+    return tags.has(_web_smoke_scenario)
+
 func _test_tags_for(suite, method_name: String) -> Array[String]:
     if suite != null and suite.has_method("get_test_tags"):
         return _normalize_tags(suite.call("get_test_tags", method_name))
@@ -113,6 +142,7 @@ func _write_summary_file(summary: Dictionary) -> void:
 func _ready() -> void:
     _strict_skip_patterns = _parse_env_list("PIPER_FAIL_ON_SKIP_PATTERNS")
     _require_pass = _env_flag("PIPER_REQUIRE_PASS")
+    _web_smoke_scenario = _detect_web_smoke_scenario()
 
     var suite_script = load("res://test_piper_tts.gd")
     if suite_script == null:
@@ -158,6 +188,8 @@ func _run_all() -> void:
 
         for method_name in suite.list_test_names():
             var tags := _test_tags_for(suite, method_name)
+            if not _should_run_web_smoke_test(tags):
+                continue
             _total_count += 1
             print("  RUN  %s.%s" % [suite_name, method_name])
             suite.reset_results()
