@@ -356,6 +356,7 @@ async function main() {
     throw error;
   } finally {
     if (failureReason && page) {
+      ensureParentDir(screenshotPath);
       await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
     }
     writeReport();

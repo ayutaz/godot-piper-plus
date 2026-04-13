@@ -6,6 +6,7 @@ const BUNDLED_MODEL_PATH := "res://models/multilingual-test-medium.onnx"
 const BUNDLED_CONFIG_PATH := "res://models/multilingual-test-medium.onnx.json"
 const BUNDLED_DICT_PATH := "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
 const LEGACY_BUNDLED_DICT_PATH := "res://models/openjtalk_dic"
+const MISSING_WEB_DICT_PATH := "res://missing/open_jtalk_dic_utf_8-1.11"
 
 var _async_completed_audio = null
 var _async_failed_error := ""
@@ -237,15 +238,19 @@ func _configure_test_model(tts, include_dictionary: bool = true) -> bool:
     if resolved_config.is_empty():
         return false
 
-    tts.model_path = bundle["model_path"]
-    if not String(bundle["config_path"]).is_empty():
-        tts.config_path = bundle["config_path"]
-    if include_dictionary and not String(bundle["dictionary_path"]).is_empty():
-        tts.dictionary_path = bundle["dictionary_path"]
+	tts.model_path = bundle["model_path"]
+	if not String(bundle["config_path"]).is_empty():
+		tts.config_path = bundle["config_path"]
+	if include_dictionary and not String(bundle["dictionary_path"]).is_empty():
+		tts.dictionary_path = bundle["dictionary_path"]
+	elif _is_web_runtime():
+		# Prevent Web runtime auto-fallback from staging OpenJTalk when an English-only
+		# smoke scenario intentionally wants to exercise no-dictionary initialization.
+		tts.dictionary_path = MISSING_WEB_DICT_PATH
 
-    var preferred_language := _preferred_test_language_code(bundle)
-    if not preferred_language.is_empty():
-        tts.language_code = preferred_language
+	var preferred_language := _preferred_test_language_code(bundle)
+	if not preferred_language.is_empty():
+		tts.language_code = preferred_language
 
     return true
 
