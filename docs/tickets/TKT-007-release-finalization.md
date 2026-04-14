@@ -2,17 +2,17 @@
 
 - 状態: `進行中`
 - 主マイルストーン: [M8 Release / Asset Library 準備](../milestones.md#m8)
-- 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M11 Windows / Web 6-Language Text Input / Template UX 完成](../milestones.md#m11)
+- 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10) [M11 Windows / Web 6-Language Text Input / Template UX 完成](../milestones.md#m11)
 - 関連要求: `FR-9` `NFR-6` release 完了条件
-- 依存チケット: `TKT-004` `TKT-005` `TKT-018` `TKT-022`
+- 依存チケット: `TKT-004` `TKT-005` `TKT-020` `TKT-021` `TKT-024` `TKT-025`
 - 後続チケット: なし
 
 ## 進捗
 
 - [x] Web preview、macOS packaged smoke、iOS export/link smoke の結果を集約する
 - [ ] Android export / runtime 結果と Windows local 既知制約を集約する
-- [ ] Web 日本語対応と Pages 日本語 demo の結果を集約する
-- [ ] Windows / Web 6-language input / synthesize / template text の結果を集約する
+- [x] Web 日本語対応と Pages 日本語 demo の branch docs / support matrix 反映を集約する
+- [x] Windows / Web 6-language input / synthesize / template text の branch docs / support matrix 反映を集約する
 - [ ] package / README / changelog / notice を最終状態へ更新する
 - [ ] Asset Library 向け説明文を確定する
 - [ ] final package と文書整合を確認する
@@ -27,8 +27,8 @@
 - `README.md`、addon README、`CHANGELOG.md`、license / third-party notice を最終状態へ更新する。
 - multilingual と Web のスコープ、platform の確定結果、既知制約を反映する。
 - 2026-04-10 に確定した Web browser smoke、macOS packaged smoke、iOS export smoke の結果を release 文書へ反映する。
-- `M10` の Web 日本語対応と Pages 日本語 demo の結果を release 文書へ反映する。
-- `M11` の Windows / Web 6-language input / synthesize と template text UX の結果を release 文書へ反映する。
+- `M10` の Web 日本語対応と Pages 日本語 demo の結果を release 文書へ反映する。branch 上の README / addon README / milestone / web plan 反映は完了済みです。
+- `M11` の Windows / Web 6-language input / synthesize と template text UX の結果を release 文書へ反映する。branch 上の README / addon README / milestone / web plan 反映は完了済みです。
 - package 生成手順と validator 条件を最終確認する。
 - Asset Library 向け説明文、同梱範囲、注意事項を固定する。
 
@@ -52,8 +52,8 @@
 - package validator が最終 package に対して通ること。
 - README と addon README が最終スコープと矛盾しないこと。
 - Web preview の前提が `M7` の browser smoke 条件と一致していること。
-- Web 日本語対応の前提が `TKT-018` から `TKT-021` の実装結果と一致していること。
-- Windows / Web 6-language sample text と support 表記が `TKT-022` から `TKT-026` の実装結果と一致していること。
+- Web 日本語対応の前提が `TKT-020` と `TKT-021` の実装結果と一致していること。
+- Windows / Web 6-language sample text と support 表記が `TKT-024` と `TKT-025` の実装結果と一致していること。
 - サポート platform、未対応項目、既知制約が明記されていること。
 
 ## 実装する unit テスト

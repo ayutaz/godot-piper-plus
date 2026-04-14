@@ -19,14 +19,14 @@
 | 完了 | M1 Runtime API 完成 | `FR-1` `FR-2` `FR-5` `FR-8` | - | 同期 / 非同期 / streaming、request / raw phoneme / inspection、timing / silence 制御、出力形式は実装済み |
 | 完了 | M2 Language / Model / Backend 完成 | `FR-3` `FR-4` `FR-6` | - | multilingual capability contract、`language_code` / `language_id` 解決、matrix-first 検証、backend fallback、GPU 指定まで完了。正本は `tests/fixtures/`、投影は `docs/generated/` に固定済みです。Windows / Web 6 言語 parity は `M11` の follow-up で扱います |
 | 完了 | M3 Editor Workflow 完成 | `FR-7` | - | downloader、dictionary editor、Inspector 拡張、test speech UI は実装済みです。Windows の 6 言語 template text UX は `M11` の follow-up で扱います |
-| 進行中 | M4 Packaging / Documentation 完成 | `FR-9` `NFR-6` | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-007](./tickets/TKT-007-release-finalization.md) [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-026](./tickets/TKT-026-six-language-docs-release-sync.md) | package assembly / validator、addon 文書、Web preview 制約反映は整備済み。残りは Android の既知制約、Web 日本語対応の文書反映、6 言語 Windows / Web scope と template text の文書反映、release 向け最終文書反映 |
-| 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-023](./tickets/TKT-023-six-language-capability-template-contract.md) [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証、Web browser smoke、macOS packaged smoke、iOS export smoke までは確認済み。残りは Android runtime / local 再現性の gate 化、Web 日本語 text path の gate 化、Windows / Web 6 言語 synthesize gate と template text catalog の固定 |
-| 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) | Linux / macOS / iOS は概ね確定。Android は CI export smoke 済みで、残りは runtime 可否と Windows local 差分の確定です。Windows は baseline smoke は確定済みで、6 言語 parity は `M11` で追跡します |
+| 進行中 | M4 Packaging / Documentation 完成 | `FR-9` `NFR-6` | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-007](./tickets/TKT-007-release-finalization.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) | package assembly / validator、addon 文書、Web preview 制約反映、Web 日本語 / 6-language の branch docs 同期までは整備済みです。残りは Android の既知制約と最終判定、release 向け changelog / Asset Library 文書反映です |
+| 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証、descriptor / sample catalog contract、Web browser smoke、macOS packaged smoke、iOS export smoke までは確認済みです。残りは Android runtime / local 再現性の gate 化、Japanese / 6-language workflow 実証、Windows packaged smoke 証跡です |
+| 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) | Linux / macOS / iOS は概ね確定。Android は CI export smoke 済みで、残りは runtime 可否と Windows local 差分の確定です。Windows は baseline smoke に加えて 6 言語 UI / headless path を branch へ反映済みで、残りは packaged addon smoke の実証です |
 | 完了 | M7 Web Support 完成 | `FR-10` | - | 2026-04-10 の GitHub Actions run `24223195868` で `Build Web`、browser smoke、README 反映を含む Phase 1 preview support の受け入れ条件を確認済み |
-| 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-022](./tickets/TKT-022-windows-web-six-language-support.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | Web preview、M9 の English minimal Pages demo、macOS packaged smoke、iOS export smoke の結果までは反映済みです。branch 上では Web 日本語対応と `ja/en` Pages demo 実装が進んでおり、追加で Windows / Web 6 言語 input / synthesize と template text UX の track を開始しました。残りは Android の最終判定、Web 日本語対応の実証、6 言語 Windows / Web track の実装、changelog / Asset Library 文書の最終化 |
+| 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | Web preview、M9 の English minimal Pages demo、macOS packaged smoke、iOS export smoke、branch docs への Web 日本語 / 6-language 反映までは完了しています。残りは Android の最終判定、Web 日本語と 6-language の workflow 実証、changelog / Asset Library 文書の最終化です |
 | 完了 | M9 GitHub Pages Public Demo / Deploy | post-preview Web public demo / GitHub Pages deployment | - | `M7` 完了後の follow-up として、Pages demo の build / deploy / public smoke と文書同期まで完了しています |
-| 進行中 | M10 Web Japanese Support / Pages Japanese Demo 完成 | `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-5` `NFR-6` | [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | `M7` と `M9` の baseline は成立済みです。branch 上では `TKT-019` の dictionary bootstrap / runtime と `TKT-020` / `TKT-021` の Japanese smoke / demo 実装が進んでおり、残りは CI / public deploy での実証と release 文書反映です |
-| 進行中 | M11 Windows / Web 6-Language Text Input / Template UX 完成 | `FR-3` `FR-7` `FR-10` `FR-11` `NFR-2` `NFR-5` `NFR-6` | [TKT-022](./tickets/TKT-022-windows-web-six-language-support.md) [TKT-023](./tickets/TKT-023-six-language-capability-template-contract.md) [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) [TKT-026](./tickets/TKT-026-six-language-docs-release-sync.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | `M10` の `ja/en` baseline を 6 言語 minimum parity と template UX へ広げる follow-up を開始しました。残りは capability / template contract の固定、Windows packaged addon 検証、Web / Pages 6 言語 smoke、release 文書同期です |
+| 進行中 | M10 Web Japanese Support / Pages Japanese Demo 完成 | `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-5` `NFR-6` | [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | `M7` と `M9` の baseline は成立済みです。dictionary bootstrap / runtime は統合済みで、branch 上では Japanese smoke / demo と docs sync まで進んでいます。残りは CI / public deploy での実証と release 文書最終化です |
+| 進行中 | M11 Windows / Web 6-Language Text Input / Template UX 完成 | `FR-3` `FR-7` `FR-10` `FR-11` `NFR-2` `NFR-5` `NFR-6` | [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | capability / template contract、descriptor foundation、Windows UI、Web / Pages 6-language selector と smoke 定義、branch docs sync までは反映済みです。残りは Windows packaged addon 検証、Web / Pages workflow 実証、release 文書最終化です |
 
 ## マイルストーン詳細
 
@@ -67,11 +67,11 @@
 
 - 対象要求: `FR-9` `NFR-6`
 - 状態: `進行中`
-- 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-022 Windows / Web 6-language input / synthesize / template text 対応](./tickets/TKT-022-windows-web-six-language-support.md) [TKT-026 6-language docs / release sync](./tickets/TKT-026-six-language-docs-release-sync.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
-- 現状: `.gdextension` manifest ベースの package assembly / validator、addon README / LICENSE / third-party notice、package 範囲の整理、multilingual contract の文書反映、Web preview 制約の README 反映までは実施済みです。
+- 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
+- 現状: `.gdextension` manifest ベースの package assembly / validator、addon README / LICENSE / third-party notice、package 範囲の整理、multilingual contract の文書反映、Web preview 制約の README 反映、Web 日本語 / 6-language の branch docs sync までは実施済みです。
 - 残作業:
   - Android export / runtime の最終判定と Windows local 制約を package / README / changelog へ反映する
-  - Windows / Web 6 言語 support と template text catalog を package / README / support matrix へ反映する
+  - Web 日本語と Windows / Web 6 言語 support の workflow 実証結果を package / README / support matrix / changelog へ反映する
   - Asset Library 提出向けの release 文書を最終整形する
 - 完了条件:
   - package に含めるもの / 含めないものが最終状態で一致している
@@ -83,12 +83,13 @@
 
 - 対象要求: `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5`
 - 状態: `進行中`
-- 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-019 Web 日本語 dictionary bootstrap / runtime](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-023 6-language capability / template text contract](./tickets/TKT-023-six-language-capability-template-contract.md) [TKT-024 Windows 6-language runtime / smoke / template UI](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md)
-- 現状: `compatibility_minimum = 4.4`、オフライン runtime 前提、C++ unit test 継続実行、Godot headless strict 化、package validator による binary / dependency 検証、multilingual matrix-first の C++ / headless 検証、Web browser smoke、macOS packaged smoke、iOS export smoke までは整っています。
+- 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-024 Windows 6-language runtime / smoke / template UI](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md)
+- 現状: `compatibility_minimum = 4.4`、オフライン runtime 前提、C++ unit test 継続実行、Godot headless strict 化、package validator による binary / dependency 検証、multilingual matrix-first の C++ / headless 検証、descriptor / sample catalog の contract 固定、Web browser smoke、macOS packaged smoke、iOS export smoke までは整っています。
 - 残作業:
   - Android export success を超えた runtime 可否を quality gate に組み込む
   - Windows local Android export の既知制約と CI 差分を説明可能にする
-  - Windows / Web の 6 言語 synthesize gate と template text catalog の drift 防止を quality gate に組み込む
+  - Japanese / 6-language workflow の実行証跡を quality gate として確定する
+  - Windows packaged addon smoke の 6 言語 pass 条件を証跡付きで固定する
 - 完了条件:
   - C++ test、headless test、package validator が継続実行可能である
   - all-skip / pass 0 / addon 未登録 / model bundle 欠落を CI failure として維持できる
@@ -103,7 +104,7 @@
 
 | プラットフォーム | 状態 | 現状 | 完了条件 |
 |---|---|---|---|
-| Windows | `進行中` | source build の headless と packaged addon smoke はローカルで再確認済み。残りは `M11` で 6 言語 text input / synthesize と template text UI を packaged addon smoke まで確定すること | baseline と 6 言語 parity の両方を文書付きで確定する |
+| Windows | `進行中` | source build の headless と packaged addon smoke はローカルで再確認済みです。current branch では 6 言語 selector / template text UI、descriptor contract、headless test も更新済みで、残りは packaged addon smoke の実行証跡です | baseline と 6 言語 parity の両方を文書付きで確定する |
 | Linux | `完了` | CI build と headless integration があり、strict failure 判定も導入済み | 既存結果を維持し、release 文書へ反映する |
 | macOS arm64 | `完了` | 2026-04-10 の run `24223195868` で build / C++ test / packaged addon smoke を確認済み | 既存結果を維持し、release 文書へ反映する |
 | Android arm64-v8a | `進行中` | 2026-04-10 の run `24223195868` で build / package / export smoke は確認済み。残りは runtime 可否と Windows local generic configuration error の切り分け | runtime 可否を確定し、local 差分と既知制約を反映する |
@@ -154,8 +155,8 @@
 - 対象要求: release 完了条件の最終集約
 - 状態: `進行中`
 - 依存: `M2` `M4` `M5` `M6` `M7` `M10` `M11`
-- 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-022 Windows / Web 6-language input / synthesize / template text 対応](./tickets/TKT-022-windows-web-six-language-support.md) [TKT-026 6-language docs / release sync](./tickets/TKT-026-six-language-docs-release-sync.md)
-- 現状: package / validator / README 類の基礎、multilingual の反映、Web preview support と M9 の English minimal Pages demo の結果反映、macOS packaged smoke と iOS export smoke の確定までは完了しています。branch 上では Web 日本語対応と `ja/en` Pages demo の実装を進めており、追加で Windows / Web 6 言語 input / synthesize と template text UX の follow-up track を開始しました。残るのは Android の最終判定、Web 日本語対応の実証、Windows / Web 6 言語 track の実装、release 文書の最終化です。
+- 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-024 Windows 6-language runtime / smoke / template UI](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md)
+- 現状: package / validator / README 類の基礎、multilingual の反映、Web preview support と M9 の English minimal Pages demo の結果反映、macOS packaged smoke と iOS export smoke の確定、branch docs への Web 日本語 / 6-language 反映までは完了しています。残るのは Android の最終判定、Web 日本語と 6 言語 scope の workflow 実証、release 文書の最終化です。
 - 残作業:
   - `M6` の Android 結果と Windows local 制約を package / README / license / changelog に反映する
   - `M10` の Web 日本語対応結果と Pages 日本語 demo の scope を package / README / changelog に反映する
@@ -205,8 +206,8 @@
 - 対象要求: `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-5` `NFR-6`
 - 状態: `進行中`
 - 依存: `M7` `M9`
-- 関連チケット: [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-019 Web 日本語 dictionary bootstrap / runtime](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
-- 現状: `M7` で Web preview support、`M9` で main 上の English minimal Pages demo までは完了しています。`TKT-019` と `TKT-020` で `naist-jdic` bootstrap、runtime contract、Japanese browser smoke / CI gate の実装は進んでおり、browser smoke は `Web` preset を `en,ja` の synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke として分離しています。`TKT-021` では branch 上で Pages demo を `ja/en` UI と Japanese public smoke に広げています。残りは `workflow_dispatch` / PR CI / `main` deploy でその実装を確定し、release 文書へ反映することです。
+- 関連チケット: [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
+- 現状: `M7` で Web preview support、`M9` で main 上の English minimal Pages demo までは完了しています。dictionary bootstrap / runtime は統合済みで、branch 上では `naist-jdic` bootstrap、runtime contract、Japanese browser smoke / CI gate、Pages demo の selector / public smoke、README / web plan の docs sync まで反映済みです。browser smoke と Pages smoke の workflow 定義は catalog 駆動の scenario loop へ更新済みで、残りは `workflow_dispatch` / PR CI / `main` deploy での実証と release 文書最終化です。
 - 実装スコープ:
   - `naist-jdic` を使う Web asset staging / bootstrap
   - Web runtime での Japanese text input / inspect / synthesize の成立
@@ -229,11 +230,11 @@
 
 | 状態 | ID | チケット | マイルストーン | 主な変更対象 | 完了条件 |
 |---|---|---|---|---|---|
-| 進行中 | `J0` | [TKT-018](./tickets/TKT-018-web-japanese-support.md) | scope / acceptance 固定 | `docs/milestones.md`, `docs/tickets/TKT-018-web-japanese-support.md`, `docs/web-github-pages-plan.md` | 日本語 Web 対応が must follow-up として固定され、asset policy、runtime scope、CI / Pages handoff、`TKT-007` 依存が文書で一致している |
-| 要確認 | `J1` | [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) | dictionary bootstrap / runtime | `src/piper_tts.cpp`, `src/piper_core/*`, `scripts/ci/prepare-pages-demo-assets.sh`, `test/prepare-assets.sh`, 必要なら validator / fixture | `naist-jdic` を Web asset として staged でき、日本語 text input / inspect / synthesize の runtime contract が Web 上で成立する |
-| 進行中 | `J2` | [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) | browser smoke / CI gate | `.github/workflows/build.yml`, `test/project`, `scripts/ci/export-web-smoke.sh`, smoke script 群 | CI と local の browser smoke が日本語 text input と synthesize の成否を同じ判定で確認できる |
-| 進行中 | `J3` | [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) | Pages 日本語 demo / public smoke | `pages_demo`, `.github/workflows/pages.yml`, `scripts/ci/export-pages-demo.sh`, `scripts/ci/run-pages-demo-smoke.mjs`, 関連 docs | GitHub Pages demo が日本語入力と合成を提供し、公開 URL smoke が Japanese scenario を pass する |
-| 未着手 | `J4` | [TKT-007](./tickets/TKT-007-release-finalization.md) | release docs / package finalization | `README.md`, `addons/piper_plus/README.md`, `CHANGELOG.md`, package / notice docs | Web 日本語対応の scope、既知制約、asset 境界が release 文書へ反映される |
+| 完了 | `J0` | 統合済み (旧 `TKT-018`) | scope / acceptance 固定 | `docs/milestones.md`, `docs/web-github-pages-plan.md` | 日本語 Web 対応の must follow-up scope、asset policy、runtime scope、CI / Pages handoff、`TKT-007` 依存を固定し、結果を `M10` と残存 ticket へ吸収済み |
+| 完了 | `J1` | 統合済み (旧 `TKT-019`) | dictionary bootstrap / runtime | `src/piper_tts.cpp`, `src/piper_core/*`, `scripts/ci/prepare-pages-demo-assets.sh`, `test/prepare-assets.sh`, validator / fixture | `naist-jdic` を Web asset として staged でき、日本語 text input / inspect / synthesize の runtime contract が Web 上で成立し、結果を `M10` と残存 ticket へ吸収済み |
+| 要確認 | `J2` | [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) | browser smoke / CI gate | `.github/workflows/build.yml`, `test/project`, `scripts/ci/export-web-smoke.sh`, smoke script 群 | CI と local の browser smoke が日本語 text input と synthesize の成否を同じ判定で確認できる |
+| 要確認 | `J3` | [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) | Pages 日本語 demo / public smoke | `pages_demo`, `.github/workflows/pages.yml`, `scripts/ci/export-pages-demo.sh`, `scripts/ci/run-pages-demo-smoke.mjs`, 関連 docs | GitHub Pages demo が日本語入力と合成を提供し、公開 URL smoke が Japanese scenario を pass する |
+| 進行中 | `J4` | [TKT-007](./tickets/TKT-007-release-finalization.md) | release docs / package finalization | `README.md`, `addons/piper_plus/README.md`, `CHANGELOG.md`, package / notice docs | branch docs への Web 日本語 scope 反映は完了。残りは changelog / package / Asset Library 文言へ最終反映すること |
 
 <a id="m11"></a>
 ### M11 Windows / Web 6-Language Text Input / Template UX 完成
@@ -241,8 +242,8 @@
 - 対象要求: `FR-3` `FR-7` `FR-10` `FR-11` `NFR-2` `NFR-5` `NFR-6`
 - 状態: `進行中`
 - 依存: `M6` `M10`
-- 関連チケット: [TKT-022 Windows / Web 6-language input / synthesize / template text 対応](./tickets/TKT-022-windows-web-six-language-support.md) [TKT-023 6-language capability / template text contract](./tickets/TKT-023-six-language-capability-template-contract.md) [TKT-024 Windows 6-language runtime / smoke / template UI](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) [TKT-026 6-language docs / release sync](./tickets/TKT-026-six-language-docs-release-sync.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
-- 現状: 現在の capability matrix は `ja/en` を中心とした baseline で、`M10` で Web `ja/en` と Pages 日本語 demo の track を進めています。Windows / Web の minimum 6-language text input / synthesize と template text UX は未実装で、sample text catalog もまだ共有正本がありません。
+- 関連チケット: [TKT-024 Windows 6-language runtime / smoke / template UI](./tickets/TKT-024-windows-six-language-runtime-smoke.md) [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
+- 現状: current branch では 6 言語 capability / template contract、descriptor foundation、shared sample text catalog、`zh` text path、Windows test speech UI の selector / template text、Web / Pages 6-language selector / smoke 定義、README / web plan の docs sync まで反映済みです。残りは Windows packaged addon smoke と Web / Pages workflow / public smoke の実証、および release 文書最終化です。
 - 実装スコープ:
   - Windows packaged addon と editor test speech UI で `ja/en/zh/es/fr/pt` の text input / inspect / synthesize を成立させる
   - Web export と GitHub Pages demo で同じ 6 言語の text input / inspect / synthesize を成立させる
@@ -250,10 +251,9 @@
   - canonical sample text を `piper-plus` の multilingual testing / sample 文と整合する形で固定する
   - support matrix、README、addon README、release 文書へ 6 言語 scope と template text UX を反映する
 - 残作業:
-  - `TKT-023` で 6 言語 capability / template contract を固定する
-  - `TKT-024` で Windows packaged addon / test speech UI / smoke を 6 言語へ広げる
-  - `TKT-025` で Web export / Pages demo / smoke を 6 言語へ広げる
-  - `TKT-026` と `TKT-007` で support matrix、template text、既知制約を release 文書へ反映する
+  - `TKT-024` で Windows packaged addon / test speech UI / smoke の実行証跡を確定する
+  - `TKT-025` で Web export / Pages demo / smoke の workflow / public 実証を確定する
+  - `TKT-007` で support matrix、template text、既知制約を changelog / package / Asset Library 文言へ最終反映する
 - 完了条件:
   - Windows と Web の両方で `ja/en/zh/es/fr/pt` の text input / inspect / synthesize が成立する
   - 言語選択 UI が各言語に対応する canonical template text を提示できる
@@ -264,17 +264,17 @@
 
 | 状態 | ID | チケット | マイルストーン | 主な変更対象 | 完了条件 |
 |---|---|---|---|---|---|
-| 進行中 | `L0` | [TKT-022](./tickets/TKT-022-windows-web-six-language-support.md) | scope / acceptance 固定 | `docs/milestones.md`, `docs/tickets/TKT-022-windows-web-six-language-support.md`, `docs/requirements.md` | Windows / Web minimum 6-language parity と template text UX が follow-up track として固定され、child ticket と release handoff の境界が文書で一致している |
-| 未着手 | `L1` | [TKT-023](./tickets/TKT-023-six-language-capability-template-contract.md) | capability / template contract | `tests/fixtures/`, `docs/generated/`, 必要なら sample text catalog fixture / generator | 6 言語 capability matrix と template text catalog の正本、schema、sample 文、required asset が固定される |
-| 未着手 | `L2` | [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) | Windows runtime / smoke / template UI | editor plugin、test speech UI、Windows packaged addon smoke、`test/project` | Windows で 6 言語 text input / inspect / synthesize と selector / template text UX が成立し、packaged addon smoke で確認できる |
-| 未着手 | `L3` | [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) | Web runtime / Pages demo / smoke | `pages_demo`, Web smoke script 群、Pages workflow、Web asset staging | Web export と Pages demo が 6 言語 selector / template text / synthesize を提供し、browser / public smoke で確認できる |
-| 未着手 | `L4` | [TKT-026](./tickets/TKT-026-six-language-docs-release-sync.md) | docs / support matrix / release sync | `README.md`, `addons/piper_plus/README.md`, `docs/web-github-pages-plan.md`, generated docs | 6 言語 support と template text UX が利用者向け文書と release handoff に反映される |
+| 完了 | `L0` | 統合済み (旧 `TKT-022`) | scope / acceptance 固定 | `docs/milestones.md`, `docs/requirements.md` | Windows / Web minimum 6-language parity、explicit selection 基準、template text UX、release handoff の境界を固定し、結果を `M11` と残存 ticket へ吸収済み |
+| 完了 | `L1` | 統合済み (旧 `TKT-023`) | capability / template contract | `tests/fixtures/`, `docs/generated/`, `addons/piper_plus/model_descriptors/`, `addons/piper_plus/multilingual_sample_text_catalog.*` | 6 言語 capability matrix、template text catalog、descriptor metadata、required asset の契約を固定し、結果を `M11` と残存 ticket へ吸収済み |
+| 要確認 | `L2` | [TKT-024](./tickets/TKT-024-windows-six-language-runtime-smoke.md) | Windows runtime / smoke / template UI | editor plugin、test speech UI、Windows packaged addon smoke、`test/project` | Windows で 6 言語 text input / inspect / synthesize と selector / template text UX が成立し、packaged addon smoke で確認できる |
+| 要確認 | `L3` | [TKT-025](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) | Web runtime / Pages demo / smoke | `pages_demo`, Web smoke script 群、Pages workflow、Web asset staging | Web export と Pages demo が 6 言語 selector / template text / synthesize を提供し、browser / public smoke で確認できる |
+| 完了 | `L4` | 統合済み (旧 `TKT-026`) | docs / support matrix / release sync | `README.md`, `addons/piper_plus/README.md`, `docs/web-github-pages-plan.md`, `docs/milestones.md`, `docs/tickets/` | 6 言語 support と template text UX の branch docs sync を完了し、結果を `TKT-007` へ handoff 済み |
 
 ## 直近の実行順
 
 1. [TKT-004 Android arm64 export / runtime 確認](./tickets/TKT-004-android-export-runtime.md) と [TKT-005 Windows Local Android Export Error 切り分け](./tickets/TKT-005-windows-android-export-error.md) で Android track を確定する
-2. [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) から [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) までで Web 日本語 track を閉じる
-3. [TKT-022 Windows / Web 6-language input / synthesize / template text 対応](./tickets/TKT-022-windows-web-six-language-support.md) から [TKT-026 6-language docs / release sync](./tickets/TKT-026-six-language-docs-release-sync.md) までで Windows / Web 6 言語 track を閉じる
+2. [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) と [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) で Web 日本語 track を閉じる
+3. [TKT-024 Windows 6-language runtime / smoke / template UI](./tickets/TKT-024-windows-six-language-runtime-smoke.md) と [TKT-025 Web 6-language runtime / Pages demo / smoke](./tickets/TKT-025-web-six-language-runtime-demo-smoke.md) で Windows / Web 6 言語 track を閉じる
 4. [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) で、`M6` `M7` `M9` `M10` `M11` の結果を package / 文書 / changelog に反映し、Asset Library 公開準備を閉じる
 
 ## post-preview Web の完了履歴
@@ -285,8 +285,8 @@
 
 ## ブロッカー / 未確定事項
 
-- Web Phase 1 と English-only Pages demo は完了していますが、日本語 text input / dictionary bootstrap / Pages 日本語 demo は must follow-up として `M10` に残っています。
-- Windows / Web の minimum 6-language text input / synthesize と template text UX は must follow-up として `M11` に残っています。
+- Web Phase 1 と English-only Pages demo は完了しています。current branch では日本語 text input / dictionary bootstrap / Pages 日本語 path も実装済みですが、`workflow_dispatch` / PR CI / `main` deploy での実証が `M10` に残っています。
+- Windows / Web の minimum 6-language text input / synthesize と template text UX は current branch へ実装済みですが、Windows packaged addon smoke と Web / Pages workflow 実証が `M11` に残っています。
 - Android は CI export smoke 成功後も runtime 可否が未確定で、release 判定へ残っています。
 - Windows local Android export の generic configuration error が Android 検証のノイズ源として残っています。
 

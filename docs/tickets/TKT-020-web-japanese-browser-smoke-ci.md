@@ -1,11 +1,11 @@
 # TKT-020 Web 日本語 browser smoke / CI gate
 
-- 状態: `進行中`
+- 状態: `要確認`
 - 主マイルストーン: [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `NFR-5` `NFR-6`
-- 親チケット: [`TKT-018`](./TKT-018-web-japanese-support.md)
-- 依存チケット: [`TKT-019`](./TKT-019-web-japanese-dictionary-bootstrap.md)
+- 親チケット: `統合済み (旧 TKT-018)`
+- 依存チケット: なし
 - 後続チケット: [`TKT-021`](./TKT-021-pages-japanese-demo-public-smoke.md) [`TKT-007`](./TKT-007-release-finalization.md)
 
 ## 進捗
@@ -15,7 +15,7 @@
 - [x] CI の Web job で Japanese scenario を gate にする
 - [x] failure 時の log / artifact 採取を日本語 path でも揃える
 - [x] `TKT-021` が再利用できる判定条件を handoff する
-- [ ] `workflow_dispatch` と PR `Build Web` で `ja` scenario pass を実証する
+- [ ] `workflow_dispatch` と PR `Build Web` で、canonical 6-language gate の中の `ja` required scenario pass を実証する
 
 ## タスク目的とゴール
 
@@ -25,12 +25,12 @@
 ## 実装する内容の詳細
 
 - `test/project` の smoke fixture に日本語 sample、dictionary 前提、期待ログを追加する。
-- `TKT-019` の handoff として、canonical model は `multilingual-test-medium`、sample text は `こんにちは`、dictionary 欠落時の canonical error code は `ERR_OPENJTALK_DICTIONARY_NOT_READY` とする。
+- 統合済みの dictionary bootstrap / runtime handoff として、canonical model は `multilingual-test-medium`、sample text は `こんにちは`、dictionary 欠落時の canonical error code は `ERR_OPENJTALK_DICTIONARY_NOT_READY` とする。
 - `scripts/ci/export-web-smoke.sh`、`scripts/ci/run-web-smoke.mjs`、`scripts/ci/web-smoke-server.mjs` で日本語 scenario を選択・判定できるようにする。
-- workflow の `Build Web` または同等 job に、日本語 scenario の pass / fail を release gate として組み込む。
+- workflow の `Build Web` または同等 job に、日本語 scenario の pass / fail を release gate として組み込む。current branch の定義では `Web` preset が canonical 6-language synthesize gate を回し、その中に `ja` scenario を含める。
 - failure 時に browser console、runtime error、asset manifest のどこを見るかを固定し、CI artifact へ保存する。
 - 既存 English smoke を温存しつつ、最低でも `en` と `ja` の 2 系統を回す。
-- CI の既定 matrix は `Web` preset を `en,ja` の synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke とする。日本語 synthesize gate の正本は `no-threads` 側で取る。
+- CI の既定 matrix は `Web` preset を canonical 6-language synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke とする。日本語 synthesize gate の正本は `no-threads` 側で取り、`ja` scenario は full matrix の必須要素として扱う。
 - canonical browser smoke contract:
   - scenario `en`: `test_piper_tts.test_initialize_with_model`, `test_piper_tts.test_synthesize_basic` が pass
   - scenario `ja`: `test_piper_tts.test_japanese_dictionary_error_surface`, `test_piper_tts.test_japanese_request_time_dictionary_error_surface`, `test_piper_tts.test_japanese_text_input_with_dictionary` が pass

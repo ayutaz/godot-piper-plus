@@ -1,19 +1,20 @@
 # TKT-024 Windows 6-language runtime / smoke / template UI
 
-- 状態: `未着手`
+- 状態: `要確認`
 - 主マイルストーン: [M11 Windows / Web 6-Language Text Input / Template UX 完成](../milestones.md#m11)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5) [M6 Platform Verification 完成](../milestones.md#m6)
 - 関連要求: `FR-3` `FR-7` `FR-11` `NFR-5` `NFR-6`
-- 親チケット: [`TKT-022`](./TKT-022-windows-web-six-language-support.md)
-- 依存チケット: [`TKT-023`](./TKT-023-six-language-capability-template-contract.md)
-- 後続チケット: [`TKT-026`](./TKT-026-six-language-docs-release-sync.md) [`TKT-007`](./TKT-007-release-finalization.md)
+- 親チケット: `統合済み (旧 TKT-022)`
+- 依存チケット: なし
+- 後続チケット: [`TKT-007`](./TKT-007-release-finalization.md)
 
 ## 進捗
 
-- [ ] Windows で 6 言語 text input / inspect / synthesize の pass 条件を固定する
-- [ ] custom Inspector / test speech UI に言語 selector と template text 挿入を追加する
-- [ ] packaged addon smoke を 6 言語 sample set に広げる
-- [ ] Windows の既知制約と local 再現手順を文書化する
+- [x] Windows で 6 言語 text input / inspect / synthesize の pass 条件を fixed contract に反映する
+- [x] custom Inspector / test speech UI に言語 selector と template text 挿入を追加する
+- [x] source build / headless test へ 6 言語 sample set と descriptor validation を反映する
+- [ ] packaged addon smoke を 6 言語 sample set に広げて実行証跡を残す
+- [ ] Windows の packaged addon 再現手順と既知制約を最終文書へ固定する
 
 ## タスク目的とゴール
 
@@ -22,12 +23,12 @@
 
 ## 実装する内容の詳細
 
-- `PiperTTS` 用 custom Inspector / test speech UI に language selector を追加し、`TKT-023` で固定した catalog から template text を読み出す。
+- `PiperTTS` 用 custom Inspector / test speech UI に language selector を追加し、統合済みの contract fixture / addon descriptor から template text を読み出す。
 - Windows source build と packaged addon の両方で、6 言語の inspect / synthesize を通す最小 smoke を用意する。
 - `multilingual-test-medium` を基準に、6 言語 sample text を explicit `language_code` または `language_id` で合成し、audible / non-silent output と説明可能な runtime summary を確認する。
 - `zh` text input で必要な frontend / asset がある場合は、Windows package と local dev の両方で解決できるようにする。
 - `es/fr/pt` は rule-based path を packaged addon 環境で成立させ、UI だけが先に 6 言語化しないよう smoke と同時に閉じる。
-- 既存の Windows packaged addon smoke と headless integration を壊さず、6 言語 path の専用 scenario を足す。
+- 既存の Windows packaged addon smoke と headless integration を壊さず、6 言語 path の専用 scenario を足す。current branch では selector / preview session / alias 正規化 / descriptor read の実装と headless test までは反映済みです。
 
 ## 提供範囲
 
@@ -60,7 +61,7 @@
 ## レビューする項目
 
 - Windows 向け 6 言語対応が UI だけでなく packaged addon smoke まで閉じているか。
-- selector と template text の正本が `TKT-023` の catalog に揃っているか。
+- selector と template text の正本が統合済みの catalog / descriptor 契約に揃っているか。
 - Windows 固有の path / encoding 問題で sample 文が壊れていないか。
 
 ## 一から作り直すとしたらどうするか
@@ -69,5 +70,4 @@
 
 ## 後続タスクに連絡する内容
 
-- `TKT-026` へ、Windows 6 言語 smoke の再現手順、既知制約、UI screenshot / summary 要件を渡す。
 - `TKT-007` へ、Windows platform 表記と template text UX の最終表現を引き継ぐ。

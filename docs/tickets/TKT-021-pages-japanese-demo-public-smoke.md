@@ -1,11 +1,11 @@
 # TKT-021 GitHub Pages 日本語 demo / public smoke
 
-- 状態: `進行中`
+- 状態: `要確認`
 - 主マイルストーン: [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10)
 - 関連マイルストーン: [M4 Packaging / Documentation 完成](../milestones.md#m4) [M8 Release / Asset Library 準備](../milestones.md#m8)
 - 関連要求: `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-6`
-- 親チケット: [`TKT-018`](./TKT-018-web-japanese-support.md)
-- 依存チケット: [`TKT-019`](./TKT-019-web-japanese-dictionary-bootstrap.md) [`TKT-020`](./TKT-020-web-japanese-browser-smoke-ci.md)
+- 親チケット: `統合済み (旧 TKT-018)`
+- 依存チケット: [`TKT-020`](./TKT-020-web-japanese-browser-smoke-ci.md)
 - 後続チケット: [`TKT-007`](./TKT-007-release-finalization.md)
 
 ## 進捗
@@ -15,7 +15,7 @@
 - [x] deploy 後 public URL smoke の日本語シナリオ対応を実装する
 - [x] README と運用メモを English-only 表記から更新する
 - [x] `TKT-007` へ public scope と既知制約を handoff する
-- [ ] `workflow_dispatch` / `main` deploy で public `ja` smoke を実証する
+- [ ] `workflow_dispatch` / `main` deploy で、canonical 6-language public smoke の中の `ja` required scenario を実証する
 
 ## タスク目的とゴール
 
@@ -24,10 +24,10 @@
 
 ## 実装する内容の詳細
 
-- `pages_demo` を English-only UI から、日本語入力を含む公開 demo UI へ拡張する。正本は `ja/en` selector、sample text、machine-readable status / summary を持つ構成とする。
-- `TKT-019` の handoff を受け、初期の正本は `multilingual-test-medium` + staged `naist-jdic` + sample text `こんにちは` とする。別の日本語 model へ切り替える場合は catalog hash と staging contract を先に固定する。
+- `pages_demo` を English-only UI から、日本語入力を含む公開 demo UI へ拡張する。current branch の正本は canonical 6-language selector、sample text、machine-readable status / summary を持つ構成とする。
+- 統合済みの dictionary bootstrap / runtime handoff を受け、初期の正本は `multilingual-test-medium` + staged `naist-jdic` + sample text `こんにちは` とする。別の日本語 model へ切り替える場合は catalog hash と staging contract を先に固定する。
 - `scripts/ci/prepare-pages-demo-assets.sh` と `scripts/ci/export-pages-demo.sh` を更新し、日本語用 dictionary と必要 model を Pages artifact へ stage する。
-- `.github/workflows/pages.yml` で PR build、main deploy、public URL smoke が日本語 scenario を確認するようにする。
+- `.github/workflows/pages.yml` で PR build、main deploy、public URL smoke が日本語 scenario を確認するようにする。current branch の定義では catalog の全言語を回し、その中に `ja` scenario を含める。
 - `scripts/ci/run-pages-demo-smoke.mjs` で公開 URL 上の日本語 synthesize 成功を判定できるようにする。canonical public smoke scenario は `ja` とし、`startup_probe` の summary を検証対象にする。
 - `docs/web-github-pages-plan.md`、`README.md`、addon README の scope 表記を実装に合わせて更新する。
 - `TKT-020` の handoff として、public smoke でも `WEB_SMOKE summary=<json>` 相当の machine-readable summary か、同等の `required pass test` 判定を持たせる。

@@ -197,8 +197,8 @@ release 判定の対象 platform は次のとおりです。
 
 - Android arm64 の runtime 可否確認と必要修正
 - Windows local Android export の generic configuration error 切り分け
-- Windows / Web の minimum 6-language text input / synthesize と template text 導線の実装、検証、文書化
-- macOS / iOS / Web の確定結果、および Android の最終判定を反映した package / 文書 / changelog / Asset Library 文言の最終化
+- Windows packaged addon の 6-language smoke、Web / Pages の 6-language workflow / public smoke の実証
+- macOS / iOS / Web の確定結果、および Android / Web Japanese / Windows-Web 6-language / shared sample catalog の最終判定を反映した package / 文書 / changelog / Asset Library 文言の最終化
 
 ## 関連文書
 

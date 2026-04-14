@@ -1,19 +1,20 @@
 # TKT-025 Web 6-language runtime / Pages demo / smoke
 
-- 状態: `未着手`
+- 状態: `要確認`
 - 主マイルストーン: [M11 Windows / Web 6-Language Text Input / Template UX 完成](../milestones.md#m11)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5) [M8 Release / Asset Library 準備](../milestones.md#m8) [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10)
 - 関連要求: `FR-3` `FR-10` `FR-11` `NFR-2` `NFR-5` `NFR-6`
-- 親チケット: [`TKT-022`](./TKT-022-windows-web-six-language-support.md)
-- 依存チケット: [`TKT-023`](./TKT-023-six-language-capability-template-contract.md) [`TKT-021`](./TKT-021-pages-japanese-demo-public-smoke.md)
-- 後続チケット: [`TKT-026`](./TKT-026-six-language-docs-release-sync.md) [`TKT-007`](./TKT-007-release-finalization.md)
+- 親チケット: `統合済み (旧 TKT-022)`
+- 依存チケット: [`TKT-021`](./TKT-021-pages-japanese-demo-public-smoke.md)
+- 後続チケット: [`TKT-007`](./TKT-007-release-finalization.md)
 
 ## 進捗
 
-- [ ] Web export で 6 言語 text input / inspect / synthesize の acceptance を固定する
-- [ ] browser smoke を 6 言語 sample set に拡張する
-- [ ] Pages demo に 6 言語 selector と template text catalog を追加する
-- [ ] public smoke と CI gate の実行戦略を 6 言語向けに固定する
+- [x] Web export で 6 言語 text input / inspect / synthesize の acceptance を固定する
+- [x] browser smoke を 6 言語 sample set に拡張する
+- [x] Pages demo に 6 言語 selector と template text catalog を追加する
+- [x] public smoke と CI gate の実行戦略を 6 言語向けに固定する
+- [ ] `workflow_dispatch` / `main` deploy / PR CI の実行証跡を残す
 
 ## タスク目的とゴール
 
@@ -22,11 +23,11 @@
 
 ## 実装する内容の詳細
 
-- `M10` の `ja/en` baseline を拡張し、`pages_demo` と browser smoke が `TKT-023` の sample text catalog を読むようにする。
+- `M10` の `ja/en` baseline を拡張し、`pages_demo` と browser smoke が統合済みの sample text catalog を読むようにする。
 - `Web` preset の no-threads 側を 6 言語 synthesize gate の正本とし、`Web Threads` preset は引き続き non-blocking core regression を監視する。
 - `zh` text input 用の asset / frontend 契約、`ja` の `naist-jdic` staging、`en` の `cmudict_data.json`、`es/fr/pt` rule-based path を Web artifact で再現できるようにする。
 - `pages_demo` の selector は `ja/en/zh/es/fr/pt` を持ち、選択時に template text と required asset / status summary を更新できるようにする。
-- CI は PR で最低限の 6 言語 gate を回し、`workflow_dispatch` / `main` deploy では public smoke まで含めた full matrix を通せる構成を目標にする。
+- CI は PR で最低限の 6 言語 gate を回し、`workflow_dispatch` / `main` deploy では public smoke まで含めた full matrix を通せる構成を目標にする。current branch の workflow / script 定義はこの構成に更新済みです。
 - public smoke は `WEB_SMOKE summary=<json>` 相当の machine-readable summary を維持し、各言語 sample の pass / fail を artifact に残す。
 
 ## 提供範囲
@@ -70,5 +71,4 @@
 
 ## 後続タスクに連絡する内容
 
-- `TKT-026` へ、Web / Pages の 6 言語 sample text、required asset、CI / public smoke 手順を渡す。
 - `TKT-007` へ、Web support 表記、Pages 公開 scope、known issue の最終文言を引き継ぐ。

@@ -50,6 +50,7 @@ def render_markdown(catalog: dict) -> str:
             "",
             "- `language_code` is the canonical lookup key.",
             "- UI and smoke scenarios should read the same catalog projection.",
+            "- The runtime descriptor foundation for this catalog is `addons/piper_plus/model_descriptors/multilingual-test-medium.json`.",
         ]
     )
     return "\n".join(lines) + "\n"

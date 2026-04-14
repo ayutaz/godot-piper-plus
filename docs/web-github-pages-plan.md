@@ -1,6 +1,6 @@
 # Web GitHub Pages 公開メモ
 
-更新日: 2026-04-12
+更新日: 2026-04-14
 
 関連文書:
 
@@ -16,17 +16,27 @@
 - 2026-04-11 の GitHub Actions run `24282051911` では Pages demo の build、deploy、public URL smoke が成功しています。
 - 公開デモは [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/) で公開中です。
 - 現在の runtime contract は Web 向け `EP_CPU` 固定です。
-- current branch では Pages demo を `multilingual-test-medium` と staged `naist-jdic` を使う `ja/en` 公開デモへ拡張し、startup self-test と local / public smoke の Japanese scenario を実装済みです。
-- branch 実装の CI 実証、`main` 反映、release 文書化は [`M10 Web Japanese Support / Pages Japanese Demo 完成`](./milestones.md#m10) と [`TKT-018`](./tickets/TKT-018-web-japanese-support.md) から [`TKT-021`](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) で管理します。
+- current branch では Pages demo を `multilingual-test-medium`、staged `naist-jdic`、shared descriptor / template catalog を使う canonical 6-language demo へ拡張し、startup self-test、selector / template text UX、local / public smoke の scenario loop を実装済みです。
+- branch の workflow 定義では `generate-pages-manifest.mjs --list-language-codes` で catalog の全言語を列挙し、local / public smoke を `ja/en/zh/es/fr/pt` で回す構成へ更新済みです。残りの CI 実証、`main` 反映、release 文書化は [`M10 Web Japanese Support / Pages Japanese Demo 完成`](./milestones.md#m10)、[`M11 Windows / Web 6-Language Text Input / Template UX 完成`](./milestones.md#m11)、[`TKT-007`](./tickets/TKT-007-release-finalization.md) で管理します。
 - M9 向けに一時的に作成した GitHub Pages ticket 群の内容は、完了時にこの文書と [`docs/milestones.md`](./milestones.md) へ吸収しています。
 
 ## 公開スコープ
 
-GitHub Pages 公開デモは次の範囲に固定しています。
+main で公開中の scope:
 
 - `no-threads`
 - `CPU-only`
-- `ja/en` public demo
+- English minimal demo
+- `index.html` export
+- `multilingual-test-medium` 1 model 同梱
+- runtime download なし
+- PWA と cross-origin isolation workaround を有効化
+
+current branch で実装済みの拡張 scope:
+
+- `no-threads`
+- `CPU-only`
+- canonical 6-language selector / template text demo
 - `index.html` export
 - `multilingual-test-medium` 1 model 同梱
 - staged `naist-jdic` 同梱
@@ -41,13 +51,16 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 - local / public smoke: [`scripts/ci/run-pages-demo-smoke.mjs`](../scripts/ci/run-pages-demo-smoke.mjs)
 - workflow: [`.github/workflows/pages.yml`](../.github/workflows/pages.yml)
 - artifact contract: `public-demo-manifest.json` と `build-meta.json`
+- metadata source: `addons/piper_plus/model_descriptors/multilingual-test-medium.json` と `addons/piper_plus/multilingual_sample_text_catalog.json`
 
 ## 運用
 
-- `pull_request` では `build-pages-demo` を実行し、Pages demo の build と local `ja` smoke を確認します。
-- `main` への push では Pages deploy と public URL `ja` smoke を実行します。
+- `pull_request` では `build-pages-demo` を実行し、Pages demo の build と local smoke を catalog の全言語で確認する定義です。
+- `main` への push では Pages deploy と public URL smoke を catalog の全言語で実行する定義です。
 - `workflow_dispatch` では current ref に対して手動実行でき、`deploy_pages=true` のときだけ deploy を試行します。
 - `pull_request` では本番 Pages を更新せず、preview artifact と local smoke の確認だけを行います。
+- scenario 一覧は `node scripts/ci/generate-pages-manifest.mjs --catalog tests/fixtures/multilingual_sample_text_catalog.json --list-language-codes` で確認できます。
+- catalog の正本は `tests/fixtures/multilingual_sample_text_catalog.json`、runtime descriptor の正本は `addons/piper_plus/model_descriptors/multilingual-test-medium.json` です。
 
 ## 既知の制約
 
@@ -55,12 +68,13 @@ GitHub Pages 公開デモは次の範囲に固定しています。
 - `execution_provider` は Web では `EP_CPU` 固定です。
 - `openjtalk-native` shared library は Web では使えません。
 - PWA / service worker ベースの cross-origin isolation workaround は cache の影響を受けやすく、更新反映や stale cache の切り分けが必要です。
+- current branch の 6-language scope は実装済みですが、`workflow_dispatch` / `main` deploy での実証が残っています。
 
-## M10 の残作業
+## 残作業
 
-- `TKT-020` の CI gate を安定化し、`en/ja` browser smoke を継続通過させる
-- `TKT-021` の `workflow_dispatch` / `main` deploy で public URL `ja` smoke を実証する
-- `TKT-007` で release 文書へ Web 日本語 scope と既知制約を吸収する
+- `TKT-020` の `workflow_dispatch` / PR `Build Web` で Japanese browser smoke の実証を残す
+- `TKT-021` と `TKT-025` の `workflow_dispatch` / `main` deploy で public URL smoke の実証を残す
+- `TKT-024` の Windows packaged addon smoke と合わせて、`TKT-007` で release 文書へ最終 scope と既知制約を吸収する
 
 ## 拡張候補
 
