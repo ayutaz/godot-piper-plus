@@ -53,9 +53,9 @@ func _ready() -> void:
 	add_child(tts_node)
 	add_child(audio_player)
 
-	_tts_set("model_path", MODEL_PATH)
-	_tts_set("config_path", CONFIG_PATH)
-	_tts_set("dictionary_path", OPENJTALK_DICT_PATH)
+	_tts_set("model_path", _model_path())
+	_tts_set("config_path", _config_path())
+	_tts_set("dictionary_path", _dictionary_path())
 	_tts_set("language_code", _selected_language_code)
 	_tts_connect("initialized", _on_tts_initialized)
 	_tts_connect("synthesis_completed", _on_synthesis_completed)
@@ -147,6 +147,18 @@ func _sample_texts() -> Dictionary:
 		texts[language_code] = SampleTextCatalog.get_language_template_text(language_code)
 	return texts
 
+func _asset_requirements() -> Dictionary:
+	return SampleTextCatalog.get_asset_requirements()
+
+func _model_path() -> String:
+	return String(_asset_requirements().get("model_path", MODEL_PATH))
+
+func _config_path() -> String:
+	return String(_asset_requirements().get("config_path", CONFIG_PATH))
+
+func _dictionary_path() -> String:
+	return String(_asset_requirements().get("openjtalk_path", OPENJTALK_DICT_PATH))
+
 func _placeholder_text(language_code: String) -> String:
 	return SampleTextCatalog.get_language_placeholder_text(language_code)
 
@@ -213,6 +225,7 @@ func _update_contract_label() -> void:
 	var lines := PackedStringArray([
 		"Contract: CPU-only web public demo using the canonical 6-language template catalog.",
 		"Model: %s" % MODEL_KEY,
+		"Descriptor: %s" % SampleTextCatalog.get_descriptor_path(),
 		"Catalog: %s" % String(SampleTextCatalog.get_catalog_name()),
 		"Supported languages: %s" % supported.join(", "),
 		"Selected language: %s" % _selected_language_code,

@@ -53,12 +53,12 @@ assertCondition(fs.statSync(siteRoot).isDirectory(), `artifact path is not a dir
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "../..");
-const sampleCatalogPath = path.join(repoRoot, "tests/fixtures/multilingual_sample_text_catalog.json");
-const sampleCatalog = requireJson(sampleCatalogPath);
-assertCondition(Array.isArray(sampleCatalog.languages), "sample text catalog must define languages");
-const expectedLanguageCodes = sampleCatalog.languages.map((entry) => String(entry.language_code ?? ""));
+const descriptorPath = path.join(repoRoot, "addons/piper_plus/model_descriptors/multilingual-test-medium.json");
+const descriptor = requireJson(descriptorPath);
+assertCondition(Array.isArray(descriptor.languages), "model descriptor must define languages");
+const expectedLanguageCodes = descriptor.languages.map((entry) => String(entry.language_code ?? ""));
 const expectedSampleTexts = new Map(
-  sampleCatalog.languages.map((entry) => [String(entry.language_code ?? ""), String(entry.template_text ?? "")]),
+  descriptor.languages.map((entry) => [String(entry.language_code ?? ""), String(entry.template_text ?? "")]),
 );
 
 const manifestPath = path.join(siteRoot, "public-demo-manifest.json");
@@ -75,11 +75,14 @@ assertCondition(String(buildMeta.export_preset ?? "") === "Web Pages", "build-me
 assertCondition(String(buildMeta.entry ?? "") === manifest.entry, "build-meta entry must match manifest entry");
 assertCondition(String(buildMeta.model_key ?? "") === String(manifest.model?.key ?? ""), "build-meta model_key must match manifest");
 assertCondition(String(manifest.demo?.default_language_code ?? "") === "ja", "manifest must declare ja as the default language");
+assertCondition(String(manifest.model?.descriptor_path ?? "") === "addons/piper_plus/model_descriptors/multilingual-test-medium.json", "manifest must declare the descriptor path");
+assertCondition(String(manifest.demo?.template_catalog_path ?? "") === "addons/piper_plus/multilingual_sample_text_catalog.json", "manifest must declare the compatibility template catalog path");
 assertCondition(Array.isArray(manifest.demo?.supported_language_codes), "manifest must declare demo.supported_language_codes");
 assertCondition(
   JSON.stringify(manifest.demo.supported_language_codes) === JSON.stringify(expectedLanguageCodes),
   "manifest must match the canonical six-language support order",
 );
+assertCondition(String(manifest.demo?.catalog_name ?? "") === String(descriptor.catalog_name ?? ""), "manifest catalog_name must match the descriptor");
 for (const [languageCode, sampleText] of expectedSampleTexts.entries()) {
   assertCondition(
     String(manifest.demo?.sample_texts?.[languageCode] ?? "") === sampleText,
@@ -109,6 +112,8 @@ const requiredRelativeFiles = [
   manifest.addon?.gdextension_path,
   manifest.model?.path,
   manifest.model?.config_path,
+  manifest.model?.descriptor_path,
+  manifest.demo?.template_catalog_path,
   manifest.dictionary?.cmudict_path,
   manifest.dictionary?.pinyin_single_path,
   manifest.dictionary?.pinyin_phrases_path,

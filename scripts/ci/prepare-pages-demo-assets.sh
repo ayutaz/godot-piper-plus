@@ -91,6 +91,7 @@ if [[ ! -d "$ADDON_BIN_SRC" ]]; then
 fi
 
 mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT" "$PROJECT_GODOT_DIR" "$MODEL_CACHE_ROOT"
+mkdir -p "$ADDON_DST/model_descriptors"
 
 find "$ADDON_DST" -mindepth 1 -maxdepth 1 ! -name 'bin' -exec rm -rf {} +
 find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
@@ -101,12 +102,14 @@ for addon_file in \
   LICENSE \
   README.md \
   THIRD_PARTY_LICENSES.txt \
-  download_catalog.gd \
-  download_catalog.json \
-  icon.svg \
-  multilingual_sample_text_catalog.gd \
-  multilingual_sample_text_catalog.json \
-  piper_asset_paths.gd \
+	download_catalog.gd \
+	download_catalog.json \
+	icon.svg \
+	model_descriptor.gd \
+	model_descriptors/multilingual-test-medium.json \
+	multilingual_sample_text_catalog.gd \
+	multilingual_sample_text_catalog.json \
+	piper_asset_paths.gd \
   piper_plus.gdextension
 do
   if [[ -f "$ADDON_SRC/$addon_file" ]]; then

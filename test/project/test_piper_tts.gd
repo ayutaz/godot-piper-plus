@@ -2,6 +2,7 @@ extends "res://test_base.gd"
 
 const DEFAULT_JA_TEST_TEXT := "こんにちは"
 const DEFAULT_EN_TEST_TEXT := "hello from godot"
+const MULTILINGUAL_MODEL_DESCRIPTOR_SCRIPT := "res://addons/piper_plus/model_descriptor.gd"
 const MULTILINGUAL_SAMPLE_TEXT_CATALOG_SCRIPT := "res://addons/piper_plus/multilingual_sample_text_catalog.gd"
 const BUNDLED_MODEL_PATH := "res://models/multilingual-test-medium.onnx"
 const BUNDLED_CONFIG_PATH := "res://models/multilingual-test-medium.onnx.json"
@@ -330,10 +331,11 @@ func list_test_names() -> Array[String]:
     if _is_web_smoke():
         return [
             "test_node_creation",
-            "test_properties",
-            "test_execution_provider_enum",
-            "test_multilingual_sample_text_catalog",
-            "test_test_speech_dialog_multilingual_catalog",
+        "test_properties",
+        "test_execution_provider_enum",
+        "test_multilingual_model_descriptor",
+        "test_multilingual_sample_text_catalog",
+        "test_test_speech_dialog_multilingual_catalog",
             "test_runtime_contract",
             "test_runtime_contract_missing_web_dictionary",
             "test_initialize_with_model",
@@ -353,6 +355,7 @@ func list_test_names() -> Array[String]:
         "test_properties",
         "test_speech_rate_range",
         "test_execution_provider_enum",
+        "test_multilingual_model_descriptor",
         "test_multilingual_sample_text_catalog",
         "test_test_speech_dialog_multilingual_catalog",
         "test_runtime_contract",
@@ -659,9 +662,11 @@ func test_multilingual_sample_text_catalog() -> void:
     if catalog_script == null:
         return
 
+    assert_equal(String(catalog_script.get_descriptor_path()), "res://addons/piper_plus/model_descriptors/multilingual-test-medium.json", "catalog should expose the descriptor path")
     assert_equal(String(catalog_script.get_catalog_name()), "multilingual-sample-text-catalog", "catalog name should match the canonical fixture")
     assert_equal(String(catalog_script.get_model_key()), "multilingual-test-medium", "catalog should target multilingual-test-medium")
     assert_equal(String(catalog_script.get_default_language_code()), "ja", "catalog should default to ja")
+    assert_equal(String(catalog_script.get_asset_requirements().get("dictionary_key", "")), "naist-jdic", "catalog should expose asset requirements from the descriptor")
 
     var language_codes: PackedStringArray = catalog_script.list_language_codes()
     assert_equal(language_codes.size(), 6, "catalog should expose six language codes")
@@ -675,6 +680,27 @@ func test_multilingual_sample_text_catalog() -> void:
     assert_equal(String(catalog_script.get_language_template_text("zh")), "你好，今天天气很好。", "catalog should provide the canonical zh template text")
     assert_equal(String(catalog_script.get_language_template_text("es")), "Hola, ¿cómo estás hoy?", "catalog should provide the canonical es template text")
     assert_equal(String(catalog_script.get_language_placeholder_text("fr")), "Entrez du texte en français", "catalog should provide the canonical fr placeholder text")
+
+func test_multilingual_model_descriptor() -> void:
+    var descriptor_script = load(MULTILINGUAL_MODEL_DESCRIPTOR_SCRIPT)
+    assert_not_null(descriptor_script, "model_descriptor.gd should be loadable")
+    if descriptor_script == null:
+        return
+
+    var descriptor: Dictionary = descriptor_script.get_descriptor("multilingual-test-medium")
+    assert_equal(String(descriptor.get("model_key", "")), "multilingual-test-medium", "descriptor should target multilingual-test-medium")
+    assert_equal(String(descriptor.get("catalog_name", "")), "multilingual-sample-text-catalog", "descriptor should expose the sample catalog name")
+    assert_equal(String(descriptor.get("default_language_code", "")), "ja", "descriptor should default to ja")
+    assert_equal(String(descriptor.get("auto_route_language_code", "")), "en", "descriptor should expose the auto-route default separately from the UI default")
+
+    var requirements: Dictionary = descriptor_script.get_asset_requirements("multilingual-test-medium")
+    assert_equal(String(requirements.get("model_path", "")), "piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx", "descriptor should expose the canonical model path")
+    assert_equal(String(requirements.get("config_path", "")), "piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx.json", "descriptor should expose the canonical config path")
+
+    var language_codes: PackedStringArray = descriptor_script.list_language_codes("multilingual-test-medium")
+    assert_equal(language_codes, PackedStringArray(["ja", "en", "zh", "es", "fr", "pt"]), "descriptor should expose the six-language order")
+    assert_equal(String(descriptor_script.resolve_language_code("multilingual-test-medium", "zh-Hans")), "zh", "descriptor should normalize zh-Hans through aliases")
+    assert_equal(String(descriptor_script.resolve_language_code("multilingual-test-medium", "fr_FR")), "fr", "descriptor should normalize fr_FR through aliases")
 
 func test_test_speech_dialog_multilingual_catalog() -> void:
     var dialog_script = load("res://addons/piper_plus/test_speech_dialog.gd")
@@ -1135,6 +1161,11 @@ func test_invalid_openjtalk_library_path_falls_back() -> void:
 
     var audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
     assert_not_null(audio, "synthesize() should still work after native backend fallback")
+
+    tts.openjtalk_library_path = ""
+    assert_equal(tts.initialize(), OK, "initialize() should remain safe after clearing openjtalk_library_path")
+    audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
+    assert_not_null(audio, "synthesize() should still work after clearing openjtalk_library_path")
     _cleanup_tts(tts)
 
 func test_initialize_with_config_fallback() -> void:

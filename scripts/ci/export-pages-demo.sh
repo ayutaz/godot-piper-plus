@@ -240,7 +240,9 @@ cp -f "$PROJECT_DIR/addons/piper_plus/THIRD_PARTY_LICENSES.txt" "$SITE_ROOT/THIR
 printf '' > "$SITE_ROOT/.nojekyll"
 
 "$NODE_CMD" "$SCRIPT_DIR/generate-pages-manifest.mjs" \
-	--catalog "$REPO_ROOT/tests/fixtures/multilingual_sample_text_catalog.json" \
+	--descriptor "$REPO_ROOT/addons/piper_plus/model_descriptors/multilingual-test-medium.json" \
+	--descriptor-path "addons/piper_plus/model_descriptors/multilingual-test-medium.json" \
+	--template-catalog-path "addons/piper_plus/multilingual_sample_text_catalog.json" \
 	--output "$SITE_ROOT/public-demo-manifest.json" \
 	--entry "$ENTRY_NAME" \
 	--addon-gdextension-path "$ADDON_GDEXTENSION_RELATIVE_PATH" \

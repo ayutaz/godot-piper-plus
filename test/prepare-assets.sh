@@ -34,7 +34,7 @@ PINYIN_PHRASES_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_phrases.json"
 PINYIN_PHRASES_DST_PATH="$ADDON_DICT_DST/pinyin_phrases.json"
 STAGE_OPENJTALK_DICTIONARY="${PIPER_TEST_STAGE_OPENJTALK_DICTIONARY:-0}"
 
-mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_DST_DIR" "$ADDON_MODEL_DST_DIR" "$PROJECT_GODOT_DIR"
+mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$ADDON_DST/model_descriptors" "$MODEL_DST_DIR" "$ADDON_MODEL_DST_DIR" "$PROJECT_GODOT_DIR"
 
 find "$ADDON_DST" -mindepth 1 -maxdepth 1 ! -name 'bin' -exec rm -rf {} +
 mkdir -p "$ADDON_DICT_DST" "$ADDON_MODEL_DST_DIR"
@@ -50,6 +50,9 @@ for addon_file in \
   download_catalog.json \
   dictionary_editor.gd \
   dictionary_editor.gd.uid \
+  model_descriptor.gd \
+  model_descriptor.gd.uid \
+  model_descriptors/multilingual-test-medium.json \
   piper_asset_paths.gd \
   piper_asset_paths.gd.uid \
   preset_service.gd \
