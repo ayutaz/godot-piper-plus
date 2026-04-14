@@ -1,6 +1,6 @@
 # 要求定義
 
-更新日: 2026-04-11
+更新日: 2026-04-14
 
 この文書は `godot-piper-plus` の製品要求を定義する基準文書です。進捗管理や日々の残タスク管理は `docs/milestones.md` で扱い、この文書では「何を完成とみなすか」を固定します。
 
@@ -51,11 +51,11 @@
 - 日本語 text input を OpenJTalk で音素化できること
 - 英語 text input を CMU 辞書ベース G2P で音素化できること
 - bilingual / multilingual モデルに対して `ja/en` の最小自動ルーティングを提供すること
+- Windows と Web では minimum 6-language として `ja/en/zh/es/fr/pt` の text input / inspect / synthesize を扱えること
 - `ja/en` を超える広い multilingual parity 拡張を行い、upstream の model config / `language_id_map` に応じた追加言語の routing、language selection、inspection を扱えること
-- multilingual parity の最低保証は explicit selection と inspection parity であり、auto-routing は capability matrix で明示した言語に限定すること
+- multilingual parity の最低保証は explicit selection と inspect / synthesize parity であり、auto-routing は capability matrix で明示した言語に限定すること
 - `tests/fixtures/multilingual_capability_matrix.json` を正本にし、`docs/generated/multilingual_capability_matrix.md` を doc-readable projection として維持すること
-- `es` / `fr` / `pt` は experimental explicit-only adapter として扱い、parity-grade と誤認しないこと
-- `zh` は phoneme-only として扱い、text input では説明可能な failure を返すこと
+- 6 言語 minimum parity へ到達するまでの暫定 tier / 既知制約は capability matrix と milestone / ticket で明示できること
 - `language_id` と `language_code` による言語選択を提供すること
 - `speaker_id` による multi-speaker モデル選択を提供すること
 
@@ -92,6 +92,7 @@
 - `PiperTTS` 用 custom Inspector を提供すること
 - editor 上で test speech を実行できること
 - preset 適用や導線を Inspector から辿れること
+- Windows の test speech UI では `ja/en/zh/es/fr/pt` の言語選択と template text 提示を扱えること
 
 ### FR-8 出力形式
 
@@ -114,6 +115,12 @@
 - `web.*` 向け GDExtension entry と manifest を整備すること
 - Web で利用可能な inference backend と制約を定義し、runtime の可否を検証できること
 - browser load または同等の smoke test により addon のロード成否を確認できること
+
+### FR-11 言語別 template text / sample UX
+
+- Windows test speech UI と Web / Pages demo で `ja/en/zh/es/fr/pt` の sample text を共通 catalog として扱えること
+- 言語選択時に、その言語で合成確認に使う canonical template text を初期入力または選択候補として提示できること
+- canonical template text は `piper-plus` 側の multilingual testing / sample 文と整合し、smoke / docs / UI で同じ正本を参照できること
 
 ## 非機能要件
 
@@ -181,6 +188,7 @@ release 判定の対象 platform は次のとおりです。
 - iOS export/link smoke の結果が確定していること
 - `ja/en` を超える multilingual parity 拡張の対象範囲と capability matrix が実装と検証項目に反映されていること
 - Web build / export / runtime 可否が確定していること
+- Windows と Web で `ja/en/zh/es/fr/pt` の text input / inspect / synthesize が成立し、template text 導線と sample catalog が docs / smoke / UI で一致していること
 - package validator が manifest 上の binary / dependency を検証できること
 - package / README / license / changelog が最終状態へ更新されていること
 - Asset Library へ申請できる package 導線が整っていること
@@ -189,6 +197,7 @@ release 判定の対象 platform は次のとおりです。
 
 - Android arm64 の runtime 可否確認と必要修正
 - Windows local Android export の generic configuration error 切り分け
+- Windows / Web の minimum 6-language text input / synthesize と template text 導線の実装、検証、文書化
 - macOS / iOS / Web の確定結果、および Android の最終判定を反映した package / 文書 / changelog / Asset Library 文言の最終化
 
 ## 関連文書
