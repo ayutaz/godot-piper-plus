@@ -1040,7 +1040,7 @@ Dictionary PiperTTS::get_language_capabilities() const {
 	if (!ready || !voice) {
 		return Dictionary();
 	}
-	return piper_language::build_language_capabilities(*voice);
+	return piper_language::build_language_capabilities(*voice, get_runtime_contract());
 }
 
 Dictionary PiperTTS::get_runtime_contract() const {

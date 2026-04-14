@@ -564,7 +564,7 @@ jobs:
         shell: bash
         run: |
           chmod +x scripts/ci/export-web-smoke.sh
-          export PIPER_WEB_SMOKE_SCENARIOS="en,ja"
+          export PIPER_WEB_SMOKE_SCENARIOS="$(node scripts/ci/generate-pages-manifest.mjs --catalog tests/fixtures/multilingual_sample_text_catalog.json --list-language-codes)"
           bash scripts/ci/export-web-smoke.sh "$RUNNER_TEMP/web-smoke"
 
       - name: Upload Web smoke export artifact

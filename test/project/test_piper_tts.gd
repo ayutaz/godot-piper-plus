@@ -732,6 +732,11 @@ func test_preview_controller_session_config() -> void:
 
     var override_config: Dictionary = controller_script.build_session_config(tts, {"language_code": "zh"})
     assert_equal(String(override_config.get("language_code", "")), "zh", "preview controller should accept a language_code override")
+    assert_false(override_config.has("language_id"), "language_code override should drop inherited language_id")
+
+    var language_id_override_config: Dictionary = controller_script.build_session_config(tts, {"language_id": 3})
+    assert_equal(int(language_id_override_config.get("language_id", -1)), 3, "preview controller should accept a language_id override")
+    assert_false(language_id_override_config.has("language_code"), "language_id override should drop inherited language_code")
 
     _cleanup_tts(tts)
 
@@ -844,6 +849,8 @@ func test_language_capabilities() -> void:
     var available_codes: PackedStringArray = capabilities.get("available_language_codes", PackedStringArray())
     var auto_route_codes: PackedStringArray = capabilities.get("auto_route_language_codes", PackedStringArray())
     var explicit_only_codes: PackedStringArray = capabilities.get("explicit_only_language_codes", PackedStringArray())
+    var resource_ready_codes: PackedStringArray = capabilities.get("resource_ready_language_codes", PackedStringArray())
+    var resource_missing_codes: PackedStringArray = capabilities.get("resource_missing_language_codes", PackedStringArray())
     var phoneme_only_codes: PackedStringArray = capabilities.get("phoneme_only_language_codes", PackedStringArray())
     var preview_codes: PackedStringArray = capabilities.get("preview_language_codes", PackedStringArray())
     var experimental_codes: PackedStringArray = capabilities.get("experimental_language_codes", PackedStringArray())
@@ -874,6 +881,11 @@ func test_language_capabilities() -> void:
         assert_equal(String(entry.get("routing_mode", "")), String(expected.get("routing_mode", "")), "get_language_capabilities().languages should expose routing_mode for %s" % language_code)
         assert_equal(bool(entry.get("text_supported", false)), bool(expected.get("text_supported", false)), "get_language_capabilities().languages should expose text_supported for %s" % language_code)
         assert_equal(bool(entry.get("auto_supported", false)), bool(expected.get("auto_supported", false)), "get_language_capabilities().languages should expose auto_supported for %s" % language_code)
+        assert_true(bool(entry.get("resource_ready", false)), "get_language_capabilities().languages should expose resource_ready for %s in the staged test bundle" % language_code)
+
+    assert_true(resource_missing_codes.is_empty(), "get_language_capabilities() should not report missing resources for the staged test bundle")
+    for code in expected_languages.keys():
+        assert_true(resource_ready_codes.has(code), "get_language_capabilities() should include %s in resource_ready_language_codes for the staged test bundle" % code)
 
     for code in ["ja", "en"]:
         assert_true(auto_route_codes.has(code), "get_language_capabilities() should include %s in auto_route_language_codes" % code)

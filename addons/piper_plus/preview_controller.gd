@@ -21,12 +21,21 @@ const CONTROLLED_PROPERTIES := [
 
 static func build_session_config(target: Object, overrides: Dictionary = {}) -> Dictionary:
 	var config := {}
-	if target == null:
-		return overrides.duplicate(true) if not overrides.is_empty() else config
 
-	for property_name in CONTROLLED_PROPERTIES:
-		config[property_name] = target.get(property_name)
+	if target != null:
+		for property_name in CONTROLLED_PROPERTIES:
+			config[property_name] = target.get(property_name)
+
+	if overrides.has("language_code"):
+		config.erase("language_id")
+		config["language_code"] = overrides["language_code"]
+	elif overrides.has("language_id"):
+		config.erase("language_code")
+		config["language_id"] = overrides["language_id"]
+
 	for property_name in overrides:
+		if property_name == "language_code" or property_name == "language_id":
+			continue
 		if property_name in CONTROLLED_PROPERTIES:
 			config[property_name] = overrides[property_name]
 	return config

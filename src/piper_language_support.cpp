@@ -87,12 +87,46 @@ Dictionary capability_entry_to_dictionary(
 	return entry;
 }
 
+void annotate_resource_metadata(Dictionary &entry, const piper::Voice &voice,
+		const Dictionary &runtime_contract) {
+	const String language_code = entry.get("language_code", "");
+	const bool text_supported = static_cast<bool>(entry.get("text_supported", false));
+	PackedStringArray required_resources;
+	bool resource_ready = text_supported;
+	String resource_status = text_supported ? "not_required" : "phoneme_only";
+
+	if (language_code == "ja") {
+		required_resources.push_back("openjtalk_dictionary");
+		resource_ready = runtime_contract.is_empty()
+				? true
+				: static_cast<bool>(runtime_contract.get(
+							"supports_japanese_text_input", false));
+		resource_status = resource_ready ? "ready" : "missing_required_resource";
+	} else if (language_code == "en") {
+		required_resources.push_back("cmudict_data.json");
+		resource_ready = !voice.cmuDict.empty();
+		resource_status = resource_ready ? "ready" : "missing_required_resource";
+	} else if (language_code == "zh") {
+		required_resources.push_back("pinyin_single.json");
+		required_resources.push_back("pinyin_phrases.json");
+		resource_ready =
+				!voice.pinyinSingleDict.empty() && !voice.pinyinPhraseDict.empty();
+		resource_status = resource_ready ? "ready" : "missing_required_resource";
+	}
+
+	entry["required_resources"] = required_resources;
+	entry["resource_ready"] = resource_ready;
+	entry["resource_status"] = resource_status;
+}
+
 void append_language_entry(Dictionary &capabilities, Array &languages,
 		PackedStringArray &available_language_codes,
 		PackedInt64Array &available_language_ids,
 		PackedStringArray &auto_route_language_codes,
 		PackedStringArray &explicit_only_language_codes,
 		PackedStringArray &text_supported_language_codes,
+		PackedStringArray &resource_ready_language_codes,
+		PackedStringArray &resource_missing_language_codes,
 		PackedStringArray &phoneme_only_language_codes,
 		PackedStringArray &preview_language_codes,
 		PackedStringArray &experimental_language_codes,
@@ -103,6 +137,8 @@ void append_language_entry(Dictionary &capabilities, Array &languages,
 	const String support_tier = entry.get("support_tier", "");
 	const bool text_supported = static_cast<bool>(entry.get("text_supported", false));
 	const bool auto_supported = static_cast<bool>(entry.get("auto_supported", false));
+	const bool resource_ready = static_cast<bool>(entry.get("resource_ready", false));
+	const String resource_status = entry.get("resource_status", "");
 
 	languages.push_back(entry);
 	if (!available_language_codes.has(language_code)) {
@@ -126,6 +162,11 @@ void append_language_entry(Dictionary &capabilities, Array &languages,
 	}
 	if (text_supported) {
 		text_supported_language_codes.push_back(language_code);
+		if (resource_ready) {
+			resource_ready_language_codes.push_back(language_code);
+		} else if (resource_status == "missing_required_resource") {
+			resource_missing_language_codes.push_back(language_code);
+		}
 	}
 	if (static_cast<bool>(entry.get("phoneme_only", false))) {
 		phoneme_only_language_codes.push_back(language_code);
@@ -170,7 +211,8 @@ String language_code_from_id(const piper::Voice &voice,
 	return String();
 }
 
-Dictionary build_language_capabilities(const piper::Voice &voice) {
+Dictionary build_language_capabilities(const piper::Voice &voice,
+		const Dictionary &runtime_contract) {
 	Dictionary capabilities;
 	Array languages;
 	PackedStringArray available_language_codes;
@@ -178,6 +220,8 @@ Dictionary build_language_capabilities(const piper::Voice &voice) {
 	PackedStringArray auto_route_language_codes;
 	PackedStringArray explicit_only_language_codes;
 	PackedStringArray text_supported_language_codes;
+	PackedStringArray resource_ready_language_codes;
+	PackedStringArray resource_missing_language_codes;
 	PackedStringArray phoneme_only_language_codes;
 	PackedStringArray preview_language_codes;
 	PackedStringArray experimental_language_codes;
@@ -186,40 +230,55 @@ Dictionary build_language_capabilities(const piper::Voice &voice) {
 		for (const auto &capability : piper::getMultilingualLanguageCapabilities(voice)) {
 			const int64_t language_id =
 					capability.languageId.has_value() ? *capability.languageId : -1;
+			Dictionary entry =
+					capability_entry_to_dictionary(capability, language_id);
+			annotate_resource_metadata(entry, voice, runtime_contract);
 			append_language_entry(capabilities, languages, available_language_codes,
 					available_language_ids, auto_route_language_codes,
 					explicit_only_language_codes, text_supported_language_codes,
+					resource_ready_language_codes, resource_missing_language_codes,
 					phoneme_only_language_codes, preview_language_codes,
-					experimental_language_codes,
-					capability_entry_to_dictionary(capability, language_id));
+					experimental_language_codes, entry);
 		}
 	} else if (voice.phonemizeConfig.phonemeType == piper::OpenJTalkPhonemes) {
+		Dictionary entry = build_single_language_entry(
+				"ja", 0, "auto", "preview", "openjtalk", true, true);
+		annotate_resource_metadata(entry, voice, runtime_contract);
 		append_language_entry(capabilities, languages, available_language_codes,
 				available_language_ids, auto_route_language_codes,
 				explicit_only_language_codes, text_supported_language_codes,
+				resource_ready_language_codes, resource_missing_language_codes,
 				phoneme_only_language_codes, preview_language_codes,
-				experimental_language_codes,
-				build_single_language_entry("ja", 0, "auto", "preview", "openjtalk", true, true));
+				experimental_language_codes, entry);
 	} else if (voice.phonemizeConfig.phonemeType == piper::TextPhonemes) {
+		Dictionary entry = build_single_language_entry(
+				"en", 0, "auto", "preview", "cmu_dict", true, true);
+		annotate_resource_metadata(entry, voice, runtime_contract);
 		append_language_entry(capabilities, languages, available_language_codes,
 				available_language_ids, auto_route_language_codes,
 				explicit_only_language_codes, text_supported_language_codes,
+				resource_ready_language_codes, resource_missing_language_codes,
 				phoneme_only_language_codes, preview_language_codes,
-				experimental_language_codes,
-				build_single_language_entry("en", 0, "auto", "preview", "cmu_dict", true, true));
+				experimental_language_codes, entry);
 	} else {
+		Dictionary ja_entry = build_single_language_entry(
+				"ja", 0, "auto", "preview", "openjtalk", true, true);
+		annotate_resource_metadata(ja_entry, voice, runtime_contract);
 		append_language_entry(capabilities, languages, available_language_codes,
 				available_language_ids, auto_route_language_codes,
 				explicit_only_language_codes, text_supported_language_codes,
+				resource_ready_language_codes, resource_missing_language_codes,
 				phoneme_only_language_codes, preview_language_codes,
-				experimental_language_codes,
-				build_single_language_entry("ja", 0, "auto", "preview", "openjtalk", true, true));
+				experimental_language_codes, ja_entry);
+		Dictionary en_entry = build_single_language_entry(
+				"en", 1, "auto", "preview", "cmu_dict", true, true);
+		annotate_resource_metadata(en_entry, voice, runtime_contract);
 		append_language_entry(capabilities, languages, available_language_codes,
 				available_language_ids, auto_route_language_codes,
 				explicit_only_language_codes, text_supported_language_codes,
+				resource_ready_language_codes, resource_missing_language_codes,
 				phoneme_only_language_codes, preview_language_codes,
-				experimental_language_codes,
-				build_single_language_entry("en", 1, "auto", "preview", "cmu_dict", true, true));
+				experimental_language_codes, en_entry);
 	}
 
 	String configured_language_code;
@@ -250,6 +309,9 @@ Dictionary build_language_capabilities(const piper::Voice &voice) {
 	capabilities["auto_route_language_codes"] = auto_route_language_codes;
 	capabilities["explicit_only_language_codes"] = explicit_only_language_codes;
 	capabilities["text_supported_language_codes"] = text_supported_language_codes;
+	capabilities["resource_ready_language_codes"] = resource_ready_language_codes;
+	capabilities["resource_missing_language_codes"] =
+			resource_missing_language_codes;
 	capabilities["phoneme_only_language_codes"] = phoneme_only_language_codes;
 	capabilities["preview_language_codes"] = preview_language_codes;
 	capabilities["experimental_language_codes"] = experimental_language_codes;

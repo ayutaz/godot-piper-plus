@@ -98,10 +98,9 @@ for (const [languageCode, sampleText] of expectedSampleTexts.entries()) {
   assertCondition(String(smokeScenario?.startup_probe_language_code ?? "") === languageCode, `${languageCode} smoke scenario must probe ${languageCode}`);
   assertCondition(String(smokeScenario?.startup_probe_text ?? "") === sampleText, `${languageCode} smoke scenario must probe the canonical sample text`);
   assertCondition(smokeScenario?.startup_probe_passed === true, `${languageCode} smoke scenario must require startup_probe_passed=true`);
+  assertCondition(smokeScenario?.supports_japanese_text_input === true, `${languageCode} smoke scenario must require supports_japanese_text_input=true`);
+  assertCondition(String(smokeScenario?.dictionary_bootstrap_mode ?? "") === "staged_asset", `${languageCode} smoke scenario must require staged_asset bootstrap mode`);
 }
-const japaneseSmoke = manifest.smoke.scenarios.ja;
-assertCondition(japaneseSmoke?.supports_japanese_text_input === true, "Japanese smoke scenario must require Japanese text input support");
-assertCondition(String(japaneseSmoke?.dictionary_bootstrap_mode ?? "") === "staged_asset", "Japanese smoke scenario must require staged_asset bootstrap mode");
 
 const requiredRelativeFiles = [
   "index.html",

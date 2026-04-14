@@ -229,13 +229,18 @@ jobs:
       - name: Run local Pages smoke
         shell: bash
         run: |
-          node scripts/ci/run-pages-demo-smoke.mjs \
-            --root "$RUNNER_TEMP/pages-export/site" \
-            --manifest "public-demo-manifest.json" \
-            --scenario "ja" \
-            --label "pages-local" \
-            --screenshot "$RUNNER_TEMP/pages-debug/local-smoke.png" \
-            --console-log "$RUNNER_TEMP/pages-debug/local-smoke-console.json"
+          mkdir -p "$RUNNER_TEMP/pages-debug"
+          scenario_codes="$(node scripts/ci/generate-pages-manifest.mjs --catalog tests/fixtures/multilingual_sample_text_catalog.json --list-language-codes)"
+          IFS=',' read -r -a scenarios <<< "$scenario_codes"
+          for scenario in "${scenarios[@]}"; do
+            node scripts/ci/run-pages-demo-smoke.mjs \
+              --root "$RUNNER_TEMP/pages-export/site" \
+              --manifest "public-demo-manifest.json" \
+              --scenario "$scenario" \
+              --label "pages-local-$scenario" \
+              --screenshot "$RUNNER_TEMP/pages-debug/local-smoke-$scenario.png" \
+              --console-log "$RUNNER_TEMP/pages-debug/local-smoke-$scenario-console.json"
+          done
 
       - name: Upload preview site artifact
         if: success()
@@ -307,13 +312,18 @@ jobs:
       - name: Run public URL smoke
         shell: bash
         run: |
-          node scripts/ci/run-pages-demo-smoke.mjs \
-            --url "${{ needs.deploy-pages-demo.outputs.page_url }}" \
-            --manifest "public-demo-manifest.json" \
-            --scenario "ja" \
-            --label "pages-public" \
-            --screenshot "$RUNNER_TEMP/pages-public-debug/public-smoke.png" \
-            --console-log "$RUNNER_TEMP/pages-public-debug/public-smoke-console.json"
+          mkdir -p "$RUNNER_TEMP/pages-public-debug"
+          scenario_codes="$(node scripts/ci/generate-pages-manifest.mjs --catalog tests/fixtures/multilingual_sample_text_catalog.json --list-language-codes)"
+          IFS=',' read -r -a scenarios <<< "$scenario_codes"
+          for scenario in "${scenarios[@]}"; do
+            node scripts/ci/run-pages-demo-smoke.mjs \
+              --url "${{ needs.deploy-pages-demo.outputs.page_url }}" \
+              --manifest "public-demo-manifest.json" \
+              --scenario "$scenario" \
+              --label "pages-public-$scenario" \
+              --screenshot "$RUNNER_TEMP/pages-public-debug/public-smoke-$scenario.png" \
+              --console-log "$RUNNER_TEMP/pages-public-debug/public-smoke-$scenario-console.json"
+          done
 
       - name: Upload public smoke diagnostics
         if: always()

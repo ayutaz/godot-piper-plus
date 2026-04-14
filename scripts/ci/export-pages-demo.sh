@@ -39,6 +39,22 @@ STAGED_TEMPLATE_ROOT="$(dirname "$PROJECT_DIR")/.ci/godot-web-templates/$GODOT_T
 DEFAULT_MODEL_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx"
 DEFAULT_CONFIG_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx.json"
 
+resolve_command() {
+	local command_name="$1"
+
+	if command -v "$command_name" >/dev/null 2>&1; then
+		command -v "$command_name"
+		return 0
+	fi
+
+	if command -v "${command_name}.exe" >/dev/null 2>&1; then
+		command -v "${command_name}.exe"
+		return 0
+	fi
+
+	return 1
+}
+
 resolve_custom_template_source_dir() {
 	local candidate=""
 	local official_templates_dir=""
@@ -97,11 +113,16 @@ stage_custom_templates() {
 }
 
 if [[ -z "${GODOT:-}" ]]; then
+	GODOT="$(resolve_command godot || true)"
+fi
+
+if [[ -z "${GODOT:-}" ]]; then
 	echo "ERROR: GODOT is not set" >&2
 	exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
+NODE_CMD="${NODE_CMD:-$(resolve_command node || true)}"
+if [[ -z "$NODE_CMD" ]]; then
 	echo "ERROR: node is required to validate the Pages demo export." >&2
 	exit 1
 fi
@@ -132,7 +153,7 @@ PIPER_PAGES_MODEL_PATH="$MODEL_OVERRIDE" \
 PIPER_PAGES_CONFIG_PATH="$CONFIG_OVERRIDE" \
 bash "$SCRIPT_DIR/prepare-pages-demo-assets.sh"
 stage_custom_templates
-node "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
+"$NODE_CMD" "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
 
 for required_path in \
 	"$PROJECT_DIR/$ADDON_ICON_RELATIVE_PATH" \
@@ -218,133 +239,20 @@ cp -f "$PROJECT_DIR/addons/piper_plus/LICENSE" "$SITE_ROOT/LICENSE.txt"
 cp -f "$PROJECT_DIR/addons/piper_plus/THIRD_PARTY_LICENSES.txt" "$SITE_ROOT/THIRD_PARTY_LICENSES.txt"
 printf '' > "$SITE_ROOT/.nojekyll"
 
-cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
-{
-  "entry": "$ENTRY_NAME",
-  "addon": {
-    "gdextension_path": "$ADDON_GDEXTENSION_RELATIVE_PATH"
-  },
-  "runtime": {
-    "thread_support": false,
-    "execution_provider_policy": "cpu_only",
-    "pwa_enabled": true
-  },
-  "model": {
-    "key": "$MODEL_KEY",
-    "path": "$MODEL_RELATIVE_PATH",
-    "config_path": "$CONFIG_RELATIVE_PATH"
-  },
-  "demo": {
-    "supported_language_codes": [
-      "ja",
-      "en",
-      "zh",
-      "es",
-      "fr",
-      "pt"
-    ],
-    "default_language_code": "ja",
-    "sample_texts": {
-      "ja": "こんにちは、今日は良い天気ですね。",
-      "en": "Hello, how are you today?",
-      "zh": "你好，今天天气很好。",
-      "es": "Hola, ¿cómo estás hoy?",
-      "fr": "Bonjour, comment allez-vous ?",
-      "pt": "Olá, como você está hoje?"
-    }
-  },
-  "dictionary": {
-    "key": "$OPENJTALK_DICT_KEY",
-    "bootstrap_mode": "staged_asset",
-    "cmudict_path": "$CMUDICT_RELATIVE_PATH",
-    "pinyin_single_path": "$PINYIN_SINGLE_RELATIVE_PATH",
-    "pinyin_phrases_path": "$PINYIN_PHRASES_RELATIVE_PATH",
-    "openjtalk_path": "$OPENJTALK_DICT_RELATIVE_PATH",
-    "openjtalk_install_directory": "open_jtalk_dic_utf_8-1.11",
-    "openjtalk_required_files": [
-      "sys.dic",
-      "unk.dic",
-      "matrix.bin",
-      "char.bin"
-    ]
-  },
-  "notices": [
-    "LICENSE.txt",
-    "THIRD_PARTY_LICENSES.txt"
-  ],
-  "smoke": {
-    "statusPrefix": "PAGES_DEMO status=",
-    "summaryPrefix": "PAGES_DEMO summary=",
-    "successStatus": "pass",
-    "failureStatus": "fail",
-    "timeoutMs": 240000,
-    "scenarios": {
-      "ja": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "ja",
-        "resolved_language_code": "ja",
-        "input_text": "こんにちは、今日は良い天気ですね。",
-        "startup_probe_language_code": "ja",
-        "startup_probe_text": "こんにちは、今日は良い天気ですね。",
-        "startup_probe_passed": true,
-        "supports_japanese_text_input": true,
-        "dictionary_bootstrap_mode": "staged_asset"
-      },
-      "en": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "en",
-        "resolved_language_code": "en",
-        "input_text": "Hello, how are you today?",
-        "startup_probe_language_code": "en",
-        "startup_probe_text": "Hello, how are you today?",
-        "startup_probe_passed": true
-      },
-      "zh": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "zh",
-        "resolved_language_code": "zh",
-        "input_text": "你好，今天天气很好。",
-        "startup_probe_language_code": "zh",
-        "startup_probe_text": "你好，今天天气很好。",
-        "startup_probe_passed": true
-      },
-      "es": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "es",
-        "resolved_language_code": "es",
-        "input_text": "Hola, ¿cómo estás hoy?",
-        "startup_probe_language_code": "es",
-        "startup_probe_text": "Hola, ¿cómo estás hoy?",
-        "startup_probe_passed": true
-      },
-      "fr": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "fr",
-        "resolved_language_code": "fr",
-        "input_text": "Bonjour, comment allez-vous ?",
-        "startup_probe_language_code": "fr",
-        "startup_probe_text": "Bonjour, comment allez-vous ?",
-        "startup_probe_passed": true
-      },
-      "pt": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "pt",
-        "resolved_language_code": "pt",
-        "input_text": "Olá, como você está hoje?",
-        "startup_probe_language_code": "pt",
-        "startup_probe_text": "Olá, como você está hoje?",
-        "startup_probe_passed": true
-      }
-    }
-  }
-}
-EOF
+"$NODE_CMD" "$SCRIPT_DIR/generate-pages-manifest.mjs" \
+	--catalog "$REPO_ROOT/tests/fixtures/multilingual_sample_text_catalog.json" \
+	--output "$SITE_ROOT/public-demo-manifest.json" \
+	--entry "$ENTRY_NAME" \
+	--addon-gdextension-path "$ADDON_GDEXTENSION_RELATIVE_PATH" \
+	--model-key "$MODEL_KEY" \
+	--model-path "$MODEL_RELATIVE_PATH" \
+	--config-path "$CONFIG_RELATIVE_PATH" \
+	--cmudict-path "$CMUDICT_RELATIVE_PATH" \
+	--pinyin-single-path "$PINYIN_SINGLE_RELATIVE_PATH" \
+	--pinyin-phrases-path "$PINYIN_PHRASES_RELATIVE_PATH" \
+	--openjtalk-key "$OPENJTALK_DICT_KEY" \
+	--openjtalk-path "$OPENJTALK_DICT_RELATIVE_PATH" \
+	--openjtalk-install-directory "open_jtalk_dic_utf_8-1.11"
 
 cat > "$SITE_ROOT/build-meta.json" <<EOF
 {
@@ -357,7 +265,7 @@ cat > "$SITE_ROOT/build-meta.json" <<EOF
 }
 EOF
 
-node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$SITE_ROOT"
-node "$SCRIPT_DIR/validate-pages-artifact.mjs" "$SITE_ROOT" --expected-build "$BUILD_SHA"
+"$NODE_CMD" "$SCRIPT_DIR/patch-web-asm-const.mjs" "$SITE_ROOT"
+"$NODE_CMD" "$SCRIPT_DIR/validate-pages-artifact.mjs" "$SITE_ROOT" --expected-build "$BUILD_SHA"
 
 printf 'PAGES_DEMO_EXPORT_READY %s\n' "$SITE_ROOT/$ENTRY_NAME"
