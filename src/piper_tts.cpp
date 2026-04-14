@@ -662,10 +662,44 @@ Error PiperTTS::initialize() {
 				cmu_dict_source_label = cmu_dict_source.utf8().get_data();
 			}
 
+			std::optional<std::string> pinyin_single_dict_json;
+			std::string pinyin_single_dict_source_label;
+			const String pinyin_single_dict_source =
+					piper_tts_paths::find_web_pinyin_single_dict_source(
+							resolved_model_source, resolved_config_source);
+			if (!pinyin_single_dict_source.is_empty()) {
+				String pinyin_single_dict_text;
+				if (!piper_tts_paths::read_web_file_text(
+							pinyin_single_dict_source, pinyin_single_dict_text, web_error)) {
+					throw std::runtime_error(web_error.utf8().get_data());
+				}
+				pinyin_single_dict_json = pinyin_single_dict_text.utf8().get_data();
+				pinyin_single_dict_source_label =
+						pinyin_single_dict_source.utf8().get_data();
+			}
+
+			std::optional<std::string> pinyin_phrase_dict_json;
+			std::string pinyin_phrase_dict_source_label;
+			const String pinyin_phrase_dict_source =
+					piper_tts_paths::find_web_pinyin_phrase_dict_source(
+							resolved_model_source, resolved_config_source);
+			if (!pinyin_phrase_dict_source.is_empty()) {
+				String pinyin_phrase_dict_text;
+				if (!piper_tts_paths::read_web_file_text(
+							pinyin_phrase_dict_source, pinyin_phrase_dict_text, web_error)) {
+					throw std::runtime_error(web_error.utf8().get_data());
+				}
+				pinyin_phrase_dict_json = pinyin_phrase_dict_text.utf8().get_data();
+				pinyin_phrase_dict_source_label =
+						pinyin_phrase_dict_source.utf8().get_data();
+			}
+
 			piper::loadVoice(*piper_config, std::move(model_data),
 					resolved_model_source.utf8().get_data(), config_json.utf8().get_data(),
 					resolved_config_source.utf8().get_data(), *voice, sid, ep, gpu_device_id,
-					cmu_dict_json, cmu_dict_source_label);
+					cmu_dict_json, cmu_dict_source_label,
+					pinyin_single_dict_json, pinyin_single_dict_source_label,
+					pinyin_phrase_dict_json, pinyin_phrase_dict_source_label);
 		} else {
 			piper::loadVoice(*piper_config, resolved_model_source.utf8().get_data(),
 					resolved_config_source.utf8().get_data(), *voice, sid, ep, gpu_device_id);

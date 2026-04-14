@@ -214,6 +214,7 @@ set(PIPER_PLUS_SOURCES
   src/piper_runtime_support.cpp
   src/piper_core/piper.cpp
   src/piper_core/piper_test_utils.cpp
+  src/piper_core/chinese_phonemize.cpp
   src/piper_core/english_phonemize.cpp
   src/piper_core/openjtalk_phonemize.cpp
   src/piper_core/custom_dictionary.cpp

@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 function usage() {
   console.error("usage: validate-pages-artifact.mjs <artifact-dir> [--expected-build <sha>]");
@@ -50,6 +51,16 @@ const siteRoot = path.resolve(artifactDir);
 assertCondition(fs.existsSync(siteRoot), `artifact directory does not exist: ${siteRoot}`);
 assertCondition(fs.statSync(siteRoot).isDirectory(), `artifact path is not a directory: ${siteRoot}`);
 
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, "../..");
+const sampleCatalogPath = path.join(repoRoot, "tests/fixtures/multilingual_sample_text_catalog.json");
+const sampleCatalog = requireJson(sampleCatalogPath);
+assertCondition(Array.isArray(sampleCatalog.languages), "sample text catalog must define languages");
+const expectedLanguageCodes = sampleCatalog.languages.map((entry) => String(entry.language_code ?? ""));
+const expectedSampleTexts = new Map(
+  sampleCatalog.languages.map((entry) => [String(entry.language_code ?? ""), String(entry.template_text ?? "")]),
+);
+
 const manifestPath = path.join(siteRoot, "public-demo-manifest.json");
 const buildMetaPath = path.join(siteRoot, "build-meta.json");
 const manifest = requireJson(manifestPath);
@@ -65,18 +76,30 @@ assertCondition(String(buildMeta.entry ?? "") === manifest.entry, "build-meta en
 assertCondition(String(buildMeta.model_key ?? "") === String(manifest.model?.key ?? ""), "build-meta model_key must match manifest");
 assertCondition(String(manifest.demo?.default_language_code ?? "") === "ja", "manifest must declare ja as the default language");
 assertCondition(Array.isArray(manifest.demo?.supported_language_codes), "manifest must declare demo.supported_language_codes");
-assertCondition(manifest.demo.supported_language_codes.includes("ja"), "manifest must include ja in demo.supported_language_codes");
-assertCondition(manifest.demo.supported_language_codes.includes("en"), "manifest must include en in demo.supported_language_codes");
-assertCondition(String(manifest.demo?.sample_texts?.ja ?? "") === "こんにちは", "manifest must declare the canonical Japanese sample text");
-assertCondition(String(manifest.demo?.sample_texts?.en ?? "") === "hello from godot", "manifest must declare the canonical English sample text");
+assertCondition(
+  JSON.stringify(manifest.demo.supported_language_codes) === JSON.stringify(expectedLanguageCodes),
+  "manifest must match the canonical six-language support order",
+);
+for (const [languageCode, sampleText] of expectedSampleTexts.entries()) {
+  assertCondition(
+    String(manifest.demo?.sample_texts?.[languageCode] ?? "") === sampleText,
+    `manifest must declare the canonical sample text for ${languageCode}`,
+  );
+}
 assertCondition(String(buildMeta.default_language_code ?? "") === String(manifest.demo?.default_language_code ?? ""), "build-meta default_language_code must match manifest");
-const japaneseSmoke = manifest.smoke?.scenarios?.ja;
-assertCondition(Boolean(japaneseSmoke), "manifest must declare smoke.scenarios.ja");
-assertCondition(String(japaneseSmoke?.action ?? "") === "startup_probe", "Japanese smoke scenario must validate the startup probe");
-assertCondition(String(japaneseSmoke?.selected_language_code ?? "") === "ja", "Japanese smoke scenario must select ja");
-assertCondition(String(japaneseSmoke?.resolved_language_code ?? "") === "ja", "Japanese smoke scenario must resolve ja");
-assertCondition(String(japaneseSmoke?.input_text ?? "") === "こんにちは", "Japanese smoke scenario must validate the canonical Japanese text");
-assertCondition(japaneseSmoke?.startup_probe_passed === true, "Japanese smoke scenario must require startup_probe_passed=true");
+assertCondition(manifest.smoke?.scenarios && typeof manifest.smoke.scenarios === "object", "manifest must declare smoke.scenarios");
+for (const [languageCode, sampleText] of expectedSampleTexts.entries()) {
+  const smokeScenario = manifest.smoke.scenarios[languageCode];
+  assertCondition(Boolean(smokeScenario), `manifest must declare smoke.scenarios.${languageCode}`);
+  assertCondition(String(smokeScenario?.action ?? "") === "startup_probe", `${languageCode} smoke scenario must validate the startup probe`);
+  assertCondition(String(smokeScenario?.selected_language_code ?? "") === languageCode, `${languageCode} smoke scenario must select ${languageCode}`);
+  assertCondition(String(smokeScenario?.resolved_language_code ?? "") === languageCode, `${languageCode} smoke scenario must resolve ${languageCode}`);
+  assertCondition(String(smokeScenario?.input_text ?? "") === sampleText, `${languageCode} smoke scenario must validate the canonical sample text`);
+  assertCondition(String(smokeScenario?.startup_probe_language_code ?? "") === languageCode, `${languageCode} smoke scenario must probe ${languageCode}`);
+  assertCondition(String(smokeScenario?.startup_probe_text ?? "") === sampleText, `${languageCode} smoke scenario must probe the canonical sample text`);
+  assertCondition(smokeScenario?.startup_probe_passed === true, `${languageCode} smoke scenario must require startup_probe_passed=true`);
+}
+const japaneseSmoke = manifest.smoke.scenarios.ja;
 assertCondition(japaneseSmoke?.supports_japanese_text_input === true, "Japanese smoke scenario must require Japanese text input support");
 assertCondition(String(japaneseSmoke?.dictionary_bootstrap_mode ?? "") === "staged_asset", "Japanese smoke scenario must require staged_asset bootstrap mode");
 
@@ -88,6 +111,8 @@ const requiredRelativeFiles = [
   manifest.model?.path,
   manifest.model?.config_path,
   manifest.dictionary?.cmudict_path,
+  manifest.dictionary?.pinyin_single_path,
+  manifest.dictionary?.pinyin_phrases_path,
   ...(Array.isArray(manifest.notices) ? manifest.notices : []),
 ];
 

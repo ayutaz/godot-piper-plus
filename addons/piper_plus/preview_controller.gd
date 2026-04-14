@@ -19,13 +19,16 @@ const CONTROLLED_PROPERTIES := [
 	"gpu_device_id",
 ]
 
-static func build_session_config(target: Object) -> Dictionary:
+static func build_session_config(target: Object, overrides: Dictionary = {}) -> Dictionary:
 	var config := {}
 	if target == null:
-		return config
+		return overrides.duplicate(true) if not overrides.is_empty() else config
 
 	for property_name in CONTROLLED_PROPERTIES:
 		config[property_name] = target.get(property_name)
+	for property_name in overrides:
+		if property_name in CONTROLLED_PROPERTIES:
+			config[property_name] = overrides[property_name]
 	return config
 
 static func apply_session_config(preview_tts: Object, config: Dictionary) -> void:
@@ -36,7 +39,7 @@ static func apply_session_config(preview_tts: Object, config: Dictionary) -> voi
 		if config.has(property_name):
 			preview_tts.set(property_name, config[property_name])
 
-static func create_preview_session(owner: Node, target: Object) -> Dictionary:
+static func create_preview_session(owner: Node, target: Object, overrides: Dictionary = {}) -> Dictionary:
 	var result := {
 		"tts": null,
 		"player": null,
@@ -53,7 +56,7 @@ static func create_preview_session(owner: Node, target: Object) -> Dictionary:
 	owner.add_child(preview_tts)
 	owner.add_child(player)
 
-	var config := build_session_config(target)
+	var config := build_session_config(target, overrides)
 	apply_session_config(preview_tts, config)
 
 	result["tts"] = preview_tts

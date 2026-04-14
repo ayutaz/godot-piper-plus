@@ -86,7 +86,7 @@ async function main() {
     ['platform', '"Web"'],
     ['custom_features', '"web_pages_public"'],
     ['export_path', '"build/web-pages/index.html"'],
-    ['include_filter', '"piper_plus_assets/models/*/*.onnx,piper_plus_assets/models/*/*.onnx.json,piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11/*,addons/piper_plus/dictionaries/*.json"'],
+    ['include_filter', '"piper_plus_assets/models/*/*.onnx,piper_plus_assets/models/*/*.onnx.json,piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11/*,addons/piper_plus/multilingual_sample_text_catalog.gd,addons/piper_plus/multilingual_sample_text_catalog.json,addons/piper_plus/dictionaries/*.json"'],
   ]);
 
   const expectedOptionValues = new Map([

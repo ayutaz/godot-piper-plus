@@ -1,8 +1,10 @@
 #include <filesystem>
 #include <fstream>
+#include <unordered_map>
 
 #include <gtest/gtest.h>
 
+#include "chinese_phonemize.hpp"
 #include "json.hpp"
 #include "language_detector.hpp"
 #include "multilingual_phonemize.hpp"
@@ -34,9 +36,7 @@ std::string sentence_to_utf8(const std::vector<piper::Phoneme> &sentence) {
 	return result;
 }
 
-std::filesystem::path find_fixture_path() {
-	const std::filesystem::path relative =
-			std::filesystem::path("tests") / "fixtures" / "multilingual_capability_matrix.json";
+std::filesystem::path find_repo_path(const std::filesystem::path &relative) {
 	std::filesystem::path current = std::filesystem::current_path();
 	for (int depth = 0; depth < 8; ++depth) {
 		const std::filesystem::path candidate = current / relative;
@@ -55,6 +55,12 @@ std::filesystem::path find_fixture_path() {
 	}
 
 	return {};
+}
+
+std::filesystem::path find_fixture_path() {
+	return find_repo_path(
+			std::filesystem::path("tests") / "fixtures" /
+			"multilingual_capability_matrix.json");
 }
 
 std::vector<CapabilityRow> load_capability_matrix() {
@@ -103,26 +109,9 @@ std::vector<CapabilityRow> load_capability_matrix() {
 }
 
 std::filesystem::path find_generated_doc_path() {
-	const std::filesystem::path relative =
-			std::filesystem::path("docs") / "generated" / "multilingual_capability_matrix.md";
-	std::filesystem::path current = std::filesystem::current_path();
-	for (int depth = 0; depth < 8; ++depth) {
-		const std::filesystem::path candidate = current / relative;
-		if (std::filesystem::exists(candidate)) {
-			return candidate;
-		}
-
-		if (!current.has_parent_path()) {
-			break;
-		}
-		const std::filesystem::path parent = current.parent_path();
-		if (parent == current) {
-			break;
-		}
-		current = parent;
-	}
-
-	return {};
+	return find_repo_path(
+			std::filesystem::path("docs") / "generated" /
+			"multilingual_capability_matrix.md");
 }
 
 std::string read_generated_doc() {
@@ -171,6 +160,24 @@ std::vector<std::vector<piper::Phoneme>> phonemize_by_language(
 		piper::phonemize_french(text, phonemes);
 	} else if (language_code == "pt") {
 		piper::phonemize_portuguese(text, phonemes);
+	} else if (language_code == "zh") {
+		const std::filesystem::path single_dict_path = find_repo_path(
+				std::filesystem::path("addons") / "piper_plus" / "dictionaries" /
+				"pinyin_single.json");
+		const std::filesystem::path phrase_dict_path = find_repo_path(
+				std::filesystem::path("addons") / "piper_plus" / "dictionaries" /
+				"pinyin_phrases.json");
+		if (single_dict_path.empty() || phrase_dict_path.empty()) {
+			return phonemes;
+		}
+
+		std::unordered_map<int, std::string> single_dict;
+		std::unordered_map<std::string, std::string> phrase_dict;
+		if (!piper::loadPinyinDicts(single_dict_path.string(), phrase_dict_path.string(),
+					single_dict, phrase_dict)) {
+			return phonemes;
+		}
+		piper::phonemize_chinese(text, phonemes, single_dict, phrase_dict);
 	}
 	return phonemes;
 }
@@ -307,19 +314,16 @@ TEST(MultilingualPhonemizeTest, PortugueseRuleBasedPhonemizerProducesPhonemes) {
 	EXPECT_EQ(sentence_to_utf8(phonemes[0]), pt->expected_phoneme_preview);
 }
 
-TEST(MultilingualPhonemizeTest, PhonemeOnlyLanguagesRejectTextInputCapability) {
+TEST(MultilingualPhonemizeTest, ChineseDictionaryPhonemizerProducesPhonemes) {
 	const auto rows = load_capability_matrix();
 	ASSERT_FALSE(rows.empty()) << "tests/fixtures/multilingual_capability_matrix.json must be readable";
 
 	const CapabilityRow *zh = find_row(rows, "zh");
 	ASSERT_NE(zh, nullptr);
 
-	EXPECT_FALSE(piper::supportsMultilingualTextPhonemization(zh->language_code));
-	EXPECT_FALSE(piper::supportsMultilingualAutoRouting(zh->language_code));
-	EXPECT_EQ(piper::getMultilingualTextRoutingMode(zh->language_code),
-			piper::MultilingualTextRoutingMode::Unsupported);
-	EXPECT_NE(piper::getMultilingualTextSupportError(zh->language_code).find(
-					zh->expected_error_contains), std::string::npos);
+	const auto phonemes = phonemize_by_language(zh->language_code, zh->sample_text);
+	ASSERT_EQ(phonemes.size(), 1u);
+	EXPECT_FALSE(sentence_to_utf8(phonemes[0]).empty());
 }
 
 TEST(MultilingualPhonemizeTest, GeneratedDocMatchesCapabilityMatrix) {
@@ -332,7 +336,6 @@ TEST(MultilingualPhonemizeTest, GeneratedDocMatchesCapabilityMatrix) {
 	EXPECT_NE(generated_doc.find("Generated from `tests/fixtures/multilingual_capability_matrix.json`"),
 			std::string::npos);
 	EXPECT_NE(generated_doc.find("experimental explicit-only"), std::string::npos);
-	EXPECT_NE(generated_doc.find("phoneme-only"), std::string::npos);
 
 	for (const auto &row : rows) {
 		const std::string language_tag = "`" + row.language_code + "`";

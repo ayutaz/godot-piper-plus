@@ -17,6 +17,10 @@ MODEL_STAGE_ROOT="$PROJECT_DIR/piper_plus_assets/models/$MODEL_KEY"
 MODEL_CACHE_ROOT="${PIPER_PAGES_MODEL_CACHE:-$REPO_ROOT/.cache/pages-demo/models}"
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
+PINYIN_SINGLE_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_single.json"
+PINYIN_SINGLE_DST_PATH="$ADDON_DICT_DST/pinyin_single.json"
+PINYIN_PHRASES_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_phrases.json"
+PINYIN_PHRASES_DST_PATH="$ADDON_DICT_DST/pinyin_phrases.json"
 DEFAULT_MODEL_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx"
 DEFAULT_CONFIG_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx.json"
 
@@ -100,6 +104,8 @@ for addon_file in \
   download_catalog.gd \
   download_catalog.json \
   icon.svg \
+  multilingual_sample_text_catalog.gd \
+  multilingual_sample_text_catalog.json \
   piper_asset_paths.gd \
   piper_plus.gdextension
 do
@@ -114,6 +120,14 @@ fi
 
 if [[ -f "$CMUDICT_SRC_PATH" ]]; then
   cp -f "$CMUDICT_SRC_PATH" "$CMUDICT_DST_PATH"
+fi
+
+if [[ -f "$PINYIN_SINGLE_SRC_PATH" ]]; then
+  cp -f "$PINYIN_SINGLE_SRC_PATH" "$PINYIN_SINGLE_DST_PATH"
+fi
+
+if [[ -f "$PINYIN_PHRASES_SRC_PATH" ]]; then
+  cp -f "$PINYIN_PHRASES_SRC_PATH" "$PINYIN_PHRASES_DST_PATH"
 fi
 
 if [[ ! -f "$ADDON_DST/icon.svg" ]]; then

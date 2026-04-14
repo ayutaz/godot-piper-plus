@@ -79,7 +79,7 @@ async function main() {
   const presetPath = path.join(projectRoot, 'export_presets.cfg');
   const presetText = await readFile(presetPath, 'utf8');
   const sections = parseExportPresets(presetText);
-  const expectedIncludeFilter = '"models/*.onnx,models/*.onnx.json,piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11/*,addons/piper_plus/models/*/*.onnx,addons/piper_plus/models/*/*.onnx.json,addons/piper_plus/dictionaries/*.json"';
+  const expectedIncludeFilter = '"models/*.onnx,models/*.onnx.json,piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11/*,addons/piper_plus/models/*/*.onnx,addons/piper_plus/models/*/*.onnx.json,addons/piper_plus/dictionaries/*.json,addons/piper_plus/multilingual_sample_text_catalog.json"';
 
   const webPreset = getPresetSections(sections, 'Web');
   assertValue(webPreset.values, 'platform', '"Web"', 'Web preset value');

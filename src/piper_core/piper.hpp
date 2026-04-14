@@ -149,6 +149,8 @@ struct Voice {
   ModelSession session;
   std::shared_ptr<CustomDictionary> customDictionary;
   std::unordered_map<std::string, std::string> cmuDict;
+  std::unordered_map<int, std::string> pinyinSingleDict;
+  std::unordered_map<std::string, std::string> pinyinPhraseDict;
 };
 
 // True if the string is a single UTF-8 codepoint
@@ -206,7 +208,11 @@ void loadVoice(PiperConfig &config, std::vector<uint8_t> modelData,
                std::optional<SpeakerId> &speakerId, int executionProvider = EP_CPU,
                int executionDeviceId = 0,
                const std::optional<std::string> &cmuDictJson = std::nullopt,
-               const std::string &cmuDictSourceLabel = {});
+               const std::string &cmuDictSourceLabel = {},
+               const std::optional<std::string> &pinyinSingleDictJson = std::nullopt,
+               const std::string &pinyinSingleDictSourceLabel = {},
+               const std::optional<std::string> &pinyinPhraseDictJson = std::nullopt,
+               const std::string &pinyinPhraseDictSourceLabel = {});
 
 // Phonemize text and synthesize audio
 void textToAudio(PiperConfig &config, Voice &voice, std::string text,

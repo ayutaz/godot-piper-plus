@@ -17,6 +17,7 @@
 #include "spdlog/spdlog.h"
 
 #include "json.hpp"
+#include "chinese_phonemize.hpp"
 #include "piper.hpp"
 #include "custom_dictionary.hpp"
 #include "english_phonemize.hpp"
@@ -218,6 +219,15 @@ MultilingualSegmentResult phonemize_multilingual_segment(
           "to the model, config, or addons/piper_plus/dictionaries.");
     }
     phonemize_english(text, languagePhonemes, voice.cmuDict);
+  } else if (languageCode == "zh") {
+    if (voice.pinyinSingleDict.empty() || voice.pinyinPhraseDict.empty()) {
+      throw std::runtime_error(
+          "Chinese pinyin dictionaries are not loaded. Provide pinyin_single.json "
+          "and pinyin_phrases.json next to the model, config, or "
+          "addons/piper_plus/dictionaries.");
+    }
+    phonemize_chinese(text, languagePhonemes,
+                      voice.pinyinSingleDict, voice.pinyinPhraseDict);
   } else if (languageCode == "es") {
     phonemize_spanish(text, languagePhonemes);
   } else if (languageCode == "fr") {
@@ -245,21 +255,16 @@ MultilingualSegmentResult phonemize_multilingual_segment(
   return result;
 }
 
-std::vector<std::filesystem::path> get_cmudict_candidates(
-    const std::string &modelPath, const std::string &modelConfigPath) {
+void append_dictionary_candidates(std::vector<std::filesystem::path> &candidates,
+    const std::string &modelPath, const std::string &modelConfigPath,
+    const std::string &filename) {
   const std::filesystem::path modelDir = std::filesystem::path(modelPath).parent_path();
   const std::filesystem::path configDir =
       std::filesystem::path(modelConfigPath).parent_path();
-  std::vector<std::filesystem::path> candidates = {
-      modelDir / "cmudict_data.json",
-      configDir / "cmudict_data.json",
-      modelDir / "cmudict.json",
-      configDir / "cmudict.json",
-      modelDir.parent_path() / "dictionaries" / "cmudict_data.json",
-      configDir.parent_path() / "dictionaries" / "cmudict_data.json",
-      modelDir.parent_path() / "dictionaries" / "cmudict.json",
-      configDir.parent_path() / "dictionaries" / "cmudict.json",
-  };
+  candidates.push_back(modelDir / filename);
+  candidates.push_back(configDir / filename);
+  candidates.push_back(modelDir.parent_path() / "dictionaries" / filename);
+  candidates.push_back(configDir.parent_path() / "dictionaries" / filename);
 
   std::error_code ec;
   std::filesystem::path current = std::filesystem::current_path(ec);
@@ -267,8 +272,7 @@ std::vector<std::filesystem::path> get_cmudict_candidates(
     for (int depth = 0; depth < 6; ++depth) {
       const std::filesystem::path repoDictDir =
           current / "addons" / "piper_plus" / "dictionaries";
-      candidates.push_back(repoDictDir / "cmudict_data.json");
-      candidates.push_back(repoDictDir / "cmudict.json");
+      candidates.push_back(repoDictDir / filename);
 
       const std::filesystem::path parent = current.parent_path();
       if (parent == current || parent.empty()) {
@@ -278,7 +282,34 @@ std::vector<std::filesystem::path> get_cmudict_candidates(
     }
   }
 
+}
+
+std::vector<std::filesystem::path> get_cmudict_candidates(
+    const std::string &modelPath, const std::string &modelConfigPath) {
+  std::vector<std::filesystem::path> candidates;
+  append_dictionary_candidates(
+      candidates, modelPath, modelConfigPath, "cmudict_data.json");
+  append_dictionary_candidates(
+      candidates, modelPath, modelConfigPath, "cmudict.json");
   return candidates;
+}
+
+std::vector<std::filesystem::path> get_pinyin_dict_candidates(
+    const std::string &modelPath, const std::string &modelConfigPath,
+    const std::string &filename) {
+  std::vector<std::filesystem::path> candidates;
+  append_dictionary_candidates(candidates, modelPath, modelConfigPath, filename);
+  return candidates;
+}
+
+std::filesystem::path first_existing_candidate(
+    const std::vector<std::filesystem::path> &candidates) {
+  for (const auto &candidate : candidates) {
+    if (!candidate.empty() && std::filesystem::exists(candidate)) {
+      return candidate;
+    }
+  }
+  return {};
 }
 
 void configure_session_options(Ort::SessionOptions &options, bool using_gpu_ep) {
@@ -504,6 +535,8 @@ void loadVoice(PiperConfig &config, std::string modelPath,
 
   spdlog::debug("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
   voice.cmuDict.clear();
+  voice.pinyinSingleDict.clear();
+  voice.pinyinPhraseDict.clear();
 
   if (voice.phonemizeConfig.phonemeType == TextPhonemes ||
       voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
@@ -522,6 +555,32 @@ void loadVoice(PiperConfig &config, std::string modelPath,
           voice.modelConfig.languageIdMap->count("en") > 0))) {
       spdlog::warn("English CMU dictionary was not found. English text phonemization will fail until cmudict_data.json is provided.");
     }
+
+    if (voice.phonemizeConfig.phonemeType == MultilingualPhonemes &&
+        voice.modelConfig.languageIdMap &&
+        voice.modelConfig.languageIdMap->count("zh") > 0) {
+      const std::filesystem::path singleCandidate = first_existing_candidate(
+          get_pinyin_dict_candidates(modelPath, modelConfigPath, "pinyin_single.json"));
+      const std::filesystem::path phraseCandidate = first_existing_candidate(
+          get_pinyin_dict_candidates(modelPath, modelConfigPath, "pinyin_phrases.json"));
+
+      if (!singleCandidate.empty() && !phraseCandidate.empty()) {
+        if (loadPinyinDicts(singleCandidate.string(), phraseCandidate.string(),
+                            voice.pinyinSingleDict, voice.pinyinPhraseDict)) {
+          spdlog::info("Loaded Chinese pinyin dictionaries from {}",
+                       singleCandidate.parent_path().string());
+        } else {
+          spdlog::warn(
+              "Chinese pinyin dictionaries were found but could not be parsed. "
+              "Chinese text phonemization will fail until pinyin_single.json and "
+              "pinyin_phrases.json are supplied.");
+        }
+      } else {
+        spdlog::warn(
+            "Chinese pinyin dictionaries were not found. Chinese text phonemization "
+            "will fail until pinyin_single.json and pinyin_phrases.json are provided.");
+      }
+    }
   }
 
   loadModel(modelPath, voice.session, executionProvider, executionDeviceId);
@@ -534,7 +593,11 @@ void loadVoice(PiperConfig &config, std::vector<uint8_t> modelData,
                const std::string &modelConfigSourceLabel, Voice &voice,
                std::optional<SpeakerId> &speakerId, int executionProvider,
                int executionDeviceId, const std::optional<std::string> &cmuDictJson,
-               const std::string &cmuDictSourceLabel) {
+               const std::string &cmuDictSourceLabel,
+               const std::optional<std::string> &pinyinSingleDictJson,
+               const std::string &pinyinSingleDictSourceLabel,
+               const std::optional<std::string> &pinyinPhraseDictJson,
+               const std::string &pinyinPhraseDictSourceLabel) {
   spdlog::debug("loadVoice called with modelSource={}, configSource={}",
                 modelSourceLabel, modelConfigSourceLabel);
   std::string parseError;
@@ -557,6 +620,8 @@ void loadVoice(PiperConfig &config, std::vector<uint8_t> modelData,
 
   spdlog::debug("Voice contains {} speaker(s)", voice.modelConfig.numSpeakers);
   voice.cmuDict.clear();
+  voice.pinyinSingleDict.clear();
+  voice.pinyinPhraseDict.clear();
   if (voice.phonemizeConfig.phonemeType == TextPhonemes ||
       voice.phonemizeConfig.phonemeType == MultilingualPhonemes) {
     if (cmuDictJson.has_value()) {
@@ -572,6 +637,26 @@ void loadVoice(PiperConfig &config, std::vector<uint8_t> modelData,
          (voice.modelConfig.languageIdMap &&
           voice.modelConfig.languageIdMap->count("en") > 0))) {
       spdlog::warn("English CMU dictionary was not provided. English text phonemization will fail until cmudict_data.json is supplied.");
+    }
+
+    const bool expectsChinese =
+        voice.phonemizeConfig.phonemeType == MultilingualPhonemes &&
+        voice.modelConfig.languageIdMap &&
+        voice.modelConfig.languageIdMap->count("zh") > 0;
+    if (pinyinSingleDictJson.has_value() && pinyinPhraseDictJson.has_value()) {
+      if (!loadPinyinDictsFromJsonStrings(
+              *pinyinSingleDictJson, *pinyinPhraseDictJson,
+              voice.pinyinSingleDict, voice.pinyinPhraseDict)) {
+        throw std::runtime_error(
+            "Failed to parse Chinese pinyin dictionaries (" +
+            pinyinSingleDictSourceLabel + ", " + pinyinPhraseDictSourceLabel + ")");
+      }
+      spdlog::info("Loaded Chinese pinyin dictionaries from {} and {}",
+                   pinyinSingleDictSourceLabel, pinyinPhraseDictSourceLabel);
+    } else if (expectsChinese) {
+      spdlog::warn(
+          "Chinese pinyin dictionaries were not provided. Chinese text phonemization "
+          "will fail until pinyin_single.json and pinyin_phrases.json are supplied.");
     }
   }
 

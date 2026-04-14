@@ -8,7 +8,7 @@ ADDON_SRC="${PIPER_ADDON_SRC:-$REPO_ROOT/addons/piper_plus}"
 ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
 EXPORT_ROOT="${1:-${PIPER_WEB_EXPORT_ROOT:-$REPO_ROOT/build/web-smoke}}"
 PRESETS="${PIPER_WEB_PRESETS:-Web,Web Threads}"
-SCENARIOS="${PIPER_WEB_SMOKE_SCENARIOS:-en,ja}"
+SCENARIOS="${PIPER_WEB_SMOKE_SCENARIOS:-en,ja,zh,es,fr,pt}"
 ENTRY_NAME="${PIPER_WEB_ENTRY_NAME:-piper-plus-tests.html}"
 PROJECT_ADDON_DIR="$PROJECT_DIR/addons/piper_plus"
 
@@ -132,7 +132,7 @@ for preset_name in "${preset_names[@]}"; do
 
     timeout_ms="240000"
     case "$scenario_name" in
-      en)
+      en|zh|es|fr|pt)
         timeout_ms="240000"
         ;;
       ja)

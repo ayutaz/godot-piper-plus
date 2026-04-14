@@ -37,7 +37,7 @@
     "routing_mode": "explicit_only",
     "text_supported": true,
     "auto_supported": false,
-    "expected_language_id": 2,
+    "expected_language_id": 3,
     "default_latin_language": "en",
     "sample_text": "hola amigo",
     "expected_phoneme_preview": "ola amigo",
@@ -78,14 +78,14 @@
     "model_family": "multilingual-test-medium",
     "language_code": "zh",
     "aliases": ["zh", "zh-hans", "zh-hant"],
-    "support_tier": "phoneme_only",
-    "frontend_backend": "raw_phoneme_only",
-    "routing_mode": "phoneme_only",
-    "text_supported": false,
+    "support_tier": "experimental",
+    "frontend_backend": "pinyin_dict",
+    "routing_mode": "explicit_only",
+    "text_supported": true,
     "auto_supported": false,
-    "expected_language_id": 3,
+    "expected_language_id": 2,
     "default_latin_language": "en",
     "sample_text": "你好",
-    "expected_error_contains": "text phonemization"
+    "expected_error_contains": ""
   }
 ]

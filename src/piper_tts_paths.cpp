@@ -559,6 +559,7 @@ bool read_web_file_text(const String &source_path, String &text,
 }
 
 String find_web_cmudict_source(const String &model_path, const String &config_path) {
+	auto find_dictionary_source = [&](const String &filename) -> String {
 	const String model_dir = model_path.get_base_dir();
 	const String config_dir = config_path.get_base_dir();
 
@@ -584,11 +585,88 @@ String find_web_cmudict_source(const String &model_path, const String &config_pa
 	push_candidate_dir("res://addons/piper_plus/dictionaries");
 
 	for (const String &candidate_dir : candidate_dirs) {
-		for (const String &filename : {"cmudict_data.json", "cmudict.json"}) {
-			const String candidate = candidate_dir.path_join(filename);
-			if (FileAccess::file_exists(candidate)) {
-				return candidate;
-			}
+		const String candidate = candidate_dir.path_join(filename);
+		if (FileAccess::file_exists(candidate)) {
+			return candidate;
+		}
+	}
+
+	return String();
+	};
+
+	const String cmudict_data_source = find_dictionary_source("cmudict_data.json");
+	if (!cmudict_data_source.is_empty()) {
+		return cmudict_data_source;
+	}
+	return find_dictionary_source("cmudict.json");
+}
+
+String find_web_pinyin_single_dict_source(
+		const String &model_path, const String &config_path) {
+	const String model_dir = model_path.get_base_dir();
+	const String config_dir = config_path.get_base_dir();
+
+	std::vector<String> candidate_dirs;
+	auto push_candidate_dir = [&](const String &candidate_dir) {
+		if (candidate_dir.is_empty()) {
+			return;
+		}
+		if (std::find(candidate_dirs.begin(), candidate_dirs.end(), candidate_dir) ==
+				candidate_dirs.end()) {
+			candidate_dirs.push_back(candidate_dir);
+		}
+	};
+
+	push_candidate_dir(model_dir);
+	push_candidate_dir(config_dir);
+	push_candidate_dir(model_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(model_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir("user://piper/dictionaries");
+	push_candidate_dir("res://piper_plus_assets/dictionaries");
+	push_candidate_dir("res://addons/piper_plus/dictionaries");
+
+	for (const String &candidate_dir : candidate_dirs) {
+		const String candidate = candidate_dir.path_join("pinyin_single.json");
+		if (FileAccess::file_exists(candidate)) {
+			return candidate;
+		}
+	}
+
+	return String();
+}
+
+String find_web_pinyin_phrase_dict_source(
+		const String &model_path, const String &config_path) {
+	const String model_dir = model_path.get_base_dir();
+	const String config_dir = config_path.get_base_dir();
+
+	std::vector<String> candidate_dirs;
+	auto push_candidate_dir = [&](const String &candidate_dir) {
+		if (candidate_dir.is_empty()) {
+			return;
+		}
+		if (std::find(candidate_dirs.begin(), candidate_dirs.end(), candidate_dir) ==
+				candidate_dirs.end()) {
+			candidate_dirs.push_back(candidate_dir);
+		}
+	};
+
+	push_candidate_dir(model_dir);
+	push_candidate_dir(config_dir);
+	push_candidate_dir(model_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(model_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir("user://piper/dictionaries");
+	push_candidate_dir("res://piper_plus_assets/dictionaries");
+	push_candidate_dir("res://addons/piper_plus/dictionaries");
+
+	for (const String &candidate_dir : candidate_dirs) {
+		const String candidate = candidate_dir.path_join("pinyin_phrases.json");
+		if (FileAccess::file_exists(candidate)) {
+			return candidate;
 		}
 	}
 

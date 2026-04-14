@@ -1,0 +1,43 @@
+{
+  "catalog_name": "multilingual-sample-text-catalog",
+  "model_key": "multilingual-test-medium",
+  "default_language_code": "ja",
+  "languages": [
+    {
+      "language_code": "ja",
+      "display_name": "Japanese (ja)",
+      "template_text": "こんにちは、今日は良い天気ですね。",
+      "placeholder_text": "日本語テキストを入力してください"
+    },
+    {
+      "language_code": "en",
+      "display_name": "English (en)",
+      "template_text": "Hello, how are you today?",
+      "placeholder_text": "Enter English text to synthesize"
+    },
+    {
+      "language_code": "zh",
+      "display_name": "Chinese (zh)",
+      "template_text": "你好，今天天气很好。",
+      "placeholder_text": "请输入中文文本"
+    },
+    {
+      "language_code": "es",
+      "display_name": "Spanish (es)",
+      "template_text": "Hola, ¿cómo estás hoy?",
+      "placeholder_text": "Introduce texto en español"
+    },
+    {
+      "language_code": "fr",
+      "display_name": "French (fr)",
+      "template_text": "Bonjour, comment allez-vous ?",
+      "placeholder_text": "Entrez du texte en français"
+    },
+    {
+      "language_code": "pt",
+      "display_name": "Portuguese (pt)",
+      "template_text": "Olá, como você está hoje?",
+      "placeholder_text": "Digite texto em português"
+    }
+  ]
+}

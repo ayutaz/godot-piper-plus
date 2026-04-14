@@ -26,6 +26,10 @@ bool read_web_file_bytes(const String &source_path, std::vector<uint8_t> &data,
 bool read_web_file_text(const String &source_path, String &text,
 		String &error_message);
 String find_web_cmudict_source(const String &model_path, const String &config_path);
+String find_web_pinyin_single_dict_source(
+		const String &model_path, const String &config_path);
+String find_web_pinyin_phrase_dict_source(
+		const String &model_path, const String &config_path);
 
 } // namespace godot::piper_tts_paths
 

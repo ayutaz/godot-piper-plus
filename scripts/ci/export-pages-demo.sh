@@ -23,7 +23,10 @@ OPENJTALK_REQUIRED_FILES=(
 	"char.bin"
 )
 CMUDICT_RELATIVE_PATH="addons/piper_plus/dictionaries/cmudict_data.json"
+PINYIN_SINGLE_RELATIVE_PATH="addons/piper_plus/dictionaries/pinyin_single.json"
+PINYIN_PHRASES_RELATIVE_PATH="addons/piper_plus/dictionaries/pinyin_phrases.json"
 ADDON_GDEXTENSION_RELATIVE_PATH="addons/piper_plus/piper_plus.gdextension"
+ADDON_DICT_RELATIVE_DIR="addons/piper_plus/dictionaries"
 ADDON_BIN_RELATIVE_DIR="addons/piper_plus/bin"
 ADDON_ICON_RELATIVE_PATH="addons/piper_plus/icon.svg"
 WEB_RELEASE_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.web.template_release.wasm32.nothreads.wasm"
@@ -184,8 +187,19 @@ if [[ ! -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" ]]; then
 	exit 1
 fi
 
+for required_json in \
+	"$PROJECT_DIR/$PINYIN_SINGLE_RELATIVE_PATH" \
+	"$PROJECT_DIR/$PINYIN_PHRASES_RELATIVE_PATH"
+do
+	if [[ ! -f "$required_json" ]]; then
+		echo "ERROR: staged pinyin dictionary is missing: $required_json" >&2
+		exit 1
+	fi
+done
+
 mkdir -p \
 	"$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR" \
+	"$SITE_ROOT/$ADDON_DICT_RELATIVE_DIR" \
 	"$SITE_ROOT/$(dirname "$MODEL_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$OPENJTALK_DICT_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$CMUDICT_RELATIVE_PATH")"
@@ -198,6 +212,8 @@ rm -rf "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
 mkdir -p "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
 cp -R "$PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH"/. "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"/
 cp -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" "$SITE_ROOT/$CMUDICT_RELATIVE_PATH"
+cp -f "$PROJECT_DIR/$PINYIN_SINGLE_RELATIVE_PATH" "$SITE_ROOT/$PINYIN_SINGLE_RELATIVE_PATH"
+cp -f "$PROJECT_DIR/$PINYIN_PHRASES_RELATIVE_PATH" "$SITE_ROOT/$PINYIN_PHRASES_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/addons/piper_plus/LICENSE" "$SITE_ROOT/LICENSE.txt"
 cp -f "$PROJECT_DIR/addons/piper_plus/THIRD_PARTY_LICENSES.txt" "$SITE_ROOT/THIRD_PARTY_LICENSES.txt"
 printf '' > "$SITE_ROOT/.nojekyll"
@@ -221,18 +237,28 @@ cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
   "demo": {
     "supported_language_codes": [
       "ja",
-      "en"
+      "en",
+      "zh",
+      "es",
+      "fr",
+      "pt"
     ],
     "default_language_code": "ja",
     "sample_texts": {
-      "ja": "こんにちは",
-      "en": "hello from godot"
+      "ja": "こんにちは、今日は良い天気ですね。",
+      "en": "Hello, how are you today?",
+      "zh": "你好，今天天气很好。",
+      "es": "Hola, ¿cómo estás hoy?",
+      "fr": "Bonjour, comment allez-vous ?",
+      "pt": "Olá, como você está hoje?"
     }
   },
   "dictionary": {
     "key": "$OPENJTALK_DICT_KEY",
     "bootstrap_mode": "staged_asset",
     "cmudict_path": "$CMUDICT_RELATIVE_PATH",
+    "pinyin_single_path": "$PINYIN_SINGLE_RELATIVE_PATH",
+    "pinyin_phrases_path": "$PINYIN_PHRASES_RELATIVE_PATH",
     "openjtalk_path": "$OPENJTALK_DICT_RELATIVE_PATH",
     "openjtalk_install_directory": "open_jtalk_dic_utf_8-1.11",
     "openjtalk_required_files": [
@@ -258,12 +284,62 @@ cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
         "action": "startup_probe",
         "selected_language_code": "ja",
         "resolved_language_code": "ja",
-        "input_text": "こんにちは",
+        "input_text": "こんにちは、今日は良い天気ですね。",
         "startup_probe_language_code": "ja",
-        "startup_probe_text": "こんにちは",
+        "startup_probe_text": "こんにちは、今日は良い天気ですね。",
         "startup_probe_passed": true,
         "supports_japanese_text_input": true,
         "dictionary_bootstrap_mode": "staged_asset"
+      },
+      "en": {
+        "status": "pass",
+        "action": "startup_probe",
+        "selected_language_code": "en",
+        "resolved_language_code": "en",
+        "input_text": "Hello, how are you today?",
+        "startup_probe_language_code": "en",
+        "startup_probe_text": "Hello, how are you today?",
+        "startup_probe_passed": true
+      },
+      "zh": {
+        "status": "pass",
+        "action": "startup_probe",
+        "selected_language_code": "zh",
+        "resolved_language_code": "zh",
+        "input_text": "你好，今天天气很好。",
+        "startup_probe_language_code": "zh",
+        "startup_probe_text": "你好，今天天气很好。",
+        "startup_probe_passed": true
+      },
+      "es": {
+        "status": "pass",
+        "action": "startup_probe",
+        "selected_language_code": "es",
+        "resolved_language_code": "es",
+        "input_text": "Hola, ¿cómo estás hoy?",
+        "startup_probe_language_code": "es",
+        "startup_probe_text": "Hola, ¿cómo estás hoy?",
+        "startup_probe_passed": true
+      },
+      "fr": {
+        "status": "pass",
+        "action": "startup_probe",
+        "selected_language_code": "fr",
+        "resolved_language_code": "fr",
+        "input_text": "Bonjour, comment allez-vous ?",
+        "startup_probe_language_code": "fr",
+        "startup_probe_text": "Bonjour, comment allez-vous ?",
+        "startup_probe_passed": true
+      },
+      "pt": {
+        "status": "pass",
+        "action": "startup_probe",
+        "selected_language_code": "pt",
+        "resolved_language_code": "pt",
+        "input_text": "Olá, como você está hoje?",
+        "startup_probe_language_code": "pt",
+        "startup_probe_text": "Olá, como você está hoje?",
+        "startup_probe_passed": true
       }
     }
   }

@@ -28,6 +28,10 @@ LEGACY_DICT_DST_PATH="$MODEL_DST_DIR/openjtalk_dic"
 ADDON_OPENJTALK_DICT_DST="$ADDON_DICT_DST/open_jtalk_dic_utf_8-1.11"
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
+PINYIN_SINGLE_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_single.json"
+PINYIN_SINGLE_DST_PATH="$ADDON_DICT_DST/pinyin_single.json"
+PINYIN_PHRASES_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_phrases.json"
+PINYIN_PHRASES_DST_PATH="$ADDON_DICT_DST/pinyin_phrases.json"
 STAGE_OPENJTALK_DICTIONARY="${PIPER_TEST_STAGE_OPENJTALK_DICTIONARY:-0}"
 
 mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_DST_DIR" "$ADDON_MODEL_DST_DIR" "$PROJECT_GODOT_DIR"
@@ -56,6 +60,8 @@ for addon_file in \
   piper_tts_inspector_plugin.gd.uid \
   preview_controller.gd \
   preview_controller.gd.uid \
+  multilingual_sample_text_catalog.gd \
+  multilingual_sample_text_catalog.json \
   test_speech_dialog.gd \
   test_speech_dialog.gd.uid \
   icon.svg \
@@ -122,6 +128,14 @@ fi
 
 if [[ -f "$CMUDICT_SRC_PATH" ]]; then
   cp -f "$CMUDICT_SRC_PATH" "$CMUDICT_DST_PATH"
+fi
+
+if [[ -f "$PINYIN_SINGLE_SRC_PATH" ]]; then
+  cp -f "$PINYIN_SINGLE_SRC_PATH" "$PINYIN_SINGLE_DST_PATH"
+fi
+
+if [[ -f "$PINYIN_PHRASES_SRC_PATH" ]]; then
+  cp -f "$PINYIN_PHRASES_SRC_PATH" "$PINYIN_PHRASES_DST_PATH"
 fi
 
 if [[ "$STAGE_OPENJTALK_DICTIONARY" != "0" ]]; then

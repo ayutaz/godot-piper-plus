@@ -1,50 +1,42 @@
 extends Control
 
+const SampleTextCatalog = preload("res://addons/piper_plus/multilingual_sample_text_catalog.gd")
+
 const MODEL_KEY := "multilingual-test-medium"
 const MODEL_PATH := "res://piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx"
 const CONFIG_PATH := "res://piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx.json"
+const OPENJTALK_DICT_PATH := "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
+const DEFAULT_LANGUAGE_CODE := "ja"
 const STATUS_PREFIX := "PAGES_DEMO status="
 const SUMMARY_PREFIX := "PAGES_DEMO summary="
-const DEFAULT_LANGUAGE_CODE := "ja"
-const SAMPLE_TEXT_BY_LANGUAGE := {
-	"ja": "こんにちは",
-	"en": "hello from godot",
-}
-const LANGUAGE_OPTIONS := [
-	{
-		"code": "ja",
-		"label": "Japanese (ja)",
-		"placeholder": "日本語テキストを入力してください",
-	},
-	{
-		"code": "en",
-		"label": "English (en)",
-		"placeholder": "Enter English text to synthesize",
-	},
-]
 
 var tts: Object = null
 var tts_node: Node = null
-var audio_player: AudioStreamPlayer
+var audio_player: AudioStreamPlayer = null
+
 var title_label: Label
 var description_label: Label
+var catalog_label: Label
 var contract_label: Label
-var status_label: Label
+var language_label: Label
 var language_picker: OptionButton
+var input_label: Label
 var input_field: LineEdit
 var synthesize_button: Button
+var status_label: Label
 
 var _startup_probe_passed := false
 var _startup_probe_language_code := ""
 var _startup_probe_text := ""
 var _selected_language_code := DEFAULT_LANGUAGE_CODE
-var _last_action := "boot"
 var _last_input_text := ""
+var _syncing_ui := false
 
 func _ready() -> void:
 	_build_ui()
-	_apply_language(DEFAULT_LANGUAGE_CODE, true)
-	_publish_state("boot", "boot", "Booting Pages demo...", "", DEFAULT_LANGUAGE_CODE)
+	_populate_language_picker()
+	_apply_language(_resolve_initial_language_code(), true)
+	_publish_state("boot", "boot", "Booting Pages demo...")
 
 	if not ClassDB.class_exists("PiperTTS"):
 		_publish_state("fail", "class_lookup", "PiperTTS class is not available in this export.")
@@ -63,20 +55,17 @@ func _ready() -> void:
 
 	_tts_set("model_path", MODEL_PATH)
 	_tts_set("config_path", CONFIG_PATH)
+	_tts_set("dictionary_path", OPENJTALK_DICT_PATH)
 	_tts_set("language_code", _selected_language_code)
 	_tts_connect("initialized", _on_tts_initialized)
+	_tts_connect("synthesis_completed", _on_synthesis_completed)
+	_tts_connect("synthesis_failed", _on_synthesis_failed)
 
 	_update_contract_label()
 	_publish_state("boot", "initialize", "Initializing runtime...", "", _selected_language_code)
 	var err := _tts_call_int("initialize")
 	if err != OK and not _tts_call_bool("is_ready"):
-		_publish_state(
-			"fail",
-			"initialize",
-			"initialize() failed with error %d" % err,
-			"",
-			_selected_language_code
-		)
+		_publish_state("fail", "initialize", "initialize() failed with error %d" % err, "", _selected_language_code)
 
 func _build_ui() -> void:
 	var margin := MarginContainer.new()
@@ -97,69 +86,156 @@ func _build_ui() -> void:
 	layout.add_child(title_label)
 
 	description_label = Label.new()
-	description_label.text = "CPU-only, no-threads Web demo using multilingual-test-medium with staged naist-jdic. The public smoke validates Japanese synthesis on startup."
+	description_label.text = "Canonical 6-language demo for ja/en/zh/es/fr/pt. Selecting a language auto-fills the per-language template text before synthesis."
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(description_label)
+
+	catalog_label = Label.new()
+	catalog_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layout.add_child(catalog_label)
 
 	contract_label = Label.new()
 	contract_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(contract_label)
 
-	var language_label := Label.new()
+	language_label = Label.new()
 	language_label.text = "Language"
 	layout.add_child(language_label)
 
 	language_picker = OptionButton.new()
-	for item in LANGUAGE_OPTIONS:
-		language_picker.add_item(String(item.get("label", "")))
+	language_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	language_picker.item_selected.connect(_on_language_selected)
 	layout.add_child(language_picker)
 
+	input_label = Label.new()
+	input_label.text = "Template text"
+	layout.add_child(input_label)
+
 	input_field = LineEdit.new()
+	input_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	input_field.placeholder_text = "Select a language to load its template text."
+	input_field.text_changed.connect(_on_text_changed)
 	layout.add_child(input_field)
+
+	var button_row := HBoxContainer.new()
+	button_row.add_theme_constant_override("separation", 6)
+	layout.add_child(button_row)
 
 	synthesize_button = Button.new()
 	synthesize_button.text = "Synthesize"
 	synthesize_button.disabled = true
 	synthesize_button.pressed.connect(_on_synthesize_pressed)
-	layout.add_child(synthesize_button)
+	button_row.add_child(synthesize_button)
 
 	status_label = Label.new()
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(status_label)
 
-func _language_option(index: int) -> Dictionary:
-	if index < 0 or index >= LANGUAGE_OPTIONS.size():
-		return LANGUAGE_OPTIONS[0]
-	return LANGUAGE_OPTIONS[index]
+func _populate_language_picker() -> void:
+	language_picker.clear()
+	for language_code in _supported_language_codes():
+		var display_name := SampleTextCatalog.get_language_display_name(language_code)
+		language_picker.add_item(display_name)
+		language_picker.set_item_metadata(language_picker.get_item_count() - 1, language_code)
 
-func _language_index_by_code(language_code: String) -> int:
-	for index in range(LANGUAGE_OPTIONS.size()):
-		var item: Dictionary = LANGUAGE_OPTIONS[index]
-		if String(item.get("code", "")) == language_code:
+func _supported_language_codes() -> PackedStringArray:
+	return SampleTextCatalog.list_language_codes()
+
+func _sample_texts() -> Dictionary:
+	var texts := {}
+	for language_code in _supported_language_codes():
+		texts[language_code] = SampleTextCatalog.get_language_template_text(language_code)
+	return texts
+
+func _placeholder_text(language_code: String) -> String:
+	return SampleTextCatalog.get_language_placeholder_text(language_code)
+
+func _resolve_initial_language_code() -> String:
+	var scenario_language := _detect_web_smoke_scenario()
+	if not scenario_language.is_empty():
+		return SampleTextCatalog.resolve_language_code(scenario_language)
+	return SampleTextCatalog.resolve_language_code(DEFAULT_LANGUAGE_CODE)
+
+func _detect_web_smoke_scenario() -> String:
+	if not OS.has_feature("web"):
+		return ""
+
+	var scenario := OS.get_environment("PIPER_WEB_SMOKE_SCENARIO").strip_edges().to_lower()
+	if not scenario.is_empty():
+		return scenario
+
+	if ClassDB.class_exists("JavaScriptBridge"):
+		var js_value: Variant = JavaScriptBridge.eval(
+			"(globalThis.__PIPER_WEB_SMOKE_SCENARIO || '').toString()",
+			true
+		)
+		scenario = String(js_value).strip_edges().to_lower()
+
+	return scenario
+
+func _get_language_code_at(index: int) -> String:
+	if index < 0 or index >= language_picker.get_item_count():
+		return DEFAULT_LANGUAGE_CODE
+	return String(language_picker.get_item_metadata(index))
+
+func _find_language_index(language_code: String) -> int:
+	var canonical := SampleTextCatalog.resolve_language_code(language_code)
+	for index in range(language_picker.get_item_count()):
+		if _get_language_code_at(index) == canonical:
 			return index
 	return 0
 
-func _sample_text(language_code: String) -> String:
-	return String(SAMPLE_TEXT_BY_LANGUAGE.get(language_code, SAMPLE_TEXT_BY_LANGUAGE["ja"]))
+func _template_for_language(language_code: String) -> String:
+	return SampleTextCatalog.get_language_template_text(language_code)
 
 func _apply_language(language_code: String, update_text: bool) -> void:
-	var index := _language_index_by_code(language_code)
-	var item := _language_option(index)
-	_selected_language_code = String(item.get("code", DEFAULT_LANGUAGE_CODE))
+	var canonical := SampleTextCatalog.resolve_language_code(language_code)
+	_selected_language_code = canonical
 
-	if language_picker != null and language_picker.selected != index:
-		language_picker.select(index)
-
-	if input_field != null:
-		input_field.placeholder_text = String(item.get("placeholder", ""))
-		if update_text:
-			input_field.text = _sample_text(_selected_language_code)
+	var language_index := _find_language_index(canonical)
+	_syncing_ui = true
+	if language_picker.selected != language_index:
+		language_picker.select(language_index)
+	input_field.placeholder_text = _placeholder_text(canonical)
+	if update_text or input_field.text.is_empty():
+		input_field.text = _template_for_language(canonical)
+		_last_input_text = input_field.text
+	_syncing_ui = false
 
 	if tts != null:
-		_tts_set("language_code", _selected_language_code)
+		_tts_set("language_code", canonical)
 
 	_update_contract_label()
+
+func _update_contract_label() -> void:
+	var supported := _supported_language_codes()
+	var sample_texts := _sample_texts()
+	var lines := PackedStringArray([
+		"Contract: CPU-only web public demo using the canonical 6-language template catalog.",
+		"Model: %s" % MODEL_KEY,
+		"Catalog: %s" % String(SampleTextCatalog.get_catalog_name()),
+		"Supported languages: %s" % supported.join(", "),
+		"Selected language: %s" % _selected_language_code,
+		"Selected template: %s" % String(sample_texts.get(_selected_language_code, "")),
+	])
+
+	if tts == null:
+		lines.append("Runtime contract: unavailable")
+		lines.append("Japanese dictionary bootstrap: unknown")
+		lines.append("Japanese dictionary path: unknown")
+		lines.append("supports_japanese_text_input: unknown")
+	else:
+		var contract := _runtime_contract()
+		var dictionary_mode := String(contract.get("openjtalk_dictionary_bootstrap_mode", "unknown"))
+		var dictionary_path := String(contract.get("resolved_dictionary_path", "unknown"))
+		var supports_japanese := bool(contract.get("supports_japanese_text_input", false))
+		lines.append("Runtime contract: available")
+		lines.append("Japanese dictionary bootstrap: %s" % dictionary_mode)
+		lines.append("Japanese dictionary path: %s" % dictionary_path)
+		lines.append("supports_japanese_text_input: %s" % ("true" if supports_japanese else "false"))
+
+	catalog_label.text = "Catalog sample texts loaded: %s" % String(SampleTextCatalog.get_catalog_name())
+	contract_label.text = lines.join("\n")
 
 func _runtime_contract() -> Dictionary:
 	if tts != null and tts.has_method("get_runtime_contract"):
@@ -170,85 +246,6 @@ func _last_synthesis_result() -> Dictionary:
 	if tts != null and tts.has_method("get_last_synthesis_result"):
 		return tts.call("get_last_synthesis_result") as Dictionary
 	return {}
-
-func _update_contract_label() -> void:
-	var contract := _runtime_contract()
-	var lines := PackedStringArray([
-		"Contract: EP_CPU / no-threads / PWA export / startup self-test on load.",
-		"Model: %s" % MODEL_KEY,
-		"Demo languages: ja / en",
-		"Default startup probe: %s (%s)" % [_sample_text(DEFAULT_LANGUAGE_CODE), DEFAULT_LANGUAGE_CODE],
-		"Licenses: see LICENSE.txt and THIRD_PARTY_LICENSES.txt in the published site root.",
-	])
-
-	if contract.is_empty():
-		lines.append("Runtime contract: unavailable")
-		lines.append("Japanese dictionary bootstrap: unknown")
-		lines.append("Japanese dictionary path: unknown")
-		lines.append("supports_japanese_text_input: unknown")
-	else:
-		var dictionary_mode := String(contract.get("openjtalk_dictionary_bootstrap_mode", "unknown"))
-		var dictionary_path := String(contract.get("resolved_dictionary_path", "unknown"))
-		var supports_japanese := bool(contract.get("supports_japanese_text_input", false))
-		lines.append("Runtime contract: available")
-		lines.append("Japanese dictionary bootstrap: %s" % dictionary_mode)
-		lines.append("Japanese dictionary path: %s" % dictionary_path)
-		lines.append("supports_japanese_text_input: %s" % ("true" if supports_japanese else "false"))
-
-	contract_label.text = "\n".join(lines)
-
-func _emit_status(status: String) -> void:
-	print("%s%s" % [STATUS_PREFIX, status])
-
-func _emit_summary(summary: Dictionary) -> void:
-	print("%s%s" % [SUMMARY_PREFIX, JSON.stringify(summary)])
-
-func _publish_state(
-	status: String,
-	action: String,
-	message: String,
-	text: String = "",
-	language_code: String = ""
-) -> void:
-	_last_action = action
-	if not text.is_empty():
-		_last_input_text = text
-	_update_contract_label()
-	if status_label != null:
-		status_label.text = "Status: %s" % message
-
-	var resolved_language_code := ""
-	var last_result := _last_synthesis_result()
-	if not last_result.is_empty():
-		resolved_language_code = String(last_result.get("resolved_language_code", ""))
-
-	var last_error := _tts_last_error()
-	var contract := _runtime_contract()
-	var summary := {
-		"status": status,
-		"action": action,
-		"message": message,
-		"model_key": MODEL_KEY,
-		"selected_language_code": _selected_language_code,
-		"input_text": text if not text.is_empty() else _last_input_text,
-		"startup_probe_passed": _startup_probe_passed,
-		"startup_probe_language_code": _startup_probe_language_code,
-		"startup_probe_text": _startup_probe_text,
-		"resolved_language_code": resolved_language_code,
-		"last_error_code": String(last_error.get("code", "")),
-		"last_error_stage": String(last_error.get("stage", "")),
-		"supports_japanese_text_input": bool(contract.get("supports_japanese_text_input", false)),
-		"dictionary_bootstrap_mode": String(contract.get("openjtalk_dictionary_bootstrap_mode", "")),
-		"resolved_dictionary_path": String(contract.get("resolved_dictionary_path", "")),
-		"supported_language_codes": PackedStringArray(["ja", "en"]),
-		"sample_texts": SAMPLE_TEXT_BY_LANGUAGE.duplicate(true),
-	}
-
-	if not language_code.is_empty():
-		summary["selected_language_code"] = language_code
-
-	_emit_summary(summary)
-	_emit_status(status)
 
 func _tts_set(property_name: StringName, value: Variant) -> void:
 	if tts != null:
@@ -285,11 +282,6 @@ func _tts_call_audio(method_name: StringName, arg0: Variant = null) -> AudioStre
 		result = tts.call(method_name, arg0)
 	return result as AudioStreamWAV
 
-func _tts_last_error() -> Dictionary:
-	if tts != null and tts.has_method("get_last_error"):
-		return tts.call("get_last_error") as Dictionary
-	return {}
-
 func _synthesize_for_language(text: String, language_code: String) -> AudioStreamWAV:
 	var request := {
 		"text": text,
@@ -302,18 +294,74 @@ func _synthesize_for_language(text: String, language_code: String) -> AudioStrea
 	_tts_set("language_code", language_code)
 	return _tts_call_audio("synthesize", text)
 
+func _publish_state(
+	status: String,
+	action: String,
+	message: String,
+	text: String = "",
+	language_code: String = ""
+) -> void:
+	if not text.is_empty():
+		_last_input_text = text
+
+	_update_contract_label()
+	if status_label != null:
+		status_label.text = "Status: %s" % message
+
+	var resolved_language_code := ""
+	var last_result := _last_synthesis_result()
+	if not last_result.is_empty():
+		resolved_language_code = String(last_result.get("resolved_language_code", ""))
+
+	var last_error := _tts_last_error()
+	var runtime_contract := _runtime_contract()
+	var summary := {
+		"status": status,
+		"action": action,
+		"message": message,
+		"model_key": MODEL_KEY,
+		"selected_language_code": _selected_language_code,
+		"input_text": text if not text.is_empty() else _last_input_text,
+		"startup_probe_passed": _startup_probe_passed,
+		"startup_probe_language_code": _startup_probe_language_code,
+		"startup_probe_text": _startup_probe_text,
+		"resolved_language_code": resolved_language_code,
+		"last_error_code": String(last_error.get("code", "")),
+		"last_error_stage": String(last_error.get("stage", "")),
+		"supports_japanese_text_input": bool(runtime_contract.get("supports_japanese_text_input", false)),
+		"dictionary_bootstrap_mode": String(runtime_contract.get("openjtalk_dictionary_bootstrap_mode", "")),
+		"resolved_dictionary_path": String(runtime_contract.get("resolved_dictionary_path", "")),
+		"supported_language_codes": _supported_language_codes(),
+		"sample_texts": _sample_texts(),
+	}
+
+	if not language_code.is_empty():
+		summary["selected_language_code"] = language_code
+
+	_emit_summary(summary)
+	_emit_status(status)
+
+func _emit_status(status: String) -> void:
+	print("%s%s" % [STATUS_PREFIX, status])
+
+func _emit_summary(summary: Dictionary) -> void:
+	print("%s%s" % [SUMMARY_PREFIX, JSON.stringify(summary)])
+
+func _tts_last_error() -> Dictionary:
+	if tts != null and tts.has_method("get_last_error"):
+		return tts.call("get_last_error") as Dictionary
+	return {}
+
 func _on_tts_initialized(success: bool) -> void:
 	if not success:
 		_publish_state("fail", "initialize", "Initialization failed.")
 		return
 
-	_update_contract_label()
-	_publish_state("boot", "startup_probe", "Runtime initialized. Running startup self-test...")
 	_run_startup_probe()
 
 func _run_startup_probe() -> void:
-	_startup_probe_language_code = DEFAULT_LANGUAGE_CODE
-	_startup_probe_text = _sample_text(DEFAULT_LANGUAGE_CODE)
+	_startup_probe_language_code = _selected_language_code
+	_startup_probe_text = _template_for_language(_startup_probe_language_code)
 	var audio := _synthesize_for_language(_startup_probe_text, _startup_probe_language_code)
 	if audio == null:
 		var last_error := _tts_last_error()
@@ -329,17 +377,18 @@ func _run_startup_probe() -> void:
 
 	_startup_probe_passed = true
 	synthesize_button.disabled = false
-	_apply_language(DEFAULT_LANGUAGE_CODE, true)
 	_publish_state(
 		"pass",
 		"startup_probe",
-		"Ready. Japanese startup self-test passed.",
+		"Ready. Startup self-test passed for %s." % _startup_probe_language_code,
 		_startup_probe_text,
 		_startup_probe_language_code
 	)
 
 func _on_language_selected(index: int) -> void:
-	var language_code := String(_language_option(index).get("code", DEFAULT_LANGUAGE_CODE))
+	if _syncing_ui:
+		return
+	var language_code := _get_language_code_at(index)
 	_apply_language(language_code, true)
 	if _startup_probe_passed:
 		_publish_state(
@@ -349,6 +398,11 @@ func _on_language_selected(index: int) -> void:
 			input_field.text,
 			language_code
 		)
+
+func _on_text_changed(new_text: String) -> void:
+	if _syncing_ui:
+		return
+	_last_input_text = new_text
 
 func _on_synthesize_pressed() -> void:
 	if tts == null or not _tts_call_bool("is_ready"):
@@ -383,6 +437,7 @@ func _on_synthesize_pressed() -> void:
 		return
 
 	audio_player.stream = audio
+	audio_player.stop()
 	audio_player.play()
 	synthesize_button.disabled = false
 	_publish_state(
@@ -392,3 +447,13 @@ func _on_synthesize_pressed() -> void:
 		text,
 		_selected_language_code
 	)
+
+func _on_synthesis_completed(audio: AudioStreamWAV) -> void:
+	if audio_player != null:
+		audio_player.stream = audio
+		audio_player.stop()
+		audio_player.play()
+
+func _on_synthesis_failed(error: String) -> void:
+	_publish_state("fail", "synthesis", error, input_field.text, _selected_language_code)
+	synthesize_button.disabled = false
