@@ -476,6 +476,15 @@ bool stage_web_dictionary_to_user(const String &source_directory,
 	const String user_stage_directory = String(WEB_OPENJTALK_USER_STAGE_DIR);
 	const String absolute_stage_directory =
 			ProjectSettings::get_singleton()->globalize_path(user_stage_directory);
+	const String normalized_staged =
+			normalize_dictionary_candidate(user_stage_directory);
+	if (!normalized_staged.is_empty()) {
+		// Web assets are immutable for the current build, so once the staged dictionary
+		// is complete we can reuse it across repeated initialize() calls.
+		staged_directory = absolute_stage_directory;
+		return true;
+	}
+
 	const Error mkdir_error =
 			DirAccess::make_dir_recursive_absolute(absolute_stage_directory);
 	if (mkdir_error != OK &&
