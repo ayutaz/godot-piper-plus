@@ -12,20 +12,32 @@ const PASS_RE = /^\s+PASS\s+(.+)$/;
 const SKIP_RE = /^\s+SKIP\s+(.+?)(?::\s+(.*))?$/;
 const FAIL_RE = /^\s+FAIL\s+(.+?)(?::\s+(.*))?$/;
 const SCENARIO_PROFILES = {
-  en: {
-    requiredPasses: [
-      'test_piper_tts.test_initialize_with_model',
-      'test_piper_tts.test_synthesize_basic',
-    ],
-    timeoutMs: 240000,
+  nothreads: {
+    en: {
+      requiredPasses: [
+        'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_synthesize_basic',
+      ],
+      timeoutMs: 240000,
+    },
+    ja: {
+      requiredPasses: [
+        'test_piper_tts.test_japanese_dictionary_error_surface',
+        'test_piper_tts.test_japanese_request_time_dictionary_error_surface',
+        'test_piper_tts.test_japanese_text_input_with_dictionary',
+      ],
+      timeoutMs: 300000,
+    },
   },
-  ja: {
-    requiredPasses: [
-      'test_piper_tts.test_japanese_dictionary_error_surface',
-      'test_piper_tts.test_japanese_request_time_dictionary_error_surface',
-      'test_piper_tts.test_japanese_text_input_with_dictionary',
-    ],
-    timeoutMs: 300000,
+  threads: {
+    en: {
+      requiredPasses: [
+        'test_piper_tts.test_runtime_contract',
+        'test_piper_tts.test_web_non_cpu_execution_provider_rejected',
+        'test_piper_tts.test_web_openjtalk_native_rejected',
+      ],
+      timeoutMs: 240000,
+    },
   },
 };
 
@@ -36,6 +48,7 @@ function parseArgs(argv) {
     label: 'web',
     timeoutMs: 240000,
     scenario: '',
+    variant: 'nothreads',
     requirePasses: [],
     reportPath: '',
   };
@@ -52,6 +65,8 @@ function parseArgs(argv) {
       result.timeoutMs = Number(argv[++i] ?? `${result.timeoutMs}`);
     } else if (arg === '--scenario') {
       result.scenario = argv[++i] ?? '';
+    } else if (arg === '--variant') {
+      result.variant = argv[++i] ?? result.variant;
     } else if (arg === '--require-pass') {
       result.requirePasses.push(argv[++i] ?? '');
     } else if (arg === '--report-path') {
@@ -65,7 +80,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.error('Usage: node run-web-smoke.mjs --root <dir> [--entry piper-plus-tests.html] [--label name] [--scenario en|ja] [--require-pass suite.test] [--timeout-ms 240000] [--report-path file]');
+  console.error('Usage: node run-web-smoke.mjs --root <dir> [--entry piper-plus-tests.html] [--label name] [--scenario en|ja] [--variant nothreads|threads] [--require-pass suite.test] [--timeout-ms 240000] [--report-path file]');
 }
 
 function safeSlug(value) {
@@ -116,9 +131,13 @@ async function main() {
     process.exit(args.help ? 0 : 1);
   }
 
-  const scenarioProfile = args.scenario ? SCENARIO_PROFILES[args.scenario] : null;
+  const variantProfiles = SCENARIO_PROFILES[args.variant];
+  if (!variantProfiles) {
+    throw new Error(`unknown variant: ${args.variant}`);
+  }
+  const scenarioProfile = args.scenario ? variantProfiles[args.scenario] : null;
   if (args.scenario && !scenarioProfile) {
-    throw new Error(`unknown scenario: ${args.scenario}`);
+    throw new Error(`unsupported scenario '${args.scenario}' for variant '${args.variant}'`);
   }
   if (scenarioProfile && args.timeoutMs === 240000) {
     args.timeoutMs = scenarioProfile.timeoutMs;
@@ -171,6 +190,7 @@ async function main() {
         {
           label: args.label,
           scenario: args.scenario || null,
+          variant: args.variant,
           root: path.resolve(args.root),
           entry: args.entry,
           timeout_ms: args.timeoutMs,
@@ -199,9 +219,10 @@ async function main() {
     const browserUrl = new URL(args.entry, baseUrl).toString();
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
-    await page.addInitScript(({ scenario }) => {
+    await page.addInitScript(({ scenario, variant }) => {
       globalThis.__PIPER_WEB_SMOKE_SCENARIO = scenario || '';
-    }, { scenario: args.scenario || '' });
+      globalThis.__PIPER_WEB_SMOKE_VARIANT = variant || '';
+    }, { scenario: args.scenario || '', variant: args.variant });
     let completed = false;
 
     const hasSuccessfulSummary = () =>

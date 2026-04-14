@@ -200,7 +200,7 @@
 - 状態: `進行中`
 - 依存: `M7` `M9`
 - 関連チケット: [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-019 Web 日本語 dictionary bootstrap / runtime](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
-- 現状: `M7` で Web preview support、`M9` で main 上の English minimal Pages demo までは完了しています。`TKT-019` と `TKT-020` で `naist-jdic` bootstrap、runtime contract、Japanese browser smoke / CI gate の実装は進んでおり、browser smoke は `Web` preset を `en,ja`、`Web Threads` preset を English/core regression smoke として分離しています。`TKT-021` では branch 上で Pages demo を `ja/en` UI と Japanese public smoke に広げています。残りは `workflow_dispatch` / PR CI / `main` deploy でその実装を確定し、release 文書へ反映することです。
+- 現状: `M7` で Web preview support、`M9` で main 上の English minimal Pages demo までは完了しています。`TKT-019` と `TKT-020` で `naist-jdic` bootstrap、runtime contract、Japanese browser smoke / CI gate の実装は進んでおり、browser smoke は `Web` preset を `en,ja` の synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke として分離しています。`TKT-021` では branch 上で Pages demo を `ja/en` UI と Japanese public smoke に広げています。残りは `workflow_dispatch` / PR CI / `main` deploy でその実装を確定し、release 文書へ反映することです。
 - 実装スコープ:
   - `naist-jdic` を使う Web asset staging / bootstrap
   - Web runtime での Japanese text input / inspect / synthesize の成立

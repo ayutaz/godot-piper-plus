@@ -80,6 +80,19 @@ scenarios_for_preset() {
   esac
 }
 
+variant_for_preset() {
+  local preset_name="$1"
+
+  case "$preset_name" in
+    "Web Threads")
+      printf '%s\n' "threads"
+      ;;
+    *)
+      printf '%s\n' "nothreads"
+      ;;
+  esac
+}
+
 export PIPER_ADDON_SRC="$ADDON_SRC"
 export PIPER_ADDON_BIN_SRC="$ADDON_BIN_SRC"
 export PIPER_TEST_STAGE_OPENJTALK_DICTIONARY=1
@@ -111,6 +124,7 @@ for preset_name in "${preset_names[@]}"; do
   node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$preset_dir"
 
   preset_scenarios="$(scenarios_for_preset "$preset_name")"
+  preset_variant="$(variant_for_preset "$preset_name")"
   IFS=',' read -r -a scenario_names <<< "$preset_scenarios"
   for scenario_name in "${scenario_names[@]}"; do
     scenario_name="$(printf '%s' "$scenario_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
@@ -135,6 +149,7 @@ for preset_name in "${preset_names[@]}"; do
       --entry "$ENTRY_NAME" \
       --label "$preset_name-$scenario_name" \
       --scenario "$scenario_name" \
+      --variant "$preset_variant" \
       --timeout-ms "$timeout_ms"
   done
 done

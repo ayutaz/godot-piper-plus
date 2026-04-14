@@ -238,19 +238,19 @@ func _configure_test_model(tts, include_dictionary: bool = true) -> bool:
     if resolved_config.is_empty():
         return false
 
-	tts.model_path = bundle["model_path"]
-	if not String(bundle["config_path"]).is_empty():
-		tts.config_path = bundle["config_path"]
-	if include_dictionary and not String(bundle["dictionary_path"]).is_empty():
-		tts.dictionary_path = bundle["dictionary_path"]
-	elif _is_web_runtime():
-		# Prevent Web runtime auto-fallback from staging OpenJTalk when an English-only
-		# smoke scenario intentionally wants to exercise no-dictionary initialization.
-		tts.dictionary_path = MISSING_WEB_DICT_PATH
+    tts.model_path = bundle["model_path"]
+    if not String(bundle["config_path"]).is_empty():
+        tts.config_path = bundle["config_path"]
+    if include_dictionary and not String(bundle["dictionary_path"]).is_empty():
+        tts.dictionary_path = bundle["dictionary_path"]
+    elif _is_web_runtime():
+        # Prevent Web runtime auto-fallback from staging OpenJTalk when an English-only
+        # smoke scenario intentionally wants to exercise no-dictionary initialization.
+        tts.dictionary_path = MISSING_WEB_DICT_PATH
 
-	var preferred_language := _preferred_test_language_code(bundle)
-	if not preferred_language.is_empty():
-		tts.language_code = preferred_language
+    var preferred_language := _preferred_test_language_code(bundle)
+    if not preferred_language.is_empty():
+        tts.language_code = preferred_language
 
     return true
 
@@ -365,10 +365,12 @@ func list_test_names() -> Array[String]:
 
 func get_test_tags(method_name: String) -> PackedStringArray:
     match method_name:
-        "test_runtime_contract", "test_initialize_with_config_fallback", "test_web_non_cpu_execution_provider_rejected", "test_web_openjtalk_native_rejected":
+        "test_runtime_contract", "test_web_non_cpu_execution_provider_rejected", "test_web_openjtalk_native_rejected":
             return PackedStringArray(["core", "web-smoke"])
+        "test_initialize_with_config_fallback":
+            return PackedStringArray(["core", "web-smoke", "nothreads-only"])
         "test_initialize_with_model", "test_synthesize_basic":
-            return PackedStringArray(["en", "web-smoke"])
+            return PackedStringArray(["en", "web-smoke", "nothreads-only"])
         "test_runtime_contract_missing_web_dictionary", "test_japanese_dictionary_error_surface", "test_japanese_request_time_dictionary_error_surface", "test_japanese_text_input_with_dictionary":
             return PackedStringArray(["ja", "web-smoke"])
         _:

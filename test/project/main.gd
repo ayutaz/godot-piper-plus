@@ -21,6 +21,7 @@ var _passed_tests: Array[Dictionary] = []
 var _skipped_tests: Array[Dictionary] = []
 var _failed_tests: Array[Dictionary] = []
 var _web_smoke_scenario := ""
+var _web_smoke_variant := ""
 
 func _env_flag(name: String) -> bool:
     var value := OS.get_environment(name).strip_edges().to_lower()
@@ -89,12 +90,31 @@ func _detect_web_smoke_scenario() -> String:
         scenario = String(js_value).strip_edges().to_lower()
     return scenario
 
+func _detect_web_smoke_variant() -> String:
+    if not OS.has_feature("web_smoke"):
+        return ""
+
+    var variant := OS.get_environment("PIPER_WEB_SMOKE_VARIANT").strip_edges().to_lower()
+    if not variant.is_empty():
+        return variant
+
+    if OS.has_feature("web") and ClassDB.class_exists("JavaScriptBridge"):
+        var js_value: Variant = JavaScriptBridge.eval(
+            "(globalThis.__PIPER_WEB_SMOKE_VARIANT || '').toString()",
+            true
+        )
+        variant = String(js_value).strip_edges().to_lower()
+    return variant
+
 func _should_run_web_smoke_test(tags: Array[String]) -> bool:
     if _web_smoke_scenario.is_empty():
         return true
 
     if tags.is_empty():
         return true
+
+    if _web_smoke_variant == "threads" and tags.has("nothreads-only"):
+        return false
 
     if tags.has("core"):
         return true
@@ -143,6 +163,7 @@ func _ready() -> void:
     _strict_skip_patterns = _parse_env_list("PIPER_FAIL_ON_SKIP_PATTERNS")
     _require_pass = _env_flag("PIPER_REQUIRE_PASS")
     _web_smoke_scenario = _detect_web_smoke_scenario()
+    _web_smoke_variant = _detect_web_smoke_variant()
 
     var suite_script = load("res://test_piper_tts.gd")
     if suite_script == null:

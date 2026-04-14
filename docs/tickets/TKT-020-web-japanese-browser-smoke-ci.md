@@ -30,7 +30,7 @@
 - workflow の `Build Web` または同等 job に、日本語 scenario の pass / fail を release gate として組み込む。
 - failure 時に browser console、runtime error、asset manifest のどこを見るかを固定し、CI artifact へ保存する。
 - 既存 English smoke を温存しつつ、最低でも `en` と `ja` の 2 系統を回す。
-- CI の既定 matrix は `Web` preset を `en,ja`、`Web Threads` preset を English/core regression smoke とする。日本語 synthesize gate の正本は `no-threads` 側で取る。
+- CI の既定 matrix は `Web` preset を `en,ja` の synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke とする。日本語 synthesize gate の正本は `no-threads` 側で取る。
 - canonical browser smoke contract:
   - scenario `en`: `test_piper_tts.test_initialize_with_model`, `test_piper_tts.test_synthesize_basic` が pass
   - scenario `ja`: `test_piper_tts.test_japanese_dictionary_error_surface`, `test_piper_tts.test_japanese_request_time_dictionary_error_surface`, `test_piper_tts.test_japanese_text_input_with_dictionary` が pass
@@ -55,7 +55,7 @@
 - Japanese scenario が CI と local で同じ判定を使えること。
 - dictionary 欠落と synthesize 成功を区別して検出できること。
 - English scenario の既存 smoke が壊れていないこと。
-- `Web Threads` preset が日本語 gate を持たない代わりに、English/core regression smoke として継続監視されること。
+- `Web Threads` preset が日本語 gate を持たない代わりに、synchronous initialize / synthesize を含めない English/core regression smoke として継続監視されること。
 - README の検証手順が実際の script と一致していること。
 
 ## 実装する unit テスト
