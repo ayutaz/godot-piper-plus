@@ -96,7 +96,7 @@ mkdir -p "$ADDON_DST/model_descriptors"
 find "$ADDON_DST" -mindepth 1 -maxdepth 1 ! -name 'bin' -exec rm -rf {} +
 find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
 find "$PROJECT_DIR/piper_plus_assets" -mindepth 1 -exec rm -rf {} +
-mkdir -p "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT" "$OPENJTALK_DICT_DST"
+mkdir -p "$ADDON_DICT_DST" "$ADDON_DST/model_descriptors" "$MODEL_STAGE_ROOT" "$OPENJTALK_DICT_DST"
 
 for addon_file in \
   LICENSE \
