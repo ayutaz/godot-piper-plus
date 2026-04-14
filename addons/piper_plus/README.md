@@ -110,9 +110,9 @@ downloader から取得しやすい asset:
 | macOS | 確認済み | packaged addon smoke を CI で確認済み |
 | Android | 進行中 | export smoke は確認済み。残りは runtime 可否と Windows local export 差分 |
 | iOS | 確認済み | export / link smoke を CI で確認済み |
-| Web | preview support | browser smoke を CI で確認済み |
+| Web | preview support | browser smoke は `en/ja` gate に拡張済みです。Pages 公開デモの baseline と branch scope は root README / `docs/web-github-pages-plan.md` を参照 |
 
-## Web Preview Support
+## Web Export Preview Support
 
 Web は preview support です。
 
@@ -121,9 +121,18 @@ Web は preview support です。
 - `execution_provider` は `EP_CPU` 固定です
 - `openjtalk-native` shared library は Web では使えません
 - `COOP` / `COEP` 付き static server か、同等の cross-origin isolation workaround 上で確認してください
+- 日本語 text input は staged `naist-jdic` を前提にします
 
 ローカル smoke は `scripts/ci/export-web-smoke.sh` を使います。
 Node.js と Playwright が必要なので、事前に `npm install --no-save playwright` と `npx playwright install chromium` を実行してください。
+
+## GitHub Pages Demo
+
+GitHub Pages 公開デモは addon の Web export preview とは別に扱っています。
+
+- `main` の baseline は `M9` の English minimal demo です
+- current branch では `ja/en` UI、staged `naist-jdic`、Japanese startup self-test、public `ja` smoke を追加実装し、workflow で実証中です
+- 公開 URL と運用メモは [README.md](../../README.md) と [docs/web-github-pages-plan.md](../../docs/web-github-pages-plan.md) を参照してください
 
 ## package メモ
 

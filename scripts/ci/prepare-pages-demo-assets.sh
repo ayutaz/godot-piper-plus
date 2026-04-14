@@ -11,6 +11,7 @@ ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
 ADDON_DST="$PROJECT_DIR/addons/piper_plus"
 ADDON_BIN_DST="$ADDON_DST/bin"
 ADDON_DICT_DST="$ADDON_DST/dictionaries"
+OPENJTALK_DICT_DST="$PROJECT_DIR/piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
 MODEL_KEY="${PIPER_PAGES_MODEL_KEY:-multilingual-test-medium}"
 MODEL_STAGE_ROOT="$PROJECT_DIR/piper_plus_assets/models/$MODEL_KEY"
 MODEL_CACHE_ROOT="${PIPER_PAGES_MODEL_CACHE:-$REPO_ROOT/.cache/pages-demo/models}"
@@ -90,7 +91,7 @@ mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT" "$P
 find "$ADDON_DST" -mindepth 1 -maxdepth 1 ! -name 'bin' -exec rm -rf {} +
 find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
 find "$PROJECT_DIR/piper_plus_assets" -mindepth 1 -exec rm -rf {} +
-mkdir -p "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT"
+mkdir -p "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT" "$OPENJTALK_DICT_DST"
 
 for addon_file in \
   LICENSE \
@@ -186,5 +187,7 @@ PY
 MODEL_CACHE_DIR="$(resolve_model_bundle)"
 cp -f "$MODEL_CACHE_DIR/$MODEL_KEY.onnx" "$MODEL_STAGE_ROOT/$MODEL_KEY.onnx"
 cp -f "$MODEL_CACHE_DIR/$MODEL_KEY.onnx.json" "$MODEL_STAGE_ROOT/$MODEL_KEY.onnx.json"
+
+bash "$SCRIPT_DIR/stage-openjtalk-dictionary.sh" "$OPENJTALK_DICT_DST"
 
 printf '%s\n' 'res://addons/piper_plus/piper_plus.gdextension' > "$EXTENSION_LIST_DST_PATH"

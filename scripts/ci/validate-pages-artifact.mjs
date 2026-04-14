@@ -63,6 +63,22 @@ assertCondition(manifest.runtime?.pwa_enabled === true, "manifest must declare P
 assertCondition(String(buildMeta.export_preset ?? "") === "Web Pages", "build-meta must record export_preset=Web Pages");
 assertCondition(String(buildMeta.entry ?? "") === manifest.entry, "build-meta entry must match manifest entry");
 assertCondition(String(buildMeta.model_key ?? "") === String(manifest.model?.key ?? ""), "build-meta model_key must match manifest");
+assertCondition(String(manifest.demo?.default_language_code ?? "") === "ja", "manifest must declare ja as the default language");
+assertCondition(Array.isArray(manifest.demo?.supported_language_codes), "manifest must declare demo.supported_language_codes");
+assertCondition(manifest.demo.supported_language_codes.includes("ja"), "manifest must include ja in demo.supported_language_codes");
+assertCondition(manifest.demo.supported_language_codes.includes("en"), "manifest must include en in demo.supported_language_codes");
+assertCondition(String(manifest.demo?.sample_texts?.ja ?? "") === "こんにちは", "manifest must declare the canonical Japanese sample text");
+assertCondition(String(manifest.demo?.sample_texts?.en ?? "") === "hello from godot", "manifest must declare the canonical English sample text");
+assertCondition(String(buildMeta.default_language_code ?? "") === String(manifest.demo?.default_language_code ?? ""), "build-meta default_language_code must match manifest");
+const japaneseSmoke = manifest.smoke?.scenarios?.ja;
+assertCondition(Boolean(japaneseSmoke), "manifest must declare smoke.scenarios.ja");
+assertCondition(String(japaneseSmoke?.action ?? "") === "startup_probe", "Japanese smoke scenario must validate the startup probe");
+assertCondition(String(japaneseSmoke?.selected_language_code ?? "") === "ja", "Japanese smoke scenario must select ja");
+assertCondition(String(japaneseSmoke?.resolved_language_code ?? "") === "ja", "Japanese smoke scenario must resolve ja");
+assertCondition(String(japaneseSmoke?.input_text ?? "") === "こんにちは", "Japanese smoke scenario must validate the canonical Japanese text");
+assertCondition(japaneseSmoke?.startup_probe_passed === true, "Japanese smoke scenario must require startup_probe_passed=true");
+assertCondition(japaneseSmoke?.supports_japanese_text_input === true, "Japanese smoke scenario must require Japanese text input support");
+assertCondition(String(japaneseSmoke?.dictionary_bootstrap_mode ?? "") === "staged_asset", "Japanese smoke scenario must require staged_asset bootstrap mode");
 
 const requiredRelativeFiles = [
   "index.html",
@@ -79,6 +95,34 @@ for (const relativePath of requiredRelativeFiles) {
   assertCondition(typeof relativePath === "string" && relativePath.length > 0, "manifest contains an empty path");
   const absolutePath = path.join(siteRoot, relativePath);
   assertCondition(fs.existsSync(absolutePath), `required artifact file is missing: ${relativePath}`);
+}
+
+if (manifest.dictionary?.openjtalk_path) {
+  assertCondition(typeof manifest.dictionary?.key === "string" && manifest.dictionary.key.length > 0, "manifest must declare dictionary.key when openjtalk_path is present");
+  assertCondition(manifest.dictionary?.bootstrap_mode === "staged_asset", "manifest must declare staged_asset bootstrap mode for OpenJTalk");
+  assertCondition(
+    String(manifest.dictionary?.openjtalk_install_directory ?? "") === "open_jtalk_dic_utf_8-1.11",
+    "manifest must declare open_jtalk_dic_utf_8-1.11 as the install directory",
+  );
+  const openjtalkRequiredFiles = manifest.dictionary.openjtalk_required_files;
+  const expectedOpenjtalkRequiredFiles = ["char.bin", "matrix.bin", "sys.dic", "unk.dic"];
+  assertCondition(Array.isArray(openjtalkRequiredFiles), "manifest must declare dictionary.openjtalk_required_files when openjtalk_path is present");
+  assertCondition(openjtalkRequiredFiles.length > 0, "manifest must declare at least one OpenJTalk required file when openjtalk_path is present");
+  assertCondition(
+    openjtalkRequiredFiles.every((filename) => typeof filename === "string" && filename.length > 0),
+    "manifest contains an empty OpenJTalk required file path",
+  );
+  assertCondition(
+    expectedOpenjtalkRequiredFiles.every((filename) => openjtalkRequiredFiles.includes(filename)),
+    `manifest must declare OpenJTalk required files: ${expectedOpenjtalkRequiredFiles.join(", ")}`,
+  );
+  const openjtalkRoot = path.join(siteRoot, manifest.dictionary.openjtalk_path);
+  assertCondition(fs.existsSync(openjtalkRoot), `OpenJTalk dictionary directory is missing: ${manifest.dictionary.openjtalk_path}`);
+  assertCondition(fs.statSync(openjtalkRoot).isDirectory(), `OpenJTalk dictionary path is not a directory: ${manifest.dictionary.openjtalk_path}`);
+  for (const filename of openjtalkRequiredFiles) {
+    const absolutePath = path.join(openjtalkRoot, filename);
+    assertCondition(fs.existsSync(absolutePath), `OpenJTalk dictionary file is missing: ${path.posix.join(manifest.dictionary.openjtalk_path, filename)}`);
+  }
 }
 
 const addonBinDir = path.join(siteRoot, path.dirname(manifest.addon.gdextension_path), "bin");

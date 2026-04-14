@@ -23,9 +23,9 @@
 | 進行中 | M5 Quality Gate 完成 | `NFR-1` `NFR-2` `NFR-3` `NFR-4` `NFR-5` | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) | C++ test、headless strict 化、package validator、multilingual matrix-first 検証、Web browser smoke、macOS packaged smoke、iOS export smoke までは確認済み。残りは Android runtime / local 再現性の gate 化と Web 日本語 text path の gate 化 |
 | 進行中 | M6 Platform Verification 完成 | サポート対象 platform と release 完了条件 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) | Windows / Linux / macOS / iOS は概ね確定。Android は CI export smoke 済みで、残りは runtime 可否と Windows local 差分の確定 |
 | 完了 | M7 Web Support 完成 | `FR-10` | - | 2026-04-10 の GitHub Actions run `24223195868` で `Build Web`、browser smoke、README 反映を含む Phase 1 preview support の受け入れ条件を確認済み |
-| 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | Web preview、English-only Pages demo、macOS packaged smoke、iOS export smoke の結果までは反映済み。残りは Android の最終判定、Web 日本語対応、changelog / Asset Library 文書の最終化 |
+| 進行中 | M8 Release / Asset Library 準備 | release 完了条件の最終集約 | [TKT-004](./tickets/TKT-004-android-export-runtime.md) [TKT-005](./tickets/TKT-005-windows-android-export-error.md) [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | Web preview、M9 の English minimal Pages demo、macOS packaged smoke、iOS export smoke の結果までは反映済み。branch 上では Web 日本語対応と `ja/en` Pages demo 実装を進めており、残りは Android の最終判定、Web 日本語対応の実証、changelog / Asset Library 文書の最終化 |
 | 完了 | M9 GitHub Pages Public Demo / Deploy | post-preview Web public demo / GitHub Pages deployment | - | `M7` 完了後の follow-up として、Pages demo の build / deploy / public smoke と文書同期まで完了しています |
-| 進行中 | M10 Web Japanese Support / Pages Japanese Demo 完成 | `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-5` `NFR-6` | [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | Web preview と English-only Pages demo は成立済み。残りは `naist-jdic` bootstrap、Japanese text synthesize、CI / public smoke、release 文書反映 |
+| 進行中 | M10 Web Japanese Support / Pages Japanese Demo 完成 | `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-5` `NFR-6` | [TKT-018](./tickets/TKT-018-web-japanese-support.md) [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007](./tickets/TKT-007-release-finalization.md) | `M7` と `M9` の baseline は成立済みです。branch 上では `TKT-019` の dictionary bootstrap / runtime と `TKT-020` / `TKT-021` の Japanese smoke / demo 実装が進んでおり、残りは CI / public deploy での実証と release 文書反映です |
 
 ## マイルストーン詳細
 
@@ -150,7 +150,7 @@
 - 状態: `進行中`
 - 依存: `M2` `M4` `M5` `M6` `M7` `M10`
 - 関連チケット: [TKT-004 Android Export / Runtime 確認](./tickets/TKT-004-android-export-runtime.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md) [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md)
-- 現状: package / validator / README 類の基礎、multilingual の反映、Web preview support と English-only Pages demo の結果反映、macOS packaged smoke と iOS export smoke の確定までは完了しています。残るのは Android の最終判定、Web 日本語対応、release 文書の最終化です。
+- 現状: package / validator / README 類の基礎、multilingual の反映、Web preview support と M9 の English minimal Pages demo の結果反映、macOS packaged smoke と iOS export smoke の確定までは完了しています。branch 上では Web 日本語対応と `ja/en` Pages demo の実装を進めており、残るのは Android の最終判定、Web 日本語対応の実証、release 文書の最終化です。
 - 残作業:
   - `M6` の Android 結果と Windows local 制約を package / README / license / changelog に反映する
   - `M10` の Web 日本語対応結果と Pages 日本語 demo の scope を package / README / changelog に反映する
@@ -200,7 +200,7 @@
 - 状態: `進行中`
 - 依存: `M7` `M9`
 - 関連チケット: [TKT-018 Web 日本語対応](./tickets/TKT-018-web-japanese-support.md) [TKT-019 Web 日本語 dictionary bootstrap / runtime](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) [TKT-020 Web 日本語 browser smoke / CI gate](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) [TKT-021 GitHub Pages 日本語 demo / public smoke](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) [TKT-007 Release Package / 文書最終化](./tickets/TKT-007-release-finalization.md)
-- 現状: `M7` で Web preview support、`M9` で English-only Pages demo までは完了しています。native と capability matrix には日本語 text input の前提がありますが、Web では `naist-jdic` bootstrap、日本語 text input / inspect / synthesize の runtime contract、browser smoke、Pages public demo が未整備です。
+- 現状: `M7` で Web preview support、`M9` で main 上の English minimal Pages demo までは完了しています。`TKT-019` と `TKT-020` で `naist-jdic` bootstrap、runtime contract、Japanese browser smoke / CI gate の実装は進んでおり、browser smoke は `Web` preset を `en,ja` の synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke として分離しています。`TKT-021` では branch 上で Pages demo を `ja/en` UI と Japanese public smoke に広げています。残りは `workflow_dispatch` / PR CI / `main` deploy でその実装を確定し、release 文書へ反映することです。
 - 実装スコープ:
   - `naist-jdic` を使う Web asset staging / bootstrap
   - Web runtime での Japanese text input / inspect / synthesize の成立
@@ -208,9 +208,8 @@
   - GitHub Pages demo に Japanese input と public smoke を追加
   - release 文書と support matrix への反映
 - 残作業:
-  - `TKT-019` で dictionary bootstrap、runtime contract、asset policy を確定する
-  - `TKT-020` で Japanese browser smoke と CI gate を追加する
-  - `TKT-021` で Pages 日本語 demo と public smoke を成立させる
+  - `TKT-020` で Japanese browser smoke と CI gate の実 run を通す
+  - `TKT-021` で Pages 日本語 demo と public smoke の `workflow_dispatch` / `main` deploy 実証を通す
   - `TKT-007` で最終文書と release 表現へ取り込む
 - 完了条件:
   - Web export で `naist-jdic` を staged asset として扱える
@@ -223,9 +222,9 @@
 | 状態 | ID | チケット | マイルストーン | 主な変更対象 | 完了条件 |
 |---|---|---|---|---|---|
 | 進行中 | `J0` | [TKT-018](./tickets/TKT-018-web-japanese-support.md) | scope / acceptance 固定 | `docs/milestones.md`, `docs/tickets/TKT-018-web-japanese-support.md`, `docs/web-github-pages-plan.md` | 日本語 Web 対応が must follow-up として固定され、asset policy、runtime scope、CI / Pages handoff、`TKT-007` 依存が文書で一致している |
-| 未着手 | `J1` | [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) | dictionary bootstrap / runtime | `src/piper_tts.cpp`, `src/piper_core/*`, `scripts/ci/prepare-pages-demo-assets.sh`, `test/prepare-assets.sh`, 必要なら validator / fixture | `naist-jdic` を Web asset として staged でき、日本語 text input / inspect / synthesize の runtime contract が Web 上で成立する |
-| 未着手 | `J2` | [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) | browser smoke / CI gate | `.github/workflows/build.yml`, `test/project`, `scripts/ci/export-web-smoke.sh`, smoke script 群 | CI と local の browser smoke が日本語 text input と synthesize の成否を同じ判定で確認できる |
-| 未着手 | `J3` | [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) | Pages 日本語 demo / public smoke | `pages_demo`, `.github/workflows/pages.yml`, `scripts/ci/export-pages-demo.sh`, `scripts/ci/run-pages-demo-smoke.mjs`, 関連 docs | GitHub Pages demo が日本語入力と合成を提供し、公開 URL smoke が Japanese scenario を pass する |
+| 要確認 | `J1` | [TKT-019](./tickets/TKT-019-web-japanese-dictionary-bootstrap.md) | dictionary bootstrap / runtime | `src/piper_tts.cpp`, `src/piper_core/*`, `scripts/ci/prepare-pages-demo-assets.sh`, `test/prepare-assets.sh`, 必要なら validator / fixture | `naist-jdic` を Web asset として staged でき、日本語 text input / inspect / synthesize の runtime contract が Web 上で成立する |
+| 進行中 | `J2` | [TKT-020](./tickets/TKT-020-web-japanese-browser-smoke-ci.md) | browser smoke / CI gate | `.github/workflows/build.yml`, `test/project`, `scripts/ci/export-web-smoke.sh`, smoke script 群 | CI と local の browser smoke が日本語 text input と synthesize の成否を同じ判定で確認できる |
+| 進行中 | `J3` | [TKT-021](./tickets/TKT-021-pages-japanese-demo-public-smoke.md) | Pages 日本語 demo / public smoke | `pages_demo`, `.github/workflows/pages.yml`, `scripts/ci/export-pages-demo.sh`, `scripts/ci/run-pages-demo-smoke.mjs`, 関連 docs | GitHub Pages demo が日本語入力と合成を提供し、公開 URL smoke が Japanese scenario を pass する |
 | 未着手 | `J4` | [TKT-007](./tickets/TKT-007-release-finalization.md) | release docs / package finalization | `README.md`, `addons/piper_plus/README.md`, `CHANGELOG.md`, package / notice docs | Web 日本語対応の scope、既知制約、asset 境界が release 文書へ反映される |
 
 ## 直近の実行順

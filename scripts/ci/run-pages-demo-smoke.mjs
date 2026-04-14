@@ -13,6 +13,7 @@ function parseArgs(argv) {
     entry: '',
     manifest: '',
     label: 'pages-demo',
+    scenario: '',
     timeoutMs: 240000,
     screenshot: '',
     consoleLog: '',
@@ -30,6 +31,8 @@ function parseArgs(argv) {
       result.manifest = argv[++i] ?? '';
     } else if (arg === '--label') {
       result.label = argv[++i] ?? result.label;
+    } else if (arg === '--scenario') {
+      result.scenario = argv[++i] ?? '';
     } else if (arg === '--timeout-ms') {
       result.timeoutMs = Number(argv[++i] ?? `${result.timeoutMs}`);
     } else if (arg === '--screenshot') {
@@ -135,10 +138,44 @@ async function loadManifest(args) {
   return fetchJsonWithRetry(manifestUrl, args.timeoutMs);
 }
 
+function summaryMatchesScenario(summary, scenario) {
+  if (!scenario) {
+    return true;
+  }
+
+  if (!summary || typeof summary !== 'object') {
+    return false;
+  }
+
+  const checks = [
+    ['status', summary.status, scenario.status],
+    ['action', summary.action, scenario.action],
+    ['selected_language_code', summary.selected_language_code, scenario.selected_language_code],
+    ['resolved_language_code', summary.resolved_language_code, scenario.resolved_language_code],
+    ['input_text', summary.input_text, scenario.input_text],
+    ['startup_probe_language_code', summary.startup_probe_language_code, scenario.startup_probe_language_code],
+    ['startup_probe_text', summary.startup_probe_text, scenario.startup_probe_text],
+    ['startup_probe_passed', summary.startup_probe_passed, scenario.startup_probe_passed],
+    ['supports_japanese_text_input', summary.supports_japanese_text_input, scenario.supports_japanese_text_input],
+    ['dictionary_bootstrap_mode', summary.dictionary_bootstrap_mode, scenario.dictionary_bootstrap_mode],
+  ];
+
+  for (const [, actual, expected] of checks) {
+    if (expected === undefined) {
+      continue;
+    }
+    if (actual !== expected) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || (!args.root && !args.url)) {
-    console.error('Usage: node run-pages-demo-smoke.mjs (--root <dir> | --url <page_url>) [--manifest public-demo-manifest.json] [--entry index.html]');
+    console.error('Usage: node run-pages-demo-smoke.mjs (--root <dir> | --url <page_url>) [--manifest public-demo-manifest.json] [--entry index.html] [--scenario ja]');
     process.exit(args.help ? 0 : 1);
   }
 
@@ -157,6 +194,8 @@ async function main() {
   let page;
   let baseUrl = args.url;
   let failureReason = '';
+  let lastSummary = null;
+  let lastSummaryRaw = '';
 
   try {
     if (args.root) {
@@ -177,6 +216,13 @@ async function main() {
     const summaryPrefix = manifest.smoke?.summaryPrefix ?? SUMMARY_PREFIX;
     const successStatus = manifest.smoke?.successStatus ?? 'pass';
     const failureStatus = manifest.smoke?.failureStatus ?? 'fail';
+    const scenario = args.scenario
+      ? manifest.smoke?.scenarios?.[args.scenario] ?? null
+      : null;
+
+    if (args.scenario && !scenario) {
+      throw new Error(`pages demo smoke scenario is not declared in manifest: ${args.scenario}`);
+    }
 
     const entry = args.entry || manifest.entry || 'index.html';
     const browserUrl = new URL(entry, baseUrl).toString();
@@ -188,7 +234,6 @@ async function main() {
     page = await context.newPage();
 
     let status = '';
-    let lastSummary = '';
 
     page.on('console', (message) => {
       const text = message.text();
@@ -205,7 +250,12 @@ async function main() {
           failureReason = `browser reported ${statusPrefix}${failureStatus}`;
         }
       } else if (text.startsWith(summaryPrefix)) {
-        lastSummary = text.substring(summaryPrefix.length).trim();
+        lastSummaryRaw = text.substring(summaryPrefix.length).trim();
+        try {
+          lastSummary = JSON.parse(lastSummaryRaw);
+        } catch (error) {
+          failureReason = `failed to parse ${summaryPrefix} payload: ${String(error)}`;
+        }
       }
     });
 
@@ -234,11 +284,17 @@ async function main() {
     const deadline = Date.now() + (manifest.smoke?.timeoutMs ?? args.timeoutMs);
     while (Date.now() < deadline) {
       if (status === successStatus) {
+        if (!summaryMatchesScenario(lastSummary, scenario)) {
+          await page.waitForTimeout(1000);
+          continue;
+        }
         if (args.consoleLog) {
           await mkdir(path.dirname(path.resolve(args.consoleLog)), { recursive: true });
           await writeFile(path.resolve(args.consoleLog), JSON.stringify({
             status,
+            scenario: args.scenario || null,
             summary: lastSummary,
+            raw_summary: lastSummaryRaw || null,
             entries: consoleEntries,
           }, null, 2));
         }
@@ -262,7 +318,10 @@ async function main() {
       await mkdir(path.dirname(path.resolve(args.consoleLog)), { recursive: true });
       await writeFile(path.resolve(args.consoleLog), JSON.stringify({
         status: 'fail',
+        scenario: args.scenario || null,
         error: error instanceof Error ? error.message : String(error),
+        summary: lastSummary,
+        raw_summary: lastSummaryRaw || null,
         entries: consoleEntries,
       }, null, 2));
     }

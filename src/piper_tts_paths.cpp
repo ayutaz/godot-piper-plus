@@ -16,6 +16,17 @@ namespace godot::piper_tts_paths {
 
 namespace {
 
+constexpr const char *WEB_OPENJTALK_DICTIONARY_DIRNAME = "open_jtalk_dic_utf_8-1.11";
+constexpr const char *WEB_TEST_OPENJTALK_DICTIONARY_DIRNAME = "openjtalk_dic";
+constexpr const char *WEB_OPENJTALK_REQUIRED_FILES[] = {
+	"sys.dic",
+	"unk.dic",
+	"matrix.bin",
+	"char.bin",
+};
+constexpr const char *WEB_OPENJTALK_USER_STAGE_DIR =
+		"user://piper/dictionaries/open_jtalk_dic_utf_8-1.11";
+
 struct ModelCatalogEntry {
 	std::string key;
 	std::vector<std::string> aliases;
@@ -143,6 +154,85 @@ std::optional<String> find_onnx_in_resource_directory(
 	}
 
 	return single_onnx;
+}
+
+bool resource_directory_has_required_files(const String &directory) {
+	if (directory.is_empty()) {
+		return false;
+	}
+	if (DirAccess::open(directory).is_null()) {
+		return false;
+	}
+
+	for (const char *required_file : WEB_OPENJTALK_REQUIRED_FILES) {
+		if (!FileAccess::file_exists(directory.path_join(required_file))) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool write_web_file_bytes(const String &destination_path,
+		const std::vector<uint8_t> &data, String &error_message) {
+	if (destination_path.is_empty()) {
+		error_message = "PiperTTS: web resource destination path is empty.";
+		return false;
+	}
+
+	Ref<FileAccess> output = FileAccess::open(destination_path, FileAccess::WRITE);
+	if (output.is_null()) {
+		error_message =
+				String("PiperTTS: failed to open web resource destination: ") +
+				destination_path;
+		return false;
+	}
+
+	PackedByteArray bytes;
+	bytes.resize(static_cast<int64_t>(data.size()));
+	if (!data.empty()) {
+		std::memcpy(bytes.ptrw(), data.data(), data.size());
+	}
+	output->store_buffer(bytes);
+	if (output->get_error() != OK) {
+		error_message = String("PiperTTS: failed to write web resource destination: ") +
+				destination_path;
+		return false;
+	}
+
+	output->flush();
+	if (output->get_error() != OK) {
+		error_message = String("PiperTTS: failed to flush web resource destination: ") +
+				destination_path;
+		return false;
+	}
+
+	return true;
+}
+
+String normalize_dictionary_candidate(const String &candidate) {
+	const String trimmed = candidate.strip_edges();
+	if (trimmed.is_empty()) {
+		return String();
+	}
+
+	if (resource_directory_has_required_files(trimmed)) {
+		return trimmed;
+	}
+
+	const String nested_staged =
+			trimmed.path_join(WEB_OPENJTALK_DICTIONARY_DIRNAME);
+	if (resource_directory_has_required_files(nested_staged)) {
+		return nested_staged;
+	}
+
+	const String nested_test =
+			trimmed.path_join(WEB_TEST_OPENJTALK_DICTIONARY_DIRNAME);
+	if (resource_directory_has_required_files(nested_test)) {
+		return nested_test;
+	}
+
+	return String();
 }
 
 } // namespace
@@ -322,6 +412,105 @@ String resolve_web_config_source(
 	}
 
 	return String();
+}
+
+String resolve_web_dictionary_source(
+		const String &configured_dictionary_path, const String &resolved_model_path,
+		const String &resolved_config_path) {
+	const String configured_candidate =
+			normalize_dictionary_candidate(configured_dictionary_path);
+	if (!configured_dictionary_path.strip_edges().is_empty()) {
+		return configured_candidate;
+	}
+
+	std::vector<String> candidate_dirs;
+	auto push_candidate_dir = [&](const String &candidate_dir) {
+		const String normalized = normalize_dictionary_candidate(candidate_dir);
+		if (normalized.is_empty()) {
+			return;
+		}
+		if (std::find(candidate_dirs.begin(), candidate_dirs.end(), normalized) ==
+				candidate_dirs.end()) {
+			candidate_dirs.push_back(normalized);
+		}
+	};
+
+	const String model_dir = resolved_model_path.get_base_dir();
+	const String config_dir = resolved_config_path.get_base_dir();
+
+	push_candidate_dir(model_dir.path_join(WEB_TEST_OPENJTALK_DICTIONARY_DIRNAME));
+	push_candidate_dir(config_dir.path_join(WEB_TEST_OPENJTALK_DICTIONARY_DIRNAME));
+	push_candidate_dir(model_dir.get_base_dir().path_join(WEB_TEST_OPENJTALK_DICTIONARY_DIRNAME));
+	push_candidate_dir(config_dir.get_base_dir().path_join(WEB_TEST_OPENJTALK_DICTIONARY_DIRNAME));
+	push_candidate_dir(model_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(
+			model_dir.get_base_dir().path_join("dictionaries").path_join(WEB_OPENJTALK_DICTIONARY_DIRNAME));
+	push_candidate_dir(
+			config_dir.get_base_dir().path_join("dictionaries").path_join(WEB_OPENJTALK_DICTIONARY_DIRNAME));
+	push_candidate_dir("user://piper/dictionaries");
+	push_candidate_dir("user://piper/dictionaries/open_jtalk_dic_utf_8-1.11");
+	push_candidate_dir("res://models/openjtalk_dic");
+	push_candidate_dir("res://piper_plus_assets/dictionaries");
+	push_candidate_dir("res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11");
+	push_candidate_dir("res://addons/piper_plus/dictionaries");
+	push_candidate_dir("res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11");
+
+	if (!candidate_dirs.empty()) {
+		return candidate_dirs.front();
+	}
+
+	return String();
+}
+
+bool stage_web_dictionary_to_user(const String &source_directory,
+		String &staged_directory, String &error_message) {
+	const String normalized_source = normalize_dictionary_candidate(source_directory);
+	if (normalized_source.is_empty()) {
+		error_message =
+				String("PiperTTS: staged OpenJTalk dictionary asset is missing: ") +
+				source_directory;
+		return false;
+	}
+
+	const String user_stage_directory = String(WEB_OPENJTALK_USER_STAGE_DIR);
+	const String absolute_stage_directory =
+			ProjectSettings::get_singleton()->globalize_path(user_stage_directory);
+	const String normalized_staged =
+			normalize_dictionary_candidate(user_stage_directory);
+	if (!normalized_staged.is_empty()) {
+		// Web assets are immutable for the current build, so once the staged dictionary
+		// is complete we can reuse it across repeated initialize() calls.
+		staged_directory = absolute_stage_directory;
+		return true;
+	}
+
+	const Error mkdir_error =
+			DirAccess::make_dir_recursive_absolute(absolute_stage_directory);
+	if (mkdir_error != OK &&
+			!DirAccess::dir_exists_absolute(absolute_stage_directory)) {
+		error_message =
+				String("PiperTTS: failed to create staged OpenJTalk directory: ") +
+				user_stage_directory;
+		return false;
+	}
+
+	for (const char *required_file : WEB_OPENJTALK_REQUIRED_FILES) {
+		const String source_file = normalized_source.path_join(required_file);
+		std::vector<uint8_t> source_bytes;
+		if (!read_web_file_bytes(source_file, source_bytes, error_message)) {
+			return false;
+		}
+
+		const String destination_file =
+				user_stage_directory.path_join(String(required_file));
+		if (!write_web_file_bytes(destination_file, source_bytes, error_message)) {
+			return false;
+		}
+	}
+
+	staged_directory = absolute_stage_directory;
+	return true;
 }
 
 bool read_web_file_bytes(const String &source_path, std::vector<uint8_t> &data,

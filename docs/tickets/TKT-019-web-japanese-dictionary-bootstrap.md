@@ -1,6 +1,6 @@
 # TKT-019 Web 日本語 dictionary bootstrap / runtime
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-3` `FR-4` `FR-10` `NFR-2` `NFR-4` `NFR-5`
@@ -10,11 +10,11 @@
 
 ## 進捗
 
-- [ ] Web 向け `naist-jdic` asset policy を固定する
-- [ ] export / Pages artifact に dictionary を staged する
-- [ ] Web runtime contract から日本語 text input の exclusion を外す
-- [ ] Japanese inspect / synthesize の success と failure を machine-readable にする
-- [ ] `TKT-020` と `TKT-021` が使う fixture / sample / error surface を handoff する
+- [x] Web 向け `naist-jdic` asset policy を固定する
+- [x] export / Pages artifact に dictionary を staged する
+- [x] Web runtime contract を dictionary readiness に応じた日本語 capability 表現へ切り替える
+- [x] Japanese inspect / synthesize の success と failure を machine-readable にする
+- [x] `TKT-020` と `TKT-021` が使う fixture / sample / error surface を handoff する
 
 ## タスク目的とゴール
 
@@ -28,6 +28,7 @@
 - runtime 側で `dictionary_path` と Web resource load の両立を整理し、日本語 text input の contract を `get_runtime_contract()` と `get_last_error()` に反映する。
 - `multilingual-test-medium` か日本語専用 model のどちらを smoke / demo の正本にするかを固定し、`language_code=ja` と sample text を deterministic に扱える形へ揃える。
 - `openjtalk-native` を使わない Web path で、dictionary 欠落時の error と成功時の inspect / synthesize 結果を説明可能にする。
+- 現時点の canonical fixture は `multilingual-test-medium` + compiled `naist-jdic` + sample text `こんにちは` とし、dictionary 欠落時の canonical error code は `ERR_OPENJTALK_DICTIONARY_NOT_READY` とする。
 
 ## 実装するために必要なエージェントチームの役割と人数
 
@@ -82,3 +83,9 @@
 - `TKT-020` へ、日本語 smoke が見るべき sample text、成功ログ、失敗時 error を渡す。
 - `TKT-021` へ、Pages demo が前提にすべき model / dictionary staging 条件を渡す。
 - `TKT-007` へ、README と package 文書に書くべき必須 asset と既知制約を引き継ぐ。
+- handoff detail:
+  - sample model: `multilingual-test-medium`
+  - sample text: `こんにちは`
+  - required dictionary path: `res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11`
+  - legacy fallback path: `res://models/openjtalk_dic`
+  - missing dictionary error code: `ERR_OPENJTALK_DICTIONARY_NOT_READY`

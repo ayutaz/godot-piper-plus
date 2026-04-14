@@ -232,6 +232,7 @@ jobs:
           node scripts/ci/run-pages-demo-smoke.mjs \
             --root "$RUNNER_TEMP/pages-export/site" \
             --manifest "public-demo-manifest.json" \
+            --scenario "ja" \
             --label "pages-local" \
             --screenshot "$RUNNER_TEMP/pages-debug/local-smoke.png" \
             --console-log "$RUNNER_TEMP/pages-debug/local-smoke-console.json"
@@ -309,6 +310,7 @@ jobs:
           node scripts/ci/run-pages-demo-smoke.mjs \
             --url "${{ needs.deploy-pages-demo.outputs.page_url }}" \
             --manifest "public-demo-manifest.json" \
+            --scenario "ja" \
             --label "pages-public" \
             --screenshot "$RUNNER_TEMP/pages-public-debug/public-smoke.png" \
             --console-log "$RUNNER_TEMP/pages-public-debug/public-smoke-console.json"

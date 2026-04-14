@@ -1,6 +1,6 @@
 # TKT-020 Web 日本語 browser smoke / CI gate
 
-- 状態: `未着手`
+- 状態: `進行中`
 - 主マイルストーン: [M10 Web Japanese Support / Pages Japanese Demo 完成](../milestones.md#m10)
 - 関連マイルストーン: [M5 Quality Gate 完成](../milestones.md#m5)
 - 関連要求: `FR-10` `NFR-5` `NFR-6`
@@ -10,11 +10,12 @@
 
 ## 進捗
 
-- [ ] `test/project` に日本語 smoke scenario を追加する
-- [ ] local 再現 script に日本語 path を追加する
-- [ ] CI の Web job で Japanese scenario を gate にする
-- [ ] failure 時の log / artifact 採取を日本語 path でも揃える
-- [ ] `TKT-021` が再利用できる判定条件を handoff する
+- [x] `test/project` に日本語 smoke scenario を追加する
+- [x] local 再現 script に日本語 path を追加する
+- [x] CI の Web job で Japanese scenario を gate にする
+- [x] failure 時の log / artifact 採取を日本語 path でも揃える
+- [x] `TKT-021` が再利用できる判定条件を handoff する
+- [ ] `workflow_dispatch` と PR `Build Web` で `ja` scenario pass を実証する
 
 ## タスク目的とゴール
 
@@ -24,10 +25,17 @@
 ## 実装する内容の詳細
 
 - `test/project` の smoke fixture に日本語 sample、dictionary 前提、期待ログを追加する。
+- `TKT-019` の handoff として、canonical model は `multilingual-test-medium`、sample text は `こんにちは`、dictionary 欠落時の canonical error code は `ERR_OPENJTALK_DICTIONARY_NOT_READY` とする。
 - `scripts/ci/export-web-smoke.sh`、`scripts/ci/run-web-smoke.mjs`、`scripts/ci/web-smoke-server.mjs` で日本語 scenario を選択・判定できるようにする。
 - workflow の `Build Web` または同等 job に、日本語 scenario の pass / fail を release gate として組み込む。
 - failure 時に browser console、runtime error、asset manifest のどこを見るかを固定し、CI artifact へ保存する。
 - 既存 English smoke を温存しつつ、最低でも `en` と `ja` の 2 系統を回す。
+- CI の既定 matrix は `Web` preset を `en,ja` の synthesize gate、`Web Threads` preset を browser main-thread blocking を避ける non-blocking な English/core regression smoke とする。日本語 synthesize gate の正本は `no-threads` 側で取る。
+- canonical browser smoke contract:
+  - scenario `en`: `test_piper_tts.test_initialize_with_model`, `test_piper_tts.test_synthesize_basic` が pass
+  - scenario `ja`: `test_piper_tts.test_japanese_dictionary_error_surface`, `test_piper_tts.test_japanese_request_time_dictionary_error_surface`, `test_piper_tts.test_japanese_text_input_with_dictionary` が pass
+  - machine-readable console summary: `WEB_SMOKE summary=<json>`
+  - failure diagnostics: `web-smoke-report-*.json` と `web-smoke-report-*.png` を export artifact に残す
 
 ## 実装するために必要なエージェントチームの役割と人数
 
@@ -47,6 +55,7 @@
 - Japanese scenario が CI と local で同じ判定を使えること。
 - dictionary 欠落と synthesize 成功を区別して検出できること。
 - English scenario の既存 smoke が壊れていないこと。
+- `Web Threads` preset が日本語 gate を持たない代わりに、synchronous initialize / synthesize を含めない English/core regression smoke として継続監視されること。
 - README の検証手順が実際の script と一致していること。
 
 ## 実装する unit テスト

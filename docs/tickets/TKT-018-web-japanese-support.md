@@ -12,21 +12,21 @@
 
 - [x] 日本語 Web 対応を must follow-up として `M10` へ昇格する
 - [x] `TKT-019` から `TKT-021` の責務を分割する
-- [ ] Web 日本語 runtime の asset policy と acceptance を固定する
+- [x] Web 日本語 runtime の asset policy と acceptance を固定する
 - [ ] Japanese browser smoke / CI gate を閉じる
 - [ ] GitHub Pages 日本語 demo / public smoke を閉じる
 - [ ] `TKT-007` へ release 文書化条件を handoff する
 
 ## タスク目的とゴール
 
-- Web preview と English-only Pages demo の上に、日本語 text input と合成を must requirement として成立させる。
+- Web preview と M9 の English minimal Pages demo の上に、日本語 text input と合成を must requirement として成立させる。
 - ゴールは、Web export と GitHub Pages の両方で `naist-jdic` を前提に日本語 text input / inspect / synthesize を再現可能にし、CI と文書でそれを保証すること。
 
 ## 実装する内容の詳細
 
 - `TKT-019` で `naist-jdic` の staging、bootstrap、runtime contract、失敗時 error、asset 境界を固定する。
 - `TKT-020` で local / CI browser smoke に Japanese scenario を追加し、既存 English smoke と同じ entrypoint / log 採取を維持する。
-- `TKT-021` で GitHub Pages demo を English-only から日本語入力を含む UI へ拡張し、public URL smoke を日本語シナリオまで広げる。
+- `TKT-021` で GitHub Pages demo を M9 の English minimal scope から日本語入力を含む UI へ拡張し、public URL smoke を日本語シナリオまで広げる。
 - `TKT-007` が release 文書で迷わないように、必須 asset、既知制約、scope 表現、英語最小構成からの差分を明文化する。
 - `M7` と `M9` の完了実績は残しつつ、post-preview の mandatory track として `M10` へ進捗を集約する。
 - Phase 1 preview の runtime / smoke 実績は `docs/milestones.md` と `docs/web-github-pages-plan.md` を前提にし、この ticket では日本語 follow-up だけを扱う。

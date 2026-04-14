@@ -9,7 +9,9 @@
 #include <godot_cpp/variant/packed_int64_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 
+#include "piper_core/openjtalk_dictionary_manager.h"
 #include "piper_language_support.hpp"
+#include "piper_tts_paths.hpp"
 #include "piper_core/phoneme_parser.hpp"
 
 namespace godot {
@@ -126,6 +128,20 @@ Array resolved_segments_to_dictionary_array(
 		segments.push_back(entry);
 	}
 	return segments;
+}
+
+String resolve_native_dictionary_contract_path(const String &configured_dictionary_path) {
+	const String trimmed_dictionary_path = configured_dictionary_path.strip_edges();
+	if (!trimmed_dictionary_path.is_empty()) {
+		return piper_tts_paths::resolve_global_path(trimmed_dictionary_path);
+	}
+
+	const char *default_dictionary_path = get_openjtalk_dictionary_path();
+	if (default_dictionary_path == nullptr || default_dictionary_path[0] == '\0') {
+		return String();
+	}
+
+	return String(default_dictionary_path);
 }
 
 } // namespace
@@ -299,12 +315,25 @@ Dictionary build_runtime_contract(bool web_export, const String &model_path,
 	Dictionary contract;
 	PackedStringArray phase1_supported_text_frontends;
 	PackedStringArray phase1_excluded_features;
+	PackedStringArray required_japanese_text_assets;
+	const String resolved_web_dictionary_path = web_export
+			? piper_tts_paths::resolve_web_dictionary_source(
+					dictionary_path, model_path, config_path)
+			: String();
+	const bool supports_japanese_text_input =
+			!web_export || !resolved_web_dictionary_path.is_empty();
 	if (web_export) {
 		phase1_supported_text_frontends.push_back("en_text_cmu_dict");
+		if (supports_japanese_text_input) {
+			phase1_supported_text_frontends.push_back("ja_text_openjtalk_dict");
+		}
 		phase1_excluded_features.push_back("non_cpu_execution_provider");
 		phase1_excluded_features.push_back("openjtalk_native");
-		phase1_excluded_features.push_back("japanese_text_input");
-		phase1_excluded_features.push_back("openjtalk_dictionary_bootstrap");
+		if (!supports_japanese_text_input) {
+			phase1_excluded_features.push_back("japanese_text_input");
+			phase1_excluded_features.push_back("openjtalk_dictionary_bootstrap");
+		}
+		required_japanese_text_assets.push_back("open_jtalk_dic_utf_8-1.11");
 	}
 
 	contract["is_web_export"] = web_export;
@@ -319,9 +348,21 @@ Dictionary build_runtime_contract(bool web_export, const String &model_path,
 			web_export ? "memory_fileaccess" : "globalize_path";
 	contract["preview_support_tier"] = web_export ? "preview" : "native";
 	contract["phase1_minimal_synthesize_mode"] =
-			web_export ? "en_text_cmu_dict_or_phoneme_string" : "platform_default";
+			web_export
+					? (supports_japanese_text_input
+									? "en_text_cmu_dict_or_ja_text_openjtalk_dict_or_phoneme_string"
+									: "en_text_cmu_dict_or_phoneme_string")
+					: "platform_default";
 	contract["phase1_supported_text_frontends"] = phase1_supported_text_frontends;
 	contract["phase1_excluded_features"] = phase1_excluded_features;
+	contract["supports_japanese_text_input"] = supports_japanese_text_input;
+	contract["required_japanese_text_assets"] = required_japanese_text_assets;
+	contract["openjtalk_dictionary_bootstrap_mode"] = web_export
+			? (supports_japanese_text_input ? "staged_asset" : "missing_required_asset")
+			: "filesystem";
+	contract["resolved_dictionary_path"] =
+			web_export ? resolved_web_dictionary_path
+					   : resolve_native_dictionary_contract_path(dictionary_path);
 	contract["runtime_state"] = runtime_state_to_string(runtime_state);
 	contract["model_path"] = model_path;
 	contract["config_path"] = config_path;

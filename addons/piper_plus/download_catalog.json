@@ -37,6 +37,7 @@
 			"type": "model",
 			"description": "Multilingual test model used by Web smoke and Pages demo (~40 MB)",
 			"dest_subdir": "models/multilingual-test-medium",
+			"recommended_dictionary_key": "naist-jdic",
 			"files": [
 				{
 					"url": "https://huggingface.co/spaces/ayousanz/piper-plus-demo/resolve/main/models/multilingual-test-medium.onnx?download=true",
@@ -90,6 +91,7 @@
 				{
 					"url": "https://huggingface.co/ccds/vits_onnx/resolve/main/open_jtalk_dic_utf_8-1.11.zip?download=true",
 					"filename": "open_jtalk_dic_utf_8-1.11.zip",
+					"sha256": "bfae558c6693804aab0a45f97d9ef2d072656e61a282dc6ad4d9c7d37b4e458e",
 					"extract": true
 				}
 			]

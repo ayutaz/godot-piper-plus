@@ -4,6 +4,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "piper_core/custom_dictionary.hpp"
+#include "piper_core/openjtalk_dictionary_manager.h"
 #include "piper_core/phoneme_parser.hpp"
 #include "piper_core/piper.hpp"
 #include "piper_language_support.hpp"
@@ -40,6 +41,57 @@ void set_last_error(RuntimeErrorInfo &target, const String &code, const String &
 
 void clear_last_error(RuntimeErrorInfo &target) {
 	piper_runtime::clear_runtime_error(target);
+}
+
+bool language_code_is_japanese(const String &language_code) {
+	return language_code.strip_edges().to_lower().begins_with("ja");
+}
+
+String effective_openjtalk_dictionary_path(const String &resolved_dictionary_path) {
+	if (!resolved_dictionary_path.is_empty()) {
+		return resolved_dictionary_path;
+	}
+
+	if (piper_tts_paths::is_web_runtime()) {
+		return String();
+	}
+
+	const char *default_path = get_openjtalk_dictionary_path();
+	if (default_path == nullptr || default_path[0] == '\0') {
+		return String();
+	}
+
+	return String(default_path);
+}
+
+bool openjtalk_dictionary_ready(const String &resolved_dictionary_path) {
+	const String effective_path =
+			effective_openjtalk_dictionary_path(resolved_dictionary_path);
+	if (effective_path.is_empty()) {
+		return false;
+	}
+
+	const CharString utf8_path = effective_path.utf8();
+	return openjtalk_dictionary_path_is_ready(utf8_path.get_data()) != 0;
+}
+
+bool validate_japanese_text_frontend(RuntimeErrorInfo &target,
+		const EffectiveRequest &request, const String &resolved_dictionary_path,
+		const String &stage) {
+	if (!request.has_text || !language_code_is_japanese(request.resolved_language_code) ||
+			openjtalk_dictionary_ready(resolved_dictionary_path)) {
+		return true;
+	}
+
+	const bool web_runtime = piper_tts_paths::is_web_runtime();
+	const String message = web_runtime
+			? "PiperTTS: Japanese text input on Web requires a staged OpenJTalk dictionary asset."
+			: "PiperTTS: Japanese text input requires an OpenJTalk dictionary.";
+	set_last_error(target, "ERR_OPENJTALK_DICTIONARY_NOT_READY", message, stage,
+			request.language_code, request.resolved_language_code,
+			request.language_id, request.resolved_language_id,
+			request.selection_mode);
+	return false;
 }
 
 } // namespace
@@ -419,6 +471,7 @@ Error PiperTTS::initialize() {
 	}
 	last_synthesis_result_.clear();
 	last_inspection_result_.clear();
+	resolved_dictionary_path_ = String();
 	clear_last_error(last_error_);
 	set_runtime_state(piper_runtime::RuntimeState::Initializing);
 	{
@@ -483,13 +536,37 @@ Error PiperTTS::initialize() {
 		openjtalk_set_library_path(nullptr);
 	}
 
-	// Set OpenJTalk dictionary path if configured
-	if (!dictionary_path.is_empty()) {
-		String abs_dict = resolve_path(dictionary_path);
-		std::string dict_str = abs_dict.utf8().get_data();
+	String resolved_dictionary_source;
+	if (web_runtime) {
+		resolved_dictionary_source = piper_tts_paths::resolve_web_dictionary_source(
+				dictionary_path, resolved_model_source, resolved_config_source);
+		if (!resolved_dictionary_source.is_empty()) {
+			String web_dictionary_error;
+			String staged_dictionary_path;
+			if (!piper_tts_paths::stage_web_dictionary_to_user(
+						resolved_dictionary_source, staged_dictionary_path,
+						web_dictionary_error)) {
+				UtilityFunctions::push_error(web_dictionary_error);
+				set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY",
+						web_dictionary_error, "initialize");
+				set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
+				emit_signal("initialized", false);
+				return ERR_UNCONFIGURED;
+			}
+			resolved_dictionary_source = staged_dictionary_path;
+		}
+	} else if (!dictionary_path.is_empty()) {
+		resolved_dictionary_source = resolve_path(dictionary_path);
+	}
+
+	if (!resolved_dictionary_source.is_empty()) {
+		resolved_dictionary_path_ = resolved_dictionary_source;
+		std::string dict_str = resolved_dictionary_source.utf8().get_data();
 		openjtalk_set_dictionary_path(dict_str.c_str());
-		UtilityFunctions::print(String("PiperTTS: OpenJTalk dictionary path set to: ") + abs_dict);
+		UtilityFunctions::print(String("PiperTTS: OpenJTalk dictionary path set to: ") +
+				resolved_dictionary_source);
 	} else {
+		resolved_dictionary_path_ = String();
 		openjtalk_set_dictionary_path(nullptr);
 	}
 
@@ -611,6 +688,23 @@ Error PiperTTS::initialize() {
 		voice->synthesisConfig.languageId = language_request.resolved_language_id >= 0
 				? std::make_optional(static_cast<piper::LanguageId>(language_request.resolved_language_id))
 				: std::nullopt;
+		if (language_code_is_japanese(language_request.resolved_language_code) &&
+				!openjtalk_dictionary_ready(resolved_dictionary_path_)) {
+			const String message = web_runtime
+					? "PiperTTS: Japanese text input on Web requires a staged OpenJTalk dictionary asset. Set dictionary_path or stage res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11."
+					: "PiperTTS: Japanese text input requires an OpenJTalk dictionary. Set dictionary_path to a compiled naist-jdic directory.";
+			UtilityFunctions::push_error(message);
+			set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY", message,
+					"initialize", language_request.language_code,
+					language_request.resolved_language_code, language_request.language_id,
+					language_request.resolved_language_id,
+					language_request.selection_mode);
+			piper::terminate(*piper_config);
+			voice->customDictionary.reset();
+			set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
+			emit_signal("initialized", false);
+			return ERR_UNCONFIGURED;
+		}
 
 		ready = true;
 		if (model_path != resolved_model_source) {
@@ -685,6 +779,11 @@ Ref<AudioStreamWAV> PiperTTS::synthesize(const String &text) {
 		UtilityFunctions::push_error(last_error_.message);
 		return Ref<AudioStreamWAV>();
 	}
+	if (!validate_japanese_text_frontend(
+				last_error_, request, resolved_dictionary_path_, "synthesize")) {
+		UtilityFunctions::push_error(last_error_.message);
+		return Ref<AudioStreamWAV>();
+	}
 
 	std::string text_str = text.utf8().get_data();
 	std::vector<int16_t> audio_buffer;
@@ -752,6 +851,11 @@ Ref<AudioStreamWAV> PiperTTS::synthesize_request(const Dictionary &request_dicti
 	piper::SynthesisConfig synthesis_config;
 	if (piper_runtime::build_request_synthesis_config(
 				*voice, request, synthesis_config, "synthesize_request", last_error_) != OK) {
+		UtilityFunctions::push_error(last_error_.message);
+		return Ref<AudioStreamWAV>();
+	}
+	if (!validate_japanese_text_frontend(
+				last_error_, request, resolved_dictionary_path_, "synthesize_request")) {
 		UtilityFunctions::push_error(last_error_.message);
 		return Ref<AudioStreamWAV>();
 	}
@@ -847,6 +951,11 @@ Dictionary PiperTTS::inspect_request(const Dictionary &request_dictionary) {
 		UtilityFunctions::push_error(last_error_.message);
 		return empty_result;
 	}
+	if (!validate_japanese_text_frontend(
+				last_error_, request, resolved_dictionary_path_, "inspect_request")) {
+		UtilityFunctions::push_error(last_error_.message);
+		return empty_result;
+	}
 
 	piper::InspectionResult inspection_result;
 	try {
@@ -901,8 +1010,20 @@ Dictionary PiperTTS::get_language_capabilities() const {
 }
 
 Dictionary PiperTTS::get_runtime_contract() const {
+	const bool web_runtime = piper_tts_paths::is_web_runtime();
+	const String resolved_model_source = web_runtime
+			? piper_tts_paths::resolve_web_model_source(model_path)
+			: resolve_model_path(model_path);
+	const String resolved_config_source = web_runtime
+			? piper_tts_paths::resolve_web_config_source(
+					  config_path, resolved_model_source)
+			: resolve_config_path(resolved_model_source);
+	const String contract_model_path =
+			resolved_model_source.is_empty() ? model_path : resolved_model_source;
+	const String contract_config_path =
+			resolved_config_source.is_empty() ? config_path : resolved_config_source;
 	return piper_runtime::build_runtime_contract(
-			piper_tts_paths::is_web_runtime(), model_path, config_path,
+			web_runtime, contract_model_path, contract_config_path,
 			dictionary_path, openjtalk_library_path, custom_dictionary_path,
 			execution_provider, runtime_state_.load());
 }
@@ -960,6 +1081,11 @@ Error PiperTTS::synthesize_async_request(const Dictionary &request_dictionary) {
 				*voice, request, synthesis_config, "synthesize_async_request", last_error_) != OK) {
 		UtilityFunctions::push_error(last_error_.message);
 		return ERR_INVALID_PARAMETER;
+	}
+	if (!validate_japanese_text_frontend(
+				last_error_, request, resolved_dictionary_path_, "synthesize_async_request")) {
+		UtilityFunctions::push_error(last_error_.message);
+		return ERR_UNCONFIGURED;
 	}
 
 	_join_worker_thread();
@@ -1221,6 +1347,11 @@ Error PiperTTS::synthesize_streaming_request(
 				*voice, request, synthesis_config, "synthesize_streaming_request", last_error_) != OK) {
 		UtilityFunctions::push_error(last_error_.message);
 		return ERR_INVALID_PARAMETER;
+	}
+	if (!validate_japanese_text_frontend(
+				last_error_, request, resolved_dictionary_path_, "synthesize_streaming_request")) {
+		UtilityFunctions::push_error(last_error_.message);
+		return ERR_UNCONFIGURED;
 	}
 
 	_join_worker_thread();
