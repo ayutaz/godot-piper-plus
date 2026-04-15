@@ -2,7 +2,6 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 function usage() {
   console.error("usage: validate-pages-artifact.mjs <artifact-dir> [--expected-build <sha>]");
@@ -51,20 +50,23 @@ const siteRoot = path.resolve(artifactDir);
 assertCondition(fs.existsSync(siteRoot), `artifact directory does not exist: ${siteRoot}`);
 assertCondition(fs.statSync(siteRoot).isDirectory(), `artifact path is not a directory: ${siteRoot}`);
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, "../..");
-const descriptorPath = path.join(repoRoot, "addons/piper_plus/model_descriptors/multilingual-test-medium.json");
+const manifestPath = path.join(siteRoot, "public-demo-manifest.json");
+const buildMetaPath = path.join(siteRoot, "build-meta.json");
+const manifest = requireJson(manifestPath);
+const buildMeta = requireJson(buildMetaPath);
+
+assertCondition(typeof manifest.model?.descriptor_path === "string" && manifest.model.descriptor_path.length > 0, "manifest must declare model.descriptor_path");
+const descriptorPath = path.resolve(siteRoot, manifest.model.descriptor_path);
+assertCondition(
+  descriptorPath === siteRoot || descriptorPath.startsWith(`${siteRoot}${path.sep}`),
+  `descriptor_path must stay within the artifact root: ${manifest.model.descriptor_path}`,
+);
 const descriptor = requireJson(descriptorPath);
 assertCondition(Array.isArray(descriptor.languages), "model descriptor must define languages");
 const expectedLanguageCodes = descriptor.languages.map((entry) => String(entry.language_code ?? ""));
 const expectedSampleTexts = new Map(
   descriptor.languages.map((entry) => [String(entry.language_code ?? ""), String(entry.template_text ?? "")]),
 );
-
-const manifestPath = path.join(siteRoot, "public-demo-manifest.json");
-const buildMetaPath = path.join(siteRoot, "build-meta.json");
-const manifest = requireJson(manifestPath);
-const buildMeta = requireJson(buildMetaPath);
 
 assertCondition(manifest.entry === "index.html", "public-demo-manifest.json must point to index.html");
 assertCondition(typeof manifest.addon?.gdextension_path === "string" && manifest.addon.gdextension_path.length > 0, "manifest must declare addon.gdextension_path");

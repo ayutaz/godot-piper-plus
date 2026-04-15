@@ -155,7 +155,7 @@ static func _apply_language_selection(
 		text_edit.text = template_text
 
 	if template_label != null:
-		template_label.text = "Template for %s (%s) is loaded into the editor." % [display_name, resolved_language_code]
+		template_label.text = "%s (%s) のテンプレートをエディターに読み込みました。" % [display_name, resolved_language_code]
 
 
 static func _on_language_selected(
