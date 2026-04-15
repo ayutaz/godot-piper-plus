@@ -43,12 +43,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           submodules: recursive
 
       - name: Cache ExternalProject dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: |
             build-release/h
@@ -62,7 +62,7 @@ jobs:
           key: ${{ matrix.platform }}-${{ matrix.arch }}-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
 
       - name: Cache ONNX Runtime
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: |
             build-release/onnxruntime
@@ -122,7 +122,7 @@ jobs:
 
       - name: Upload addon bin artifact
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-bin-${{ matrix.platform }}-${{ matrix.arch }}
           path: addons/piper_plus/bin/
@@ -130,7 +130,7 @@ jobs:
 
       - name: Upload C++ test binary
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-tests-${{ matrix.platform }}-${{ matrix.arch }}
           path: ci/test-bin/
@@ -150,10 +150,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download C++ test binary
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-tests-${{ matrix.platform }}-${{ matrix.arch }}
           path: ci/test-bin
@@ -179,12 +179,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           submodules: recursive
 
       - name: Download Linux addon bin artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-bin-linux-x86_64
           path: addons/piper_plus/bin
@@ -215,12 +215,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           submodules: recursive
 
       - name: Cache ExternalProject dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: |
             build-release/h
@@ -236,7 +236,7 @@ jobs:
       - name: Cache Android ONNX Runtime
         id: cache-android-ort
         if: matrix.platform == 'android'
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ort-android
           key: android-arm64-onnxruntime-${{ env.ORT_VERSION }}-${{ env.ORT_ANDROID_SHA256 }}
@@ -244,7 +244,7 @@ jobs:
       - name: Cache iOS ONNX Runtime
         id: cache-ios-ort
         if: matrix.platform == 'ios'
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ort-ios
           key: ios-arm64-onnxruntime-${{ env.ORT_VERSION }}-${{ env.ORT_IOS_SHA256 }}
@@ -343,7 +343,7 @@ jobs:
 
       - name: Upload addon bin artifact
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-bin-${{ matrix.platform }}-${{ matrix.arch }}
           path: addons/piper_plus/bin/
@@ -356,7 +356,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           submodules: recursive
 
@@ -367,18 +367,18 @@ jobs:
           sudo apt-get install -y ninja-build scons
 
       - name: Set up emsdk
-        uses: mymindstorm/setup-emsdk@v14
+        uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984
         with:
           version: ${{ env.EMSDK_VERSION }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Restore ONNX Runtime Web no-thread cache
         id: cache-ort-web-nothreads
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
@@ -388,7 +388,7 @@ jobs:
       - name: Restore legacy ONNX Runtime Web no-thread cache
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
         id: cache-ort-web-nothreads-legacy
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
@@ -397,7 +397,7 @@ jobs:
 
       - name: Restore ONNX Runtime Web threads cache
         id: cache-ort-web-threads
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
@@ -407,7 +407,7 @@ jobs:
       - name: Restore legacy ONNX Runtime Web threads cache
         if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
         id: cache-ort-web-threads-legacy
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
@@ -463,21 +463,21 @@ jobs:
 
       - name: Save ONNX Runtime Web no-thread cache
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Save ONNX Runtime Web threads cache
         if: steps.cache-ort-web-threads.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-threads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-threads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Restore custom Godot Web export templates cache
         id: cache-godot-web-templates
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/godot-web-templates
           key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
@@ -516,7 +516,7 @@ jobs:
 
       - name: Save custom Godot Web export templates cache
         if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/godot-web-templates
           key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
@@ -538,7 +538,7 @@ jobs:
           bash scripts/ci/build-web-side-module.sh "$RUNNER_TEMP/web-artifacts"
 
       - name: Download Linux addon bin artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-bin-linux-x86_64
           path: addons/piper_plus/bin
@@ -569,7 +569,7 @@ jobs:
 
       - name: Upload Web smoke export artifact
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-web-smoke-export
           path: ${{ runner.temp }}/web-smoke/
@@ -577,7 +577,7 @@ jobs:
 
       - name: Upload Web addon bin artifact
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-bin-web-wasm32
           path: addons/piper_plus/bin/
@@ -594,10 +594,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download bin artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: piper-plus-bin-*
           path: artifacts
@@ -612,7 +612,7 @@ jobs:
           zip -r ../piper-plus-addon-package.zip addons/
 
       - name: Upload packaged addon
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-addon-package
           path: piper-plus-addon-package.zip
@@ -624,10 +624,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download packaged addon
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-addon-package
           path: dist
@@ -655,10 +655,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download packaged addon
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-addon-package
           path: dist
@@ -692,10 +692,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download packaged addon
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-addon-package
           path: dist
@@ -744,10 +744,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download packaged addon
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-addon-package
           path: dist
