@@ -150,14 +150,22 @@ func _sample_texts() -> Dictionary:
 func _asset_requirements() -> Dictionary:
 	return SampleTextCatalog.get_asset_requirements()
 
+func _normalize_asset_path(path_value: String, fallback: String) -> String:
+	var normalized := path_value.strip_edges()
+	if normalized.is_empty():
+		normalized = fallback
+	if normalized.begins_with("res://") or normalized.begins_with("user://"):
+		return normalized
+	return "res://%s" % normalized
+
 func _model_path() -> String:
-	return String(_asset_requirements().get("model_path", MODEL_PATH))
+	return _normalize_asset_path(String(_asset_requirements().get("model_path", MODEL_PATH)), MODEL_PATH)
 
 func _config_path() -> String:
-	return String(_asset_requirements().get("config_path", CONFIG_PATH))
+	return _normalize_asset_path(String(_asset_requirements().get("config_path", CONFIG_PATH)), CONFIG_PATH)
 
 func _dictionary_path() -> String:
-	return String(_asset_requirements().get("openjtalk_path", OPENJTALK_DICT_PATH))
+	return _normalize_asset_path(String(_asset_requirements().get("openjtalk_path", OPENJTALK_DICT_PATH)), OPENJTALK_DICT_PATH)
 
 func _placeholder_text(language_code: String) -> String:
 	return SampleTextCatalog.get_language_placeholder_text(language_code)
