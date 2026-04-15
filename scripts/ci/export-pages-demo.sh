@@ -14,6 +14,8 @@ GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 MODEL_RELATIVE_DIR="piper_plus_assets/models/$MODEL_KEY"
 MODEL_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx"
 CONFIG_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx.json"
+DESCRIPTOR_RELATIVE_PATH="addons/piper_plus/model_descriptors/$MODEL_KEY.json"
+TEMPLATE_CATALOG_RELATIVE_PATH="addons/piper_plus/multilingual_sample_text_catalog.json"
 OPENJTALK_DICT_KEY="${PIPER_OPENJTALK_DICTIONARY_KEY:-naist-jdic}"
 OPENJTALK_DICT_RELATIVE_PATH="piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
 OPENJTALK_REQUIRED_FILES=(
@@ -157,6 +159,8 @@ stage_custom_templates
 
 for required_path in \
 	"$PROJECT_DIR/$ADDON_ICON_RELATIVE_PATH" \
+	"$PROJECT_DIR/$DESCRIPTOR_RELATIVE_PATH" \
+	"$PROJECT_DIR/$TEMPLATE_CATALOG_RELATIVE_PATH" \
 	"$PROJECT_DIR/$WEB_RELEASE_BINARY_RELATIVE_PATH" \
 	"$PROJECT_DIR/$WEB_DEBUG_BINARY_RELATIVE_PATH" \
 	"$PROJECT_DIR/$LINUX_RELEASE_BINARY_RELATIVE_PATH" \
@@ -221,12 +225,16 @@ done
 mkdir -p \
 	"$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR" \
 	"$SITE_ROOT/$ADDON_DICT_RELATIVE_DIR" \
+	"$SITE_ROOT/$(dirname "$DESCRIPTOR_RELATIVE_PATH")" \
+	"$SITE_ROOT/$(dirname "$TEMPLATE_CATALOG_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$MODEL_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$OPENJTALK_DICT_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$CMUDICT_RELATIVE_PATH")"
 
 cp -f "$PROJECT_DIR/$ADDON_GDEXTENSION_RELATIVE_PATH" "$SITE_ROOT/$ADDON_GDEXTENSION_RELATIVE_PATH"
 find "$PROJECT_DIR/$ADDON_BIN_RELATIVE_DIR" -mindepth 1 -maxdepth 1 ! -name '.gitignore' -exec cp -a {} "$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR"/ \;
+cp -f "$PROJECT_DIR/$DESCRIPTOR_RELATIVE_PATH" "$SITE_ROOT/$DESCRIPTOR_RELATIVE_PATH"
+cp -f "$PROJECT_DIR/$TEMPLATE_CATALOG_RELATIVE_PATH" "$SITE_ROOT/$TEMPLATE_CATALOG_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/$MODEL_RELATIVE_PATH" "$SITE_ROOT/$MODEL_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/$CONFIG_RELATIVE_PATH" "$SITE_ROOT/$CONFIG_RELATIVE_PATH"
 rm -rf "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
@@ -241,8 +249,8 @@ printf '' > "$SITE_ROOT/.nojekyll"
 
 "$NODE_CMD" "$SCRIPT_DIR/generate-pages-manifest.mjs" \
 	--descriptor "$REPO_ROOT/addons/piper_plus/model_descriptors/multilingual-test-medium.json" \
-	--descriptor-path "addons/piper_plus/model_descriptors/multilingual-test-medium.json" \
-	--template-catalog-path "addons/piper_plus/multilingual_sample_text_catalog.json" \
+	--descriptor-path "$DESCRIPTOR_RELATIVE_PATH" \
+	--template-catalog-path "$TEMPLATE_CATALOG_RELATIVE_PATH" \
 	--output "$SITE_ROOT/public-demo-manifest.json" \
 	--entry "$ENTRY_NAME" \
 	--addon-gdextension-path "$ADDON_GDEXTENSION_RELATIVE_PATH" \

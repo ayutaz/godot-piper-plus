@@ -227,7 +227,7 @@ func _update_contract_label() -> void:
 		"Model: %s" % MODEL_KEY,
 		"Descriptor: %s" % SampleTextCatalog.get_descriptor_path(),
 		"Catalog: %s" % String(SampleTextCatalog.get_catalog_name()),
-		"Supported languages: %s" % supported.join(", "),
+		"Supported languages: %s" % ", ".join(supported),
 		"Selected language: %s" % _selected_language_code,
 		"Selected template: %s" % String(sample_texts.get(_selected_language_code, "")),
 	])
@@ -248,7 +248,7 @@ func _update_contract_label() -> void:
 		lines.append("supports_japanese_text_input: %s" % ("true" if supports_japanese else "false"))
 
 	catalog_label.text = "Catalog sample texts loaded: %s" % String(SampleTextCatalog.get_catalog_name())
-	contract_label.text = lines.join("\n")
+	contract_label.text = "\n".join(lines)
 
 func _runtime_contract() -> Dictionary:
 	if tts != null and tts.has_method("get_runtime_contract"):
