@@ -556,7 +556,29 @@ Error PiperTTS::initialize() {
 			resolved_dictionary_source = staged_dictionary_path;
 		}
 	} else if (!dictionary_path.is_empty()) {
-		resolved_dictionary_source = resolve_path(dictionary_path);
+		const String direct_dictionary_source = resolve_path(dictionary_path);
+		if (!direct_dictionary_source.is_empty()) {
+			const CharString direct_dictionary_utf8 = direct_dictionary_source.utf8();
+			if (openjtalk_dictionary_path_is_ready(direct_dictionary_utf8.get_data()) != 0) {
+				resolved_dictionary_source = direct_dictionary_source;
+			}
+		}
+
+		if (resolved_dictionary_source.is_empty() &&
+				(dictionary_path.begins_with("res://") || dictionary_path.begins_with("user://"))) {
+			String native_dictionary_error;
+			String staged_dictionary_path;
+			if (!piper_tts_paths::stage_web_dictionary_to_user(
+						dictionary_path, staged_dictionary_path, native_dictionary_error)) {
+				UtilityFunctions::push_error(native_dictionary_error);
+				set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY",
+						native_dictionary_error, "initialize");
+				set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
+				emit_signal("initialized", false);
+				return ERR_UNCONFIGURED;
+			}
+			resolved_dictionary_source = staged_dictionary_path;
+		}
 	}
 
 	if (!resolved_dictionary_source.is_empty()) {
@@ -633,7 +655,10 @@ Error PiperTTS::initialize() {
 		}
 #endif
 
-		if (web_runtime) {
+		const bool resource_model_runtime = web_runtime ||
+				resolved_model_source.begins_with("res://") ||
+				resolved_config_source.begins_with("res://");
+		if (resource_model_runtime) {
 			std::vector<uint8_t> model_data;
 			String web_error;
 			if (!piper_tts_paths::read_web_file_bytes(

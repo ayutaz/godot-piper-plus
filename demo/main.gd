@@ -1,8 +1,20 @@
 extends Control
 
-const CSS10_MODEL_PATH := "res://addons/piper_plus/models/css10/css10-ja-6lang-fp16.onnx"
-const CSS10_CONFIG_PATH := "res://addons/piper_plus/models/css10/config.json"
-const OPENJTALK_DICT_PATH := "res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11"
+const CSS10_ASSET_CANDIDATES := [
+	{
+		"model_path": "res://piper_plus_assets/models/css10/css10-ja-6lang-fp16.onnx",
+		"config_path": "res://piper_plus_assets/models/css10/config.json",
+	},
+	{
+		"model_path": "res://addons/piper_plus/models/css10/css10-ja-6lang-fp16.onnx",
+		"config_path": "res://addons/piper_plus/models/css10/config.json",
+	},
+]
+const OPENJTALK_DICT_CANDIDATES := [
+	"res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11",
+	"res://addons/piper_plus/dictionaries/open_jtalk_dic_utf_8-1.11",
+	"res://models/openjtalk_dic",
+]
 const DEFAULT_LANGUAGE_CODE := "ja"
 const FREE_INPUT_LABEL := "-- 自由入力 --"
 const LANGUAGE_ORDER := ["ja", "en", "zh", "es", "fr", "pt"]
@@ -95,6 +107,7 @@ const LANGUAGE_CONFIGS := {
 @onready var status_label: Label = $VBoxContainer/StatusLabel
 var _syncing_ui := false
 var _needs_initialize := true
+var _standalone_smoke_running := false
 
 func _ready() -> void:
 	_populate_language_picker()
@@ -108,6 +121,8 @@ func _ready() -> void:
 	tts.synthesis_completed.connect(_on_synthesis_completed)
 	tts.synthesis_failed.connect(_on_synthesis_failed)
 	_select_language(DEFAULT_LANGUAGE_CODE, true)
+	if _standalone_smoke_enabled():
+		call_deferred("_run_standalone_smoke")
 
 func _get_language_config(language_code: String) -> Dictionary:
 	var config: Variant = LANGUAGE_CONFIGS.get(language_code, LANGUAGE_CONFIGS[DEFAULT_LANGUAGE_CODE])
@@ -116,7 +131,59 @@ func _get_language_config(language_code: String) -> Dictionary:
 	return {}
 
 func _resource_dir_exists(path: String) -> bool:
-	return DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(path))
+	if path.is_empty():
+		return false
+	var resource_dir := DirAccess.open(path)
+	if resource_dir != null:
+		return true
+	var absolute_path := ProjectSettings.globalize_path(path)
+	return absolute_path != path and DirAccess.dir_exists_absolute(absolute_path)
+
+func _resource_file_exists(path: String) -> bool:
+	if path.is_empty():
+		return false
+	if FileAccess.file_exists(path):
+		return true
+	var absolute_path := ProjectSettings.globalize_path(path)
+	return absolute_path != path and FileAccess.file_exists(absolute_path)
+
+func _resolve_css10_assets() -> Dictionary:
+	for candidate_variant in CSS10_ASSET_CANDIDATES:
+		if typeof(candidate_variant) != TYPE_DICTIONARY:
+			continue
+		var candidate: Dictionary = candidate_variant
+		var model_path := String(candidate.get("model_path", ""))
+		var config_path := String(candidate.get("config_path", ""))
+		if _resource_file_exists(model_path) and _resource_file_exists(config_path):
+			return {
+				"model_path": model_path,
+				"config_path": config_path,
+			}
+	return {}
+
+func _resolve_openjtalk_dictionary() -> Dictionary:
+	for candidate_variant in OPENJTALK_DICT_CANDIDATES:
+		var candidate := String(candidate_variant)
+		if _has_compiled_openjtalk_dictionary(candidate):
+			return {
+				"path": candidate,
+				"ready": true,
+				"incomplete": false,
+			}
+		if _resource_dir_exists(candidate):
+			return {
+				"path": candidate,
+				"ready": false,
+				"incomplete": true,
+			}
+	return {
+		"path": "",
+		"ready": false,
+		"incomplete": false,
+	}
+
+func _standalone_smoke_enabled() -> bool:
+	return OS.get_environment("PIPER_STANDALONE_SMOKE").strip_edges() == "1"
 
 func _populate_language_picker() -> void:
 	language_picker.clear()
@@ -198,7 +265,9 @@ func _has_compiled_openjtalk_dictionary(path: String) -> bool:
 
 	var absolute_path := ProjectSettings.globalize_path(path)
 	for required_file in ["sys.dic", "unk.dic", "matrix.bin", "char.bin"]:
-		if not FileAccess.file_exists(absolute_path.path_join(required_file)):
+		var resource_file := path.path_join(required_file)
+		var absolute_file := absolute_path.path_join(required_file)
+		if not _resource_file_exists(resource_file) and not FileAccess.file_exists(absolute_file):
 			return false
 
 	return true
@@ -253,9 +322,14 @@ func _configure_demo_assets() -> void:
 	var selected_language_code := _get_selected_language_code()
 	var selected_language_config := _get_language_config(selected_language_code)
 	var selected_language_label := String(selected_language_config.get("label", selected_language_code.to_upper()))
-	var css10_ready := FileAccess.file_exists(CSS10_MODEL_PATH) and FileAccess.file_exists(CSS10_CONFIG_PATH)
-	var openjtalk_ready := _has_compiled_openjtalk_dictionary(OPENJTALK_DICT_PATH)
-	var openjtalk_incomplete := _resource_dir_exists(OPENJTALK_DICT_PATH) and not openjtalk_ready
+	var css10_assets := _resolve_css10_assets()
+	var css10_model_path := String(css10_assets.get("model_path", ""))
+	var css10_config_path := String(css10_assets.get("config_path", ""))
+	var css10_ready := not css10_model_path.is_empty() and not css10_config_path.is_empty()
+	var openjtalk_state := _resolve_openjtalk_dictionary()
+	var openjtalk_ready := bool(openjtalk_state.get("ready", false))
+	var openjtalk_incomplete := bool(openjtalk_state.get("incomplete", false))
+	var openjtalk_path := String(openjtalk_state.get("path", ""))
 
 	if not css10_ready:
 		_set_demo_assets(
@@ -276,11 +350,11 @@ func _configure_demo_assets() -> void:
 
 	var dictionary_path := ""
 	if openjtalk_ready:
-		dictionary_path = OPENJTALK_DICT_PATH
+		dictionary_path = openjtalk_path
 
 	_set_demo_assets(
-		CSS10_MODEL_PATH,
-		CSS10_CONFIG_PATH,
+		css10_model_path,
+		css10_config_path,
 		dictionary_path,
 		selected_language_code,
 		"状態: 準備中（CSS10 6 言語デフォルトモデル: %s）" % selected_language_label
@@ -311,11 +385,55 @@ func _on_tts_initialized(success: bool) -> void:
 	if success:
 		_needs_initialize = false
 		status_label.text = "状態: 準備完了"
-		synthesize_btn.disabled = false
-		async_btn.disabled = false
+		synthesize_btn.disabled = _standalone_smoke_running
+		async_btn.disabled = _standalone_smoke_running
 	else:
 		_needs_initialize = not tts.model_path.is_empty()
 		status_label.text = "状態: 自動セットアップに失敗しました"
+
+func _run_standalone_smoke() -> void:
+	_standalone_smoke_running = true
+	var failures: Array[String] = []
+	var passes: Array[String] = []
+
+	for language_code: String in LANGUAGE_ORDER:
+		_select_language(language_code, true)
+		if not _ensure_tts_ready():
+			failures.append("%s initialize failed: %s" % [language_code, status_label.text])
+			continue
+
+		var text := String(_get_language_config(language_code).get("test_text", ""))
+		var audio: AudioStreamWAV = tts.synthesize_request({
+			"text": text,
+			"language_code": language_code,
+		})
+		var audio_bytes := 0
+		if audio != null:
+			audio_bytes = audio.data.size()
+		if audio == null or audio_bytes <= 0:
+			var last_error: Dictionary = tts.get_last_error()
+			failures.append("%s synthesize failed: %s" % [
+				language_code,
+				String(last_error.get("message", status_label.text)),
+			])
+			continue
+
+		passes.append("%s:%d" % [language_code, audio_bytes])
+		tts.stop()
+
+	if failures.is_empty():
+		var summary := ""
+		for index in range(passes.size()):
+			if index > 0:
+				summary += ","
+			summary += passes[index]
+		print("STANDALONE_SMOKE_PASS %s" % summary)
+		get_tree().quit(0)
+		return
+
+	for failure in failures:
+		push_error("STANDALONE_SMOKE_FAIL %s" % failure)
+	get_tree().quit(1)
 
 # Synchronous synthesis (blocks the main thread)
 func _on_synthesize_pressed() -> void:

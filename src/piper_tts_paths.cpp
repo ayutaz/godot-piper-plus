@@ -49,6 +49,10 @@ bool has_suffix(const std::string &value, const char *suffix) {
 			value.compare(value.size() - suffix_str.size(), suffix_str.size(), suffix_str) == 0;
 }
 
+bool is_virtual_path(const String &path) {
+	return path.begins_with("res://") || path.begins_with("user://");
+}
+
 std::string strip_model_filename_suffix(const std::string &name) {
 	if (has_suffix(name, ".onnx.json")) {
 		return name.substr(0, name.size() - 10);
@@ -249,6 +253,22 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 		return String();
 	}
 
+	const String stripped = path.strip_edges();
+	if (is_virtual_path(stripped)) {
+		if (FileAccess::file_exists(stripped) && stripped.get_extension() == "onnx") {
+			return stripped;
+		}
+		if (DirAccess::open(stripped) != nullptr) {
+			const std::string preferred_stem =
+					strip_model_filename_suffix(stripped.get_file().utf8().get_data());
+			const std::optional<String> maybe_file =
+					find_onnx_in_resource_directory(stripped, preferred_stem);
+			if (maybe_file.has_value()) {
+				return *maybe_file;
+			}
+		}
+	}
+
 	String resolved_path = resolve_global_path(path.strip_edges());
 	if (!resolved_path.is_empty()) {
 		std::filesystem::path fs_path = std::filesystem::path(resolved_path.utf8().get_data());
@@ -269,7 +289,6 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 		}
 	}
 
-	String stripped = path.strip_edges();
 	std::string input_name = stripped.get_file().utf8().get_data();
 	input_name = strip_model_filename_suffix(input_name);
 	const std::string canonical_key = resolve_catalog_key(input_name);
@@ -282,6 +301,21 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 			: std::vector<std::string>{canonical_key, input_name};
 
 	for (const String &root_path : model_roots) {
+		if (is_virtual_path(root_path)) {
+			for (const std::string &search_stem : search_stems) {
+				for (const String &candidate_dir : {
+							 root_path,
+							 root_path.path_join(String(search_stem.c_str())),
+					 }) {
+					const std::optional<String> maybe_file =
+							find_onnx_in_resource_directory(candidate_dir, search_stem);
+					if (maybe_file.has_value()) {
+						return *maybe_file;
+					}
+				}
+			}
+		}
+
 		const String resolved_root = resolve_global_path(root_path);
 		if (resolved_root.is_empty()) {
 			continue;
@@ -309,7 +343,11 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 String resolve_config_path(const String &configured_config_path,
 		const String &resolved_model_path) {
 	if (!configured_config_path.is_empty()) {
-		return resolve_global_path(configured_config_path);
+		const String stripped_config = configured_config_path.strip_edges();
+		if (is_virtual_path(stripped_config) && FileAccess::file_exists(stripped_config)) {
+			return stripped_config;
+		}
+		return resolve_global_path(stripped_config);
 	}
 
 	String model_config_path = resolved_model_path + String(".json");
@@ -328,6 +366,10 @@ String resolve_config_path(const String &configured_config_path,
 bool path_exists(const String &path) {
 	if (path.is_empty()) {
 		return false;
+	}
+
+	if (is_virtual_path(path)) {
+		return FileAccess::file_exists(path) || DirAccess::open(path) != nullptr;
 	}
 
 	return std::filesystem::exists(std::filesystem::path(path.utf8().get_data()));
