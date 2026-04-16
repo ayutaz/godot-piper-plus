@@ -258,7 +258,8 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 		if (FileAccess::file_exists(stripped) && stripped.get_extension() == "onnx") {
 			return stripped;
 		}
-		if (DirAccess::open(stripped) != nullptr) {
+		const Ref<DirAccess> virtual_dir = DirAccess::open(stripped);
+		if (virtual_dir.is_valid()) {
 			const std::string preferred_stem =
 					strip_model_filename_suffix(stripped.get_file().utf8().get_data());
 			const std::optional<String> maybe_file =
@@ -369,7 +370,7 @@ bool path_exists(const String &path) {
 	}
 
 	if (is_virtual_path(path)) {
-		return FileAccess::file_exists(path) || DirAccess::open(path) != nullptr;
+		return FileAccess::file_exists(path) || DirAccess::open(path).is_valid();
 	}
 
 	return std::filesystem::exists(std::filesystem::path(path.utf8().get_data()));
