@@ -14,6 +14,7 @@ set(TEST_SOURCES
 
 # Source files under test (C++) - compiled directly since they're normally in a shared lib
 set(SUT_CXX_SOURCES
+  ${CMAKE_SOURCE_DIR}/src/piper_core/chinese_phonemize.cpp
   ${CMAKE_SOURCE_DIR}/src/piper_core/custom_dictionary.cpp
   ${CMAKE_SOURCE_DIR}/src/piper_core/english_phonemize.cpp
   ${CMAKE_SOURCE_DIR}/src/piper_core/language_detector.cpp

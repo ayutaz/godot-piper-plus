@@ -17,6 +17,7 @@ bool is_web_runtime();
 String resolve_web_model_source(const String &path);
 String resolve_web_config_source(
 		const String &configured_config_path, const String &resolved_model_path);
+String resolve_virtual_dictionary_source(const String &configured_dictionary_path);
 String resolve_web_dictionary_source(const String &configured_dictionary_path,
 		const String &resolved_model_path, const String &resolved_config_path);
 bool stage_web_dictionary_to_user(const String &source_directory,
@@ -26,6 +27,10 @@ bool read_web_file_bytes(const String &source_path, std::vector<uint8_t> &data,
 bool read_web_file_text(const String &source_path, String &text,
 		String &error_message);
 String find_web_cmudict_source(const String &model_path, const String &config_path);
+String find_web_pinyin_single_dict_source(
+		const String &model_path, const String &config_path);
+String find_web_pinyin_phrase_dict_source(
+		const String &model_path, const String &config_path);
 
 } // namespace godot::piper_tts_paths
 

@@ -704,7 +704,8 @@ MultilingualTextRoutingMode getMultilingualTextRoutingMode(
 	if (languageCode == "ja" || languageCode == "en") {
 		return MultilingualTextRoutingMode::AutoDetect;
 	}
-	if (languageCode == "es" || languageCode == "fr" || languageCode == "pt") {
+	if (languageCode == "es" || languageCode == "fr" || languageCode == "pt" ||
+			languageCode == "zh") {
 		return MultilingualTextRoutingMode::ExplicitOnly;
 	}
 	return MultilingualTextRoutingMode::Unsupported;
@@ -728,12 +729,7 @@ bool isMultilingualLatinLanguage(const std::string &languageCode) {
 std::string getMultilingualTextSupportError(const std::string &languageCode) {
 	if (languageCode.empty()) {
 		return "Multilingual text phonemization could not resolve a supported language for this segment. "
-			   "Use language_code to select one of: ja, en, es, fr, pt.";
-	}
-
-	if (languageCode == "zh") {
-		return "Multilingual text phonemization for language_code 'zh' is not implemented. "
-			   "Use raw phoneme input or select a supported text language: ja, en, es, fr, pt.";
+			   "Use language_code to select one of: ja, en, es, fr, pt, zh.";
 	}
 
 	return "Multilingual text phonemization for language_code '" + languageCode +
@@ -759,6 +755,9 @@ std::vector<MultilingualLanguageCapability> getMultilingualLanguageCapabilities(
 		} else if (code == "es" || code == "fr" || code == "pt") {
 			capability.supportTier = "experimental";
 			capability.frontendBackend = "rule_based";
+		} else if (code == "zh") {
+			capability.supportTier = "experimental";
+			capability.frontendBackend = "pinyin_dict";
 		} else {
 			capability.supportTier = "phoneme_only";
 			capability.frontendBackend = "raw_phoneme_only";

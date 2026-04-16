@@ -2,6 +2,8 @@ extends "res://test_base.gd"
 
 const DEFAULT_JA_TEST_TEXT := "こんにちは"
 const DEFAULT_EN_TEST_TEXT := "hello from godot"
+const MULTILINGUAL_MODEL_DESCRIPTOR_SCRIPT := "res://addons/piper_plus/model_descriptor.gd"
+const MULTILINGUAL_SAMPLE_TEXT_CATALOG_SCRIPT := "res://addons/piper_plus/multilingual_sample_text_catalog.gd"
 const BUNDLED_MODEL_PATH := "res://models/multilingual-test-medium.onnx"
 const BUNDLED_CONFIG_PATH := "res://models/multilingual-test-medium.onnx.json"
 const BUNDLED_DICT_PATH := "res://piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
@@ -166,15 +168,34 @@ func _matrix_row_by_code(rows: Array, language_code: String) -> Dictionary:
             return row
     return {}
 
+func _catalog_script():
+    return load(MULTILINGUAL_SAMPLE_TEXT_CATALOG_SCRIPT)
+
+func _resolve_catalog_language_code(language_code: String) -> String:
+    var normalized := language_code.strip_edges()
+    if normalized.is_empty():
+        return ""
+
+    var catalog_script = _catalog_script()
+    if catalog_script != null:
+        return String(catalog_script.resolve_language_code(normalized))
+
+    normalized = normalized.to_lower().replace("_", "-")
+    return normalized.split("-", false, 1)[0]
+
 func _preferred_test_language_code(bundle: Dictionary) -> String:
     var env_language := OS.get_environment("PIPER_TEST_LANGUAGE_CODE").strip_edges()
     if not env_language.is_empty():
-        return env_language
+        return _resolve_catalog_language_code(env_language)
+
+    var smoke_language := _web_smoke_scenario()
+    if not smoke_language.is_empty():
+        return _resolve_catalog_language_code(smoke_language)
 
     var parsed := _load_bundle_config(bundle)
     var language: Variant = parsed.get("language", {})
     if typeof(language) == TYPE_DICTIONARY and String(language.get("code", "")) == "multilingual":
-        return "en"
+        return _resolve_catalog_language_code("en")
 
     return ""
 
@@ -183,7 +204,14 @@ func _test_text(bundle: Dictionary) -> String:
     if not env_text.is_empty():
         return env_text
 
-    if _preferred_test_language_code(bundle) == "en":
+    var preferred_language := _preferred_test_language_code(bundle)
+    var catalog_script = _catalog_script()
+    if catalog_script != null and not preferred_language.is_empty():
+        var template_text := String(catalog_script.get_language_template_text(preferred_language))
+        if not template_text.is_empty():
+            return template_text
+
+    if preferred_language == "en":
         return DEFAULT_EN_TEST_TEXT
 
     return DEFAULT_JA_TEST_TEXT
@@ -241,14 +269,15 @@ func _configure_test_model(tts, include_dictionary: bool = true) -> bool:
     tts.model_path = bundle["model_path"]
     if not String(bundle["config_path"]).is_empty():
         tts.config_path = bundle["config_path"]
-    if include_dictionary and not String(bundle["dictionary_path"]).is_empty():
+    var preferred_language := _preferred_test_language_code(bundle)
+    var requires_dictionary := preferred_language == "ja"
+    if (include_dictionary or requires_dictionary) and not String(bundle["dictionary_path"]).is_empty():
         tts.dictionary_path = bundle["dictionary_path"]
-    elif _is_web_runtime():
+    elif _is_web_runtime() and preferred_language == "en":
         # Prevent Web runtime auto-fallback from staging OpenJTalk when an English-only
         # smoke scenario intentionally wants to exercise no-dictionary initialization.
         tts.dictionary_path = MISSING_WEB_DICT_PATH
 
-    var preferred_language := _preferred_test_language_code(bundle)
     if not preferred_language.is_empty():
         tts.language_code = preferred_language
 
@@ -302,17 +331,22 @@ func list_test_names() -> Array[String]:
     if _is_web_smoke():
         return [
             "test_node_creation",
-            "test_properties",
-            "test_execution_provider_enum",
+        "test_properties",
+        "test_execution_provider_enum",
+        "test_multilingual_model_descriptor",
+        "test_multilingual_sample_text_catalog",
+        "test_test_speech_dialog_multilingual_catalog",
             "test_runtime_contract",
             "test_runtime_contract_missing_web_dictionary",
             "test_initialize_with_model",
             "test_initialize_with_config_fallback",
+            "test_inspect_text",
             "test_web_non_cpu_execution_provider_rejected",
             "test_web_openjtalk_native_rejected",
             "test_japanese_dictionary_error_surface",
             "test_japanese_request_time_dictionary_error_surface",
             "test_japanese_text_input_with_dictionary",
+            "test_multilingual_explicit_zh_text_routing",
             "test_synthesize_basic",
         ]
 
@@ -321,6 +355,9 @@ func list_test_names() -> Array[String]:
         "test_properties",
         "test_speech_rate_range",
         "test_execution_provider_enum",
+        "test_multilingual_model_descriptor",
+        "test_multilingual_sample_text_catalog",
+        "test_test_speech_dialog_multilingual_catalog",
         "test_runtime_contract",
         "test_runtime_contract_missing_web_dictionary",
         "test_runtime_state",
@@ -338,7 +375,7 @@ func list_test_names() -> Array[String]:
         "test_language_code_normalization",
         "test_language_code_exact_match_selection_mode",
         "test_multilingual_explicit_language_variants",
-        "test_multilingual_unsupported_language_rejected_for_text",
+        "test_multilingual_explicit_zh_text_routing",
         "test_multilingual_language_selector_conflict_rejected",
         "test_gpu_device_id_clamp",
         "test_invalid_openjtalk_library_path_falls_back",
@@ -369,8 +406,10 @@ func get_test_tags(method_name: String) -> PackedStringArray:
             return PackedStringArray(["core", "web-smoke"])
         "test_initialize_with_config_fallback":
             return PackedStringArray(["core", "web-smoke", "nothreads-only"])
-        "test_initialize_with_model", "test_synthesize_basic":
-            return PackedStringArray(["en", "web-smoke", "nothreads-only"])
+        "test_initialize_with_model", "test_inspect_text", "test_synthesize_basic":
+            return PackedStringArray(["en", "ja", "zh", "es", "fr", "pt", "web-smoke", "nothreads-only"])
+        "test_multilingual_explicit_zh_text_routing":
+            return PackedStringArray(["zh", "web-smoke", "nothreads-only"])
         "test_runtime_contract_missing_web_dictionary", "test_japanese_dictionary_error_surface", "test_japanese_request_time_dictionary_error_surface", "test_japanese_text_input_with_dictionary":
             return PackedStringArray(["ja", "web-smoke"])
         _:
@@ -617,6 +656,84 @@ func test_editor_download_catalog_paths() -> void:
     var multilingual_item: Dictionary = catalog_script.get_item_definition("multilingual-test-medium")
     assert_equal(String(multilingual_item.get("recommended_dictionary_key", "")), "naist-jdic", "multilingual Web test bundles should advertise the OpenJTalk dictionary dependency")
 
+func test_multilingual_sample_text_catalog() -> void:
+    var catalog_script = load(MULTILINGUAL_SAMPLE_TEXT_CATALOG_SCRIPT)
+    assert_not_null(catalog_script, "multilingual_sample_text_catalog.gd should be loadable")
+    if catalog_script == null:
+        return
+
+    assert_equal(String(catalog_script.get_descriptor_path()), "res://addons/piper_plus/model_descriptors/multilingual-test-medium.json", "catalog should expose the descriptor path")
+    assert_equal(String(catalog_script.get_catalog_name()), "multilingual-sample-text-catalog", "catalog name should match the canonical fixture")
+    assert_equal(String(catalog_script.get_model_key()), "multilingual-test-medium", "catalog should target multilingual-test-medium")
+    assert_equal(String(catalog_script.get_default_language_code()), "ja", "catalog should default to ja")
+    assert_equal(String(catalog_script.get_asset_requirements().get("dictionary_key", "")), "naist-jdic", "catalog should expose asset requirements from the descriptor")
+
+    var language_codes: PackedStringArray = catalog_script.list_language_codes()
+    assert_equal(language_codes.size(), 6, "catalog should expose six language codes")
+    assert_equal(language_codes[0], "ja", "catalog should list ja first")
+    assert_equal(language_codes[1], "en", "catalog should list en second")
+    assert_equal(language_codes[2], "zh", "catalog should list zh third")
+    assert_equal(language_codes[3], "es", "catalog should list es fourth")
+    assert_equal(language_codes[4], "fr", "catalog should list fr fifth")
+    assert_equal(language_codes[5], "pt", "catalog should list pt sixth")
+
+    assert_equal(String(catalog_script.get_language_template_text("zh")), "你好，今天天气很好。", "catalog should provide the canonical zh template text")
+    assert_equal(String(catalog_script.get_language_template_text("es")), "Hola, ¿cómo estás hoy?", "catalog should provide the canonical es template text")
+    assert_equal(String(catalog_script.get_language_placeholder_text("fr")), "Entrez du texte en français", "catalog should provide the canonical fr placeholder text")
+
+func test_multilingual_model_descriptor() -> void:
+    var descriptor_script = load(MULTILINGUAL_MODEL_DESCRIPTOR_SCRIPT)
+    assert_not_null(descriptor_script, "model_descriptor.gd should be loadable")
+    if descriptor_script == null:
+        return
+
+    var descriptor: Dictionary = descriptor_script.get_descriptor("multilingual-test-medium")
+    assert_equal(String(descriptor.get("model_key", "")), "multilingual-test-medium", "descriptor should target multilingual-test-medium")
+    assert_equal(String(descriptor.get("catalog_name", "")), "multilingual-sample-text-catalog", "descriptor should expose the sample catalog name")
+    assert_equal(String(descriptor.get("default_language_code", "")), "ja", "descriptor should default to ja")
+    assert_equal(String(descriptor.get("auto_route_language_code", "")), "en", "descriptor should expose the auto-route default separately from the UI default")
+
+    var requirements: Dictionary = descriptor_script.get_asset_requirements("multilingual-test-medium")
+    assert_equal(String(requirements.get("model_path", "")), "piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx", "descriptor should expose the canonical model path")
+    assert_equal(String(requirements.get("config_path", "")), "piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx.json", "descriptor should expose the canonical config path")
+
+    var language_codes: PackedStringArray = descriptor_script.list_language_codes("multilingual-test-medium")
+    assert_equal(language_codes, PackedStringArray(["ja", "en", "zh", "es", "fr", "pt"]), "descriptor should expose the six-language order")
+    assert_equal(String(descriptor_script.resolve_language_code("multilingual-test-medium", "zh-Hans")), "zh", "descriptor should normalize zh-Hans through aliases")
+    assert_equal(String(descriptor_script.resolve_language_code("multilingual-test-medium", "fr_FR")), "fr", "descriptor should normalize fr_FR through aliases")
+
+func test_test_speech_dialog_multilingual_catalog() -> void:
+    var dialog_script = load("res://addons/piper_plus/test_speech_dialog.gd")
+    assert_not_null(dialog_script, "test_speech_dialog.gd should be loadable")
+    if dialog_script == null:
+        return
+
+    var dialog: AcceptDialog = dialog_script.create_dialog(null)
+    assert_not_null(dialog, "test speech dialog should be creatable")
+    if dialog == null:
+        return
+
+    var language_picker: OptionButton = dialog.find_child("LanguagePicker", true, false)
+    var text_edit: TextEdit = dialog.find_child("PreviewTextEdit", true, false)
+    var template_label: Label = dialog.find_child("TemplateLabel", true, false)
+
+    assert_not_null(language_picker, "test speech dialog should expose a language picker")
+    assert_not_null(text_edit, "test speech dialog should expose a preview text editor")
+    assert_not_null(template_label, "test speech dialog should expose a template label")
+
+    if language_picker != null:
+        assert_equal(language_picker.item_count, 6, "language picker should list all six catalog languages")
+        assert_equal(String(language_picker.get_item_text(0)), "Japanese (ja)", "language picker should use the canonical display names")
+        assert_equal(String(language_picker.get_item_metadata(2)), "zh", "language picker should include zh")
+
+    if text_edit != null:
+        assert_equal(text_edit.text, "こんにちは、今日は良い天気ですね。", "dialog should load the default template text")
+
+    if template_label != null:
+        assert_true(String(template_label.text).find("Japanese (ja)") != -1, "template label should reflect the selected language")
+
+    dialog.free()
+
 func test_preview_controller_session_config() -> void:
     var controller_script = load("res://addons/piper_plus/preview_controller.gd")
     assert_not_null(controller_script, "preview_controller.gd should be loadable")
@@ -638,6 +755,15 @@ func test_preview_controller_session_config() -> void:
     assert_equal(String(config.get("dictionary_path", "")), tts.dictionary_path, "preview controller should snapshot dictionary_path")
     assert_equal(String(config.get("language_code", "")), "en", "preview controller should snapshot language_code")
     assert_equal(int(config.get("execution_provider", -1)), tts.execution_provider, "preview controller should snapshot execution_provider")
+
+    var override_config: Dictionary = controller_script.build_session_config(tts, {"language_code": "zh"})
+    assert_equal(String(override_config.get("language_code", "")), "zh", "preview controller should accept a language_code override")
+    assert_false(override_config.has("language_id"), "language_code override should drop inherited language_id")
+
+    var language_id_override_config: Dictionary = controller_script.build_session_config(tts, {"language_id": 3})
+    assert_equal(int(language_id_override_config.get("language_id", -1)), 3, "preview controller should accept a language_id override")
+    assert_false(language_id_override_config.has("language_code"), "language_id override should drop inherited language_code")
+
     _cleanup_tts(tts)
 
 func test_initialize_without_model() -> void:
@@ -749,6 +875,8 @@ func test_language_capabilities() -> void:
     var available_codes: PackedStringArray = capabilities.get("available_language_codes", PackedStringArray())
     var auto_route_codes: PackedStringArray = capabilities.get("auto_route_language_codes", PackedStringArray())
     var explicit_only_codes: PackedStringArray = capabilities.get("explicit_only_language_codes", PackedStringArray())
+    var resource_ready_codes: PackedStringArray = capabilities.get("resource_ready_language_codes", PackedStringArray())
+    var resource_missing_codes: PackedStringArray = capabilities.get("resource_missing_language_codes", PackedStringArray())
     var phoneme_only_codes: PackedStringArray = capabilities.get("phoneme_only_language_codes", PackedStringArray())
     var preview_codes: PackedStringArray = capabilities.get("preview_language_codes", PackedStringArray())
     var experimental_codes: PackedStringArray = capabilities.get("experimental_language_codes", PackedStringArray())
@@ -764,7 +892,7 @@ func test_language_capabilities() -> void:
         "es": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
         "fr": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
         "pt": {"support_tier": "experimental", "frontend_backend": "rule_based", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
-        "zh": {"support_tier": "phoneme_only", "frontend_backend": "raw_phoneme_only", "routing_mode": "phoneme_only", "text_supported": false, "auto_supported": false},
+        "zh": {"support_tier": "experimental", "frontend_backend": "pinyin_dict", "routing_mode": "explicit_only", "text_supported": true, "auto_supported": false},
     }
 
     for language_code in expected_languages.keys():
@@ -779,15 +907,20 @@ func test_language_capabilities() -> void:
         assert_equal(String(entry.get("routing_mode", "")), String(expected.get("routing_mode", "")), "get_language_capabilities().languages should expose routing_mode for %s" % language_code)
         assert_equal(bool(entry.get("text_supported", false)), bool(expected.get("text_supported", false)), "get_language_capabilities().languages should expose text_supported for %s" % language_code)
         assert_equal(bool(entry.get("auto_supported", false)), bool(expected.get("auto_supported", false)), "get_language_capabilities().languages should expose auto_supported for %s" % language_code)
+        assert_true(bool(entry.get("resource_ready", false)), "get_language_capabilities().languages should expose resource_ready for %s in the staged test bundle" % language_code)
+
+    assert_true(resource_missing_codes.is_empty(), "get_language_capabilities() should not report missing resources for the staged test bundle")
+    for code in expected_languages.keys():
+        assert_true(resource_ready_codes.has(code), "get_language_capabilities() should include %s in resource_ready_language_codes for the staged test bundle" % code)
 
     for code in ["ja", "en"]:
         assert_true(auto_route_codes.has(code), "get_language_capabilities() should include %s in auto_route_language_codes" % code)
         assert_true(preview_codes.has(code), "get_language_capabilities() should include %s in preview_language_codes" % code)
         assert_true(explicit_only_codes.has(code) == false, "get_language_capabilities() should not list %s in explicit_only_language_codes" % code)
-    for code in ["es", "fr", "pt"]:
+    for code in ["es", "fr", "pt", "zh"]:
         assert_true(explicit_only_codes.has(code), "get_language_capabilities() should include %s in explicit_only_language_codes" % code)
         assert_true(experimental_codes.has(code), "get_language_capabilities() should include %s in experimental_language_codes" % code)
-    assert_true(phoneme_only_codes.has("zh"), "get_language_capabilities() should include zh in phoneme_only_language_codes")
+    assert_false(phoneme_only_codes.has("zh"), "get_language_capabilities() should not list zh in phoneme_only_language_codes once zh text routing is supported")
 
     assert_true(tts.get_last_error().is_empty(), "successful get_language_capabilities() should not set last_error")
     _cleanup_tts(tts)
@@ -899,7 +1032,7 @@ func test_multilingual_explicit_language_variants() -> void:
     assert_equal(String(synth_result.get("selection_mode", "")), "language_code_base", "get_last_synthesis_result() should report language_code_base for FR_fr")
     _cleanup_tts(tts)
 
-func test_multilingual_unsupported_language_rejected_for_text() -> void:
+func test_multilingual_explicit_zh_text_routing() -> void:
     var tts = _create_tts()
     if tts == null:
         skip("PiperTTS class is unavailable")
@@ -923,20 +1056,24 @@ func test_multilingual_unsupported_language_rejected_for_text() -> void:
         "text": "你好",
         "language_code": "zh",
     })
-    assert_true(inspected.is_empty(), "inspect_request() should reject unsupported multilingual text routing for zh")
-    var last_error: Dictionary = tts.get_last_error()
-    assert_equal(String(last_error.get("code", "")), "ERR_LANGUAGE_UNSUPPORTED_FOR_TEXT", "inspect_request() should record an unsupported-language error code")
-    assert_equal(String(last_error.get("stage", "")), "inspect_request", "inspect_request() should record its failure stage")
-    assert_true(tts.get_last_inspection_result().is_empty(), "failed multilingual inspection should not update get_last_inspection_result()")
+    assert_false(inspected.is_empty(), "inspect_request() should accept explicit multilingual text routing for zh")
+    assert_equal(String(inspected.get("resolved_language_code", "")), "zh", "inspect_request() should resolve zh text routing to the canonical zh code")
+    assert_equal(int(inspected.get("resolved_language_id", -1)), 2, "inspect_request() should resolve zh to language_id=2 for the bundled multilingual model")
+    assert_equal(String(inspected.get("selection_mode", "")), "language_code_exact", "inspect_request() should report language_code_exact for canonical zh routing")
+    var phoneme_sentences: Array = inspected.get("phoneme_sentences", [])
+    assert_true(phoneme_sentences.size() > 0, "inspect_request() should return phoneme sentences for explicit zh text routing")
+    assert_true(tts.get_last_error().is_empty(), "successful zh inspection should clear last_error")
 
     var audio = tts.synthesize_request({
         "text": "你好",
         "language_code": "zh",
     })
-    assert_true(audio == null, "synthesize_request() should reject unsupported multilingual text routing for zh")
-    last_error = tts.get_last_error()
-    assert_equal(String(last_error.get("code", "")), "ERR_LANGUAGE_UNSUPPORTED_FOR_TEXT", "synthesize_request() should record an unsupported-language error code")
-    assert_equal(String(last_error.get("stage", "")), "synthesize_request", "synthesize_request() should record its failure stage")
+    assert_not_null(audio, "synthesize_request() should synthesize explicit zh text routing")
+    var synth_result: Dictionary = tts.get_last_synthesis_result()
+    assert_equal(String(synth_result.get("resolved_language_code", "")), "zh", "get_last_synthesis_result() should report zh as the resolved language")
+    assert_equal(int(synth_result.get("resolved_language_id", -1)), 2, "get_last_synthesis_result() should report language_id=2 for zh routing")
+    assert_equal(String(synth_result.get("selection_mode", "")), "language_code_exact", "get_last_synthesis_result() should report language_code_exact for zh routing")
+    assert_true(tts.get_last_error().is_empty(), "successful zh synthesis should leave last_error empty")
     _cleanup_tts(tts)
 
 func test_multilingual_language_selector_conflict_rejected() -> void:
@@ -1024,6 +1161,11 @@ func test_invalid_openjtalk_library_path_falls_back() -> void:
 
     var audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
     assert_not_null(audio, "synthesize() should still work after native backend fallback")
+
+    tts.openjtalk_library_path = ""
+    assert_equal(tts.initialize(), OK, "initialize() should remain safe after clearing openjtalk_library_path")
+    audio = tts.synthesize(DEFAULT_JA_TEST_TEXT)
+    assert_not_null(audio, "synthesize() should still work after clearing openjtalk_library_path")
     _cleanup_tts(tts)
 
 func test_initialize_with_config_fallback() -> void:
@@ -1223,8 +1365,9 @@ func test_inspect_text() -> void:
     assert_true(phoneme_sentences.size() > 0, "inspect_text() should return at least one phoneme sentence")
     assert_equal(phoneme_sentences.size(), phoneme_id_sentences.size(), "inspect_text() should return matching phoneme and phoneme_id sentence counts")
 
-    if _preferred_test_language_code(bundle) == "en":
-        assert_equal(String(inspected.get("resolved_language_code", "")), "en", "inspect_text() should resolve the configured English language code")
+    var preferred_language := _preferred_test_language_code(bundle)
+    if not preferred_language.is_empty():
+        assert_equal(String(inspected.get("resolved_language_code", "")), preferred_language, "inspect_text() should resolve the configured language code")
     else:
         assert_true(int(inspected.get("resolved_language_id", -1)) >= -1, "inspect_text() should expose a resolved language id")
 
@@ -1305,6 +1448,11 @@ func test_synthesize_basic() -> void:
     assert_not_null(audio, "synthesize() should return AudioStreamWAV")
     if audio != null:
         assert_true(audio.data.size() > 0, "AudioStreamWAV should contain PCM data")
+    if _require_method(tts, "get_last_synthesis_result"):
+        var synth_result: Dictionary = tts.get_last_synthesis_result()
+        var preferred_language := _preferred_test_language_code(bundle)
+        if not preferred_language.is_empty():
+            assert_equal(String(synth_result.get("resolved_language_code", "")), preferred_language, "synthesize() should report the configured language code in get_last_synthesis_result()")
     _cleanup_tts(tts)
 
 func test_synthesize_phoneme_string() -> void:

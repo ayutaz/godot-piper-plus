@@ -129,6 +129,8 @@ static void unload_native_api_locked(void) {
     g_native_backend_available = 0;
 }
 
+static char* duplicate_c_string(const char* input);
+
 static int load_native_symbol(OpenJTalkNativeLibraryHandle library,
                               const char* symbol_name, void** destination) {
 #ifdef PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED
@@ -202,12 +204,10 @@ static int try_load_native_library(const char* library_path) {
 #endif
 }
 
-static int ensure_native_backend_loaded(void) {
+static int ensure_native_backend_loaded_locked(void) {
 #ifdef PIPER_PLUS_OPENJTALK_NATIVE_UNSUPPORTED
-    CONFIG_MUTEX_LOCK();
     g_native_load_attempted = 1;
     g_native_backend_available = 0;
-    CONFIG_MUTEX_UNLOCK();
     return 0;
 #else
     char configured_path[OPENJTALK_MAX_PATH];
@@ -226,11 +226,8 @@ static int ensure_native_backend_loaded(void) {
         NULL,
     };
 
-    CONFIG_MUTEX_LOCK();
     if (g_native_load_attempted) {
-        int available = g_native_backend_available;
-        CONFIG_MUTEX_UNLOCK();
-        return available;
+        return g_native_backend_available;
     }
 
     copy_path_buffer(configured_path, sizeof(configured_path),
@@ -238,7 +235,6 @@ static int ensure_native_backend_loaded(void) {
     copy_path_buffer(env_path, sizeof(env_path),
                      getenv("OPENJTALK_NATIVE_LIBRARY_PATH"));
     g_native_load_attempted = 1;
-    CONFIG_MUTEX_UNLOCK();
 
     if (configured_path[0] != '\0') {
         if (try_load_native_library(configured_path)) {
@@ -264,29 +260,21 @@ static int ensure_native_backend_loaded(void) {
         }
     }
 
-    CONFIG_MUTEX_LOCK();
     g_native_backend_available = 0;
-    CONFIG_MUTEX_UNLOCK();
     return 0;
 #endif
 }
 
-// Get the effective dictionary path (custom or default)
-static const char* get_effective_dictionary_path(void) {
+static char* snapshot_effective_dictionary_path_locked(void) {
     const char* path = NULL;
 
-    CONFIG_MUTEX_LOCK();
     if (g_custom_dict_path[0] != '\0') {
         path = g_custom_dict_path;
-    }
-    CONFIG_MUTEX_UNLOCK();
-
-    if (path) {
-        return path;
+    } else {
+        path = get_openjtalk_dictionary_path();
     }
 
-    // Fall back to default dictionary path
-    return get_openjtalk_dictionary_path();
+    return duplicate_c_string(path);
 }
 
 // Set a custom dictionary path
@@ -310,8 +298,19 @@ int openjtalk_is_available(void) {
 
 // Ensure OpenJTalk dictionary is available
 int openjtalk_ensure_dictionary(void) {
-    const char* dic_path = get_effective_dictionary_path();
-    if (openjtalk_dictionary_path_is_ready(dic_path)) {
+    char* dic_path = NULL;
+    int ready = 0;
+
+    CONFIG_MUTEX_LOCK();
+    dic_path = snapshot_effective_dictionary_path_locked();
+    CONFIG_MUTEX_UNLOCK();
+
+    if (dic_path) {
+        ready = openjtalk_dictionary_path_is_ready(dic_path);
+    }
+
+    if (ready) {
+        free(dic_path);
         return 1;
     }
 
@@ -319,6 +318,7 @@ int openjtalk_ensure_dictionary(void) {
             "OpenJTalk dictionary is not ready at: %s\n"
             "Expected compiled dictionary files: sys.dic, unk.dic, matrix.bin, char.bin\n",
             dic_path ? dic_path : "(null)");
+    free(dic_path);
     return 0;
 }
 
@@ -476,22 +476,23 @@ static char* normalize_native_phoneme_string(const char* phoneme_string,
 }
 
 static char* native_text_to_phonemes(const char* text) {
-    const char* dic_path = NULL;
+    char* dic_path = NULL;
     void* handle = NULL;
     OpenJTalkNativePhonemeResult* native_result = NULL;
     char* normalized = NULL;
 
-    if (!ensure_native_backend_loaded()) {
+    if (!ensure_native_backend_loaded_locked()) {
         return NULL;
     }
 
-    dic_path = get_effective_dictionary_path();
+    dic_path = snapshot_effective_dictionary_path_locked();
     if (!dic_path) {
         return NULL;
     }
 
     handle = g_native_api.create(dic_path);
     if (!handle) {
+        free(dic_path);
         return NULL;
     }
 
@@ -504,28 +505,30 @@ static char* native_text_to_phonemes(const char* text) {
         g_native_api.free_result(native_result);
     }
     g_native_api.destroy(handle);
+    free(dic_path);
     return normalized;
 }
 
 static OpenJTalkProsodyResult* native_text_to_phonemes_with_prosody(const char* text) {
-    const char* dic_path = NULL;
+    char* dic_path = NULL;
     void* handle = NULL;
     OpenJTalkNativeProsodyResult* native_result = NULL;
     OpenJTalkProsodyResult* result = NULL;
     int* kept_indices = NULL;
     int kept_count = 0;
 
-    if (!ensure_native_backend_loaded()) {
+    if (!ensure_native_backend_loaded_locked()) {
         return NULL;
     }
 
-    dic_path = get_effective_dictionary_path();
+    dic_path = snapshot_effective_dictionary_path_locked();
     if (!dic_path) {
         return NULL;
     }
 
     handle = g_native_api.create(dic_path);
     if (!handle) {
+        free(dic_path);
         return NULL;
     }
 
@@ -535,6 +538,7 @@ static OpenJTalkProsodyResult* native_text_to_phonemes_with_prosody(const char* 
             g_native_api.free_prosody_result(native_result);
         }
         g_native_api.destroy(handle);
+        free(dic_path);
         return NULL;
     }
 
@@ -542,6 +546,7 @@ static OpenJTalkProsodyResult* native_text_to_phonemes_with_prosody(const char* 
     if (!result) {
         g_native_api.free_prosody_result(native_result);
         g_native_api.destroy(handle);
+        free(dic_path);
         return NULL;
     }
     memset(result, 0, sizeof(*result));
@@ -553,6 +558,7 @@ static OpenJTalkProsodyResult* native_text_to_phonemes_with_prosody(const char* 
         g_native_api.free_prosody_result(native_result);
         g_native_api.destroy(handle);
         openjtalk_free_prosody_result(result);
+        free(dic_path);
         return NULL;
     }
 
@@ -564,6 +570,7 @@ static OpenJTalkProsodyResult* native_text_to_phonemes_with_prosody(const char* 
         g_native_api.free_prosody_result(native_result);
         g_native_api.destroy(handle);
         openjtalk_free_prosody_result(result);
+        free(dic_path);
         return NULL;
     }
 
@@ -584,6 +591,7 @@ static OpenJTalkProsodyResult* native_text_to_phonemes_with_prosody(const char* 
     free(kept_indices);
     g_native_api.free_prosody_result(native_result);
     g_native_api.destroy(handle);
+    free(dic_path);
     return result;
 }
 
@@ -613,7 +621,7 @@ static char* builtin_text_to_phonemes(const char* text) {
     }
 
     // Get dictionary path
-    const char* dic_path = get_effective_dictionary_path();
+    char* dic_path = snapshot_effective_dictionary_path_locked();
     if (!dic_path) {
         openjtalk_set_result(&result, OPENJTALK_ERROR_DICTIONARY_NOT_FOUND,
                              "Failed to get OpenJTalk dictionary path");
@@ -627,6 +635,7 @@ static char* builtin_text_to_phonemes(const char* text) {
         openjtalk_set_result(&result, OPENJTALK_ERROR_DICTIONARY_NOT_FOUND,
                              "Failed to initialize OpenJTalk (dictionary: %s)", dic_path);
         fprintf(stderr, "Error: %s\n", result.message);
+        free(dic_path);
         return NULL;
     }
 
@@ -635,6 +644,7 @@ static char* builtin_text_to_phonemes(const char* text) {
     if (!label) {
         fprintf(stderr, "Error: Failed to extract full context labels\n");
         openjtalk_finalize(oj);
+        free(dic_path);
         return NULL;
     }
 
@@ -644,6 +654,7 @@ static char* builtin_text_to_phonemes(const char* text) {
     if (!phonemes) {
         openjtalk_label_clear(label);
         openjtalk_finalize(oj);
+        free(dic_path);
         return NULL;
     }
 
@@ -678,6 +689,7 @@ static char* builtin_text_to_phonemes(const char* text) {
                             free(phonemes);
                             openjtalk_label_clear(label);
                             openjtalk_finalize(oj);
+                            free(dic_path);
                             return NULL;
                         }
                         size_t new_size = phoneme_buffer_size * 2;
@@ -686,6 +698,7 @@ static char* builtin_text_to_phonemes(const char* text) {
                             free(phonemes);
                             openjtalk_label_clear(label);
                             openjtalk_finalize(oj);
+                            free(dic_path);
                             return NULL;
                         }
                         phonemes = new_phonemes;
@@ -709,6 +722,7 @@ static char* builtin_text_to_phonemes(const char* text) {
     // Clean up
     openjtalk_label_clear(label);
     openjtalk_finalize(oj);
+    free(dic_path);
 
     if (total_phoneme_len == 0) {
         free(phonemes);
@@ -732,7 +746,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     }
 
     // Get dictionary path
-    const char* dic_path = get_effective_dictionary_path();
+    char* dic_path = snapshot_effective_dictionary_path_locked();
     if (!dic_path) {
         fprintf(stderr, "Error: Failed to get OpenJTalk dictionary path\n");
         return NULL;
@@ -742,6 +756,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     OpenJTalk* oj = openjtalk_initialize_with_dict(dic_path);
     if (!oj) {
         fprintf(stderr, "Error: Failed to initialize OpenJTalk (dictionary: %s)\n", dic_path);
+        free(dic_path);
         return NULL;
     }
 
@@ -750,6 +765,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     if (!label) {
         fprintf(stderr, "Error: Failed to extract full context labels\n");
         openjtalk_finalize(oj);
+        free(dic_path);
         return NULL;
     }
 
@@ -761,6 +777,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     if (!prosody_result) {
         openjtalk_label_clear(label);
         openjtalk_finalize(oj);
+        free(dic_path);
         return NULL;
     }
 
@@ -776,6 +793,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
         openjtalk_free_prosody_result(prosody_result);
         openjtalk_label_clear(label);
         openjtalk_finalize(oj);
+        free(dic_path);
         return NULL;
     }
 
@@ -848,6 +866,7 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
     // Clean up
     openjtalk_label_clear(label);
     openjtalk_finalize(oj);
+    free(dic_path);
 
     if (prosody_result->count == 0) {
         openjtalk_free_prosody_result(prosody_result);
@@ -859,12 +878,16 @@ static OpenJTalkProsodyResult* builtin_text_to_phonemes_with_prosody(const char*
 
 // Convert text to phonemes using OpenJTalk C API
 char* openjtalk_text_to_phonemes(const char* text) {
-    char* phonemes = native_text_to_phonemes(text);
-    if (phonemes) {
-        return phonemes;
-    }
+    char* phonemes = NULL;
 
-    return builtin_text_to_phonemes(text);
+    CONFIG_MUTEX_LOCK();
+    phonemes = native_text_to_phonemes(text);
+    if (!phonemes) {
+        phonemes = builtin_text_to_phonemes(text);
+    }
+    CONFIG_MUTEX_UNLOCK();
+
+    return phonemes;
 }
 
 // Free phoneme string
@@ -876,12 +899,16 @@ void openjtalk_free_phonemes(char* phonemes) {
 
 // Convert text to phonemes with prosody features using OpenJTalk C API
 OpenJTalkProsodyResult* openjtalk_text_to_phonemes_with_prosody(const char* text) {
-    OpenJTalkProsodyResult* result = native_text_to_phonemes_with_prosody(text);
-    if (result) {
-        return result;
-    }
+    OpenJTalkProsodyResult* result = NULL;
 
-    return builtin_text_to_phonemes_with_prosody(text);
+    CONFIG_MUTEX_LOCK();
+    result = native_text_to_phonemes_with_prosody(text);
+    if (!result) {
+        result = builtin_text_to_phonemes_with_prosody(text);
+    }
+    CONFIG_MUTEX_UNLOCK();
+
+    return result;
 }
 
 // Free prosody result

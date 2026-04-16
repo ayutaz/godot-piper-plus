@@ -49,6 +49,10 @@ bool has_suffix(const std::string &value, const char *suffix) {
 			value.compare(value.size() - suffix_str.size(), suffix_str.size(), suffix_str) == 0;
 }
 
+bool is_virtual_path(const String &path) {
+	return path.begins_with("res://") || path.begins_with("user://");
+}
+
 std::string strip_model_filename_suffix(const std::string &name) {
 	if (has_suffix(name, ".onnx.json")) {
 		return name.substr(0, name.size() - 10);
@@ -249,6 +253,23 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 		return String();
 	}
 
+	const String stripped = path.strip_edges();
+	if (is_virtual_path(stripped)) {
+		if (FileAccess::file_exists(stripped) && stripped.get_extension() == "onnx") {
+			return stripped;
+		}
+		const Ref<DirAccess> virtual_dir = DirAccess::open(stripped);
+		if (virtual_dir.is_valid()) {
+			const std::string preferred_stem =
+					strip_model_filename_suffix(stripped.get_file().utf8().get_data());
+			const std::optional<String> maybe_file =
+					find_onnx_in_resource_directory(stripped, preferred_stem);
+			if (maybe_file.has_value()) {
+				return *maybe_file;
+			}
+		}
+	}
+
 	String resolved_path = resolve_global_path(path.strip_edges());
 	if (!resolved_path.is_empty()) {
 		std::filesystem::path fs_path = std::filesystem::path(resolved_path.utf8().get_data());
@@ -269,7 +290,6 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 		}
 	}
 
-	String stripped = path.strip_edges();
 	std::string input_name = stripped.get_file().utf8().get_data();
 	input_name = strip_model_filename_suffix(input_name);
 	const std::string canonical_key = resolve_catalog_key(input_name);
@@ -282,6 +302,21 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 			: std::vector<std::string>{canonical_key, input_name};
 
 	for (const String &root_path : model_roots) {
+		if (is_virtual_path(root_path)) {
+			for (const std::string &search_stem : search_stems) {
+				for (const String &candidate_dir : {
+							 root_path,
+							 root_path.path_join(String(search_stem.c_str())),
+					 }) {
+					const std::optional<String> maybe_file =
+							find_onnx_in_resource_directory(candidate_dir, search_stem);
+					if (maybe_file.has_value()) {
+						return *maybe_file;
+					}
+				}
+			}
+		}
+
 		const String resolved_root = resolve_global_path(root_path);
 		if (resolved_root.is_empty()) {
 			continue;
@@ -309,7 +344,11 @@ String resolve_model_path(const String &path, const std::vector<String> &model_r
 String resolve_config_path(const String &configured_config_path,
 		const String &resolved_model_path) {
 	if (!configured_config_path.is_empty()) {
-		return resolve_global_path(configured_config_path);
+		const String stripped_config = configured_config_path.strip_edges();
+		if (is_virtual_path(stripped_config) && FileAccess::file_exists(stripped_config)) {
+			return stripped_config;
+		}
+		return resolve_global_path(stripped_config);
 	}
 
 	String model_config_path = resolved_model_path + String(".json");
@@ -328,6 +367,10 @@ String resolve_config_path(const String &configured_config_path,
 bool path_exists(const String &path) {
 	if (path.is_empty()) {
 		return false;
+	}
+
+	if (is_virtual_path(path)) {
+		return FileAccess::file_exists(path) || DirAccess::open(path).is_valid();
 	}
 
 	return std::filesystem::exists(std::filesystem::path(path.utf8().get_data()));
@@ -412,6 +455,14 @@ String resolve_web_config_source(
 	}
 
 	return String();
+}
+
+String resolve_virtual_dictionary_source(const String &configured_dictionary_path) {
+	if (configured_dictionary_path.strip_edges().is_empty()) {
+		return String();
+	}
+
+	return normalize_dictionary_candidate(configured_dictionary_path);
 }
 
 String resolve_web_dictionary_source(
@@ -559,6 +610,7 @@ bool read_web_file_text(const String &source_path, String &text,
 }
 
 String find_web_cmudict_source(const String &model_path, const String &config_path) {
+	auto find_dictionary_source = [&](const String &filename) -> String {
 	const String model_dir = model_path.get_base_dir();
 	const String config_dir = config_path.get_base_dir();
 
@@ -584,11 +636,88 @@ String find_web_cmudict_source(const String &model_path, const String &config_pa
 	push_candidate_dir("res://addons/piper_plus/dictionaries");
 
 	for (const String &candidate_dir : candidate_dirs) {
-		for (const String &filename : {"cmudict_data.json", "cmudict.json"}) {
-			const String candidate = candidate_dir.path_join(filename);
-			if (FileAccess::file_exists(candidate)) {
-				return candidate;
-			}
+		const String candidate = candidate_dir.path_join(filename);
+		if (FileAccess::file_exists(candidate)) {
+			return candidate;
+		}
+	}
+
+	return String();
+	};
+
+	const String cmudict_data_source = find_dictionary_source("cmudict_data.json");
+	if (!cmudict_data_source.is_empty()) {
+		return cmudict_data_source;
+	}
+	return find_dictionary_source("cmudict.json");
+}
+
+String find_web_pinyin_single_dict_source(
+		const String &model_path, const String &config_path) {
+	const String model_dir = model_path.get_base_dir();
+	const String config_dir = config_path.get_base_dir();
+
+	std::vector<String> candidate_dirs;
+	auto push_candidate_dir = [&](const String &candidate_dir) {
+		if (candidate_dir.is_empty()) {
+			return;
+		}
+		if (std::find(candidate_dirs.begin(), candidate_dirs.end(), candidate_dir) ==
+				candidate_dirs.end()) {
+			candidate_dirs.push_back(candidate_dir);
+		}
+	};
+
+	push_candidate_dir(model_dir);
+	push_candidate_dir(config_dir);
+	push_candidate_dir(model_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(model_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir("user://piper/dictionaries");
+	push_candidate_dir("res://piper_plus_assets/dictionaries");
+	push_candidate_dir("res://addons/piper_plus/dictionaries");
+
+	for (const String &candidate_dir : candidate_dirs) {
+		const String candidate = candidate_dir.path_join("pinyin_single.json");
+		if (FileAccess::file_exists(candidate)) {
+			return candidate;
+		}
+	}
+
+	return String();
+}
+
+String find_web_pinyin_phrase_dict_source(
+		const String &model_path, const String &config_path) {
+	const String model_dir = model_path.get_base_dir();
+	const String config_dir = config_path.get_base_dir();
+
+	std::vector<String> candidate_dirs;
+	auto push_candidate_dir = [&](const String &candidate_dir) {
+		if (candidate_dir.is_empty()) {
+			return;
+		}
+		if (std::find(candidate_dirs.begin(), candidate_dirs.end(), candidate_dir) ==
+				candidate_dirs.end()) {
+			candidate_dirs.push_back(candidate_dir);
+		}
+	};
+
+	push_candidate_dir(model_dir);
+	push_candidate_dir(config_dir);
+	push_candidate_dir(model_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(model_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir(config_dir.get_base_dir().get_base_dir().path_join("dictionaries"));
+	push_candidate_dir("user://piper/dictionaries");
+	push_candidate_dir("res://piper_plus_assets/dictionaries");
+	push_candidate_dir("res://addons/piper_plus/dictionaries");
+
+	for (const String &candidate_dir : candidate_dirs) {
+		const String candidate = candidate_dir.path_join("pinyin_phrases.json");
+		if (FileAccess::file_exists(candidate)) {
+			return candidate;
 		}
 	}
 

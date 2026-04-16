@@ -17,6 +17,10 @@ MODEL_STAGE_ROOT="$PROJECT_DIR/piper_plus_assets/models/$MODEL_KEY"
 MODEL_CACHE_ROOT="${PIPER_PAGES_MODEL_CACHE:-$REPO_ROOT/.cache/pages-demo/models}"
 CMUDICT_SRC_PATH="$ADDON_SRC/dictionaries/cmudict_data.json"
 CMUDICT_DST_PATH="$ADDON_DICT_DST/cmudict_data.json"
+PINYIN_SINGLE_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_single.json"
+PINYIN_SINGLE_DST_PATH="$ADDON_DICT_DST/pinyin_single.json"
+PINYIN_PHRASES_SRC_PATH="$ADDON_SRC/dictionaries/pinyin_phrases.json"
+PINYIN_PHRASES_DST_PATH="$ADDON_DICT_DST/pinyin_phrases.json"
 DEFAULT_MODEL_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx"
 DEFAULT_CONFIG_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx.json"
 
@@ -87,20 +91,25 @@ if [[ ! -d "$ADDON_BIN_SRC" ]]; then
 fi
 
 mkdir -p "$ADDON_DST" "$ADDON_BIN_DST" "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT" "$PROJECT_GODOT_DIR" "$MODEL_CACHE_ROOT"
+mkdir -p "$ADDON_DST/model_descriptors"
 
 find "$ADDON_DST" -mindepth 1 -maxdepth 1 ! -name 'bin' -exec rm -rf {} +
 find "$ADDON_BIN_DST" -mindepth 1 ! -name '.gitignore' -exec rm -rf {} +
 find "$PROJECT_DIR/piper_plus_assets" -mindepth 1 -exec rm -rf {} +
-mkdir -p "$ADDON_DICT_DST" "$MODEL_STAGE_ROOT" "$OPENJTALK_DICT_DST"
+mkdir -p "$ADDON_DICT_DST" "$ADDON_DST/model_descriptors" "$MODEL_STAGE_ROOT" "$OPENJTALK_DICT_DST"
 
 for addon_file in \
   LICENSE \
   README.md \
   THIRD_PARTY_LICENSES.txt \
-  download_catalog.gd \
-  download_catalog.json \
-  icon.svg \
-  piper_asset_paths.gd \
+	download_catalog.gd \
+	download_catalog.json \
+	icon.svg \
+	model_descriptor.gd \
+	model_descriptors/multilingual-test-medium.json \
+	multilingual_sample_text_catalog.gd \
+	multilingual_sample_text_catalog.json \
+	piper_asset_paths.gd \
   piper_plus.gdextension
 do
   if [[ -f "$ADDON_SRC/$addon_file" ]]; then
@@ -114,6 +123,14 @@ fi
 
 if [[ -f "$CMUDICT_SRC_PATH" ]]; then
   cp -f "$CMUDICT_SRC_PATH" "$CMUDICT_DST_PATH"
+fi
+
+if [[ -f "$PINYIN_SINGLE_SRC_PATH" ]]; then
+  cp -f "$PINYIN_SINGLE_SRC_PATH" "$PINYIN_SINGLE_DST_PATH"
+fi
+
+if [[ -f "$PINYIN_PHRASES_SRC_PATH" ]]; then
+  cp -f "$PINYIN_PHRASES_SRC_PATH" "$PINYIN_PHRASES_DST_PATH"
 fi
 
 if [[ ! -f "$ADDON_DST/icon.svg" ]]; then

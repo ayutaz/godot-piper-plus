@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_pages:
-        description: Deploy the exported Pages site for this ref
+        description: Deploy the exported Pages site when this ref is main
         required: true
         type: boolean
         default: true
@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           submodules: recursive
 
@@ -53,17 +53,17 @@ jobs:
           sudo apt-get install -y ninja-build scons
 
       - name: Set up emsdk
-        uses: mymindstorm/setup-emsdk@v14
+        uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984
         with:
           version: ${{ env.EMSDK_VERSION }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache desktop Linux build dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: |
             build-release/h
@@ -77,7 +77,7 @@ jobs:
           key: linux-x86_64-deps-${{ hashFiles('cmake/HTSEngine.cmake', 'cmake/OpenJTalk.cmake', 'cmake/HTSEngine_CMakeLists.txt', 'cmake/OpenJTalk_CMakeLists.txt', 'cmake/patch_openjtalk.cmake') }}
 
       - name: Cache desktop Linux ONNX Runtime
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: |
             build-release/onnxruntime
@@ -106,7 +106,7 @@ jobs:
 
       - name: Restore ONNX Runtime Web no-thread cache
         id: cache-ort-web-nothreads
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
@@ -142,14 +142,14 @@ jobs:
 
       - name: Save ONNX Runtime Web no-thread cache
         if: steps.cache-ort-web-nothreads.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/onnxruntime-web-nothreads
           key: web-onnxruntime-${{ runner.os }}-${{ env.ORT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_ORT_CACHE_VERSION }}-${{ env.WEB_ORT_BUILD_SIGNATURE }}-nothreads-${{ hashFiles('scripts/ci/build-onnxruntime-web.sh') }}
 
       - name: Restore custom Godot Web export templates cache
         id: cache-godot-web-templates
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/godot-web-templates
           key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
@@ -180,7 +180,7 @@ jobs:
 
       - name: Save custom Godot Web export templates cache
         if: steps.cache-godot-web-templates.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/godot-web-templates
           key: web-godot-templates-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ env.EMSDK_VERSION }}-${{ env.WEB_GODOT_TEMPLATES_CACHE_VERSION }}-${{ hashFiles('scripts/ci/build-godot-web-templates.sh', 'scripts/ci/install-godot-export-templates.sh', 'scripts/ci/patch-web-asm-const.mjs') }}
@@ -229,43 +229,60 @@ jobs:
       - name: Run local Pages smoke
         shell: bash
         run: |
-          node scripts/ci/run-pages-demo-smoke.mjs \
-            --root "$RUNNER_TEMP/pages-export/site" \
-            --manifest "public-demo-manifest.json" \
-            --scenario "ja" \
-            --label "pages-local" \
-            --screenshot "$RUNNER_TEMP/pages-debug/local-smoke.png" \
-            --console-log "$RUNNER_TEMP/pages-debug/local-smoke-console.json"
+          mkdir -p "$RUNNER_TEMP/pages-debug"
+          scenario_codes="$(node scripts/ci/generate-pages-manifest.mjs --catalog tests/fixtures/multilingual_sample_text_catalog.json --list-language-codes)"
+          IFS=',' read -r -a scenarios <<< "$scenario_codes"
+          for scenario in "${scenarios[@]}"; do
+            node scripts/ci/run-pages-demo-smoke.mjs \
+              --root "$RUNNER_TEMP/pages-export/site" \
+              --manifest "public-demo-manifest.json" \
+              --scenario "$scenario" \
+              --label "pages-local-$scenario" \
+              --screenshot "$RUNNER_TEMP/pages-debug/local-smoke-$scenario.png" \
+              --console-log "$RUNNER_TEMP/pages-debug/local-smoke-$scenario-console.json"
+          done
 
       - name: Upload preview site artifact
         if: success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-pages-site-preview
           path: ${{ runner.temp }}/pages-export/site/
           if-no-files-found: ignore
 
+      - name: Summarize branch-only preview mode
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy_pages && github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          {
+            echo "## GitHub Pages deploy skipped"
+            echo
+            echo "This run built and smoke-tested the Pages site, but public deployment was skipped."
+            echo "The repository's github-pages environment only accepts deployments from \`main\`."
+            echo "Use the uploaded preview artifact for this branch, or rerun on \`main\` to publish."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload local smoke diagnostics
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-pages-local-smoke-debug
           path: ${{ runner.temp }}/pages-debug/
           if-no-files-found: ignore
 
       - name: Configure GitHub Pages
-        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+        if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.deploy_pages)
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
 
       - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.deploy_pages)
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
           path: ${{ runner.temp }}/pages-export/site
 
   deploy-pages-demo:
     name: Deploy GitHub Pages Demo
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.deploy_pages)
     needs: build-pages-demo
     runs-on: ubuntu-22.04
     permissions:
@@ -280,7 +297,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128
 
   smoke-pages-demo:
     name: Smoke GitHub Pages Public URL
@@ -291,10 +308,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -307,17 +324,22 @@ jobs:
       - name: Run public URL smoke
         shell: bash
         run: |
-          node scripts/ci/run-pages-demo-smoke.mjs \
-            --url "${{ needs.deploy-pages-demo.outputs.page_url }}" \
-            --manifest "public-demo-manifest.json" \
-            --scenario "ja" \
-            --label "pages-public" \
-            --screenshot "$RUNNER_TEMP/pages-public-debug/public-smoke.png" \
-            --console-log "$RUNNER_TEMP/pages-public-debug/public-smoke-console.json"
+          mkdir -p "$RUNNER_TEMP/pages-public-debug"
+          scenario_codes="$(node scripts/ci/generate-pages-manifest.mjs --catalog tests/fixtures/multilingual_sample_text_catalog.json --list-language-codes)"
+          IFS=',' read -r -a scenarios <<< "$scenario_codes"
+          for scenario in "${scenarios[@]}"; do
+            node scripts/ci/run-pages-demo-smoke.mjs \
+              --url "${{ needs.deploy-pages-demo.outputs.page_url }}" \
+              --manifest "public-demo-manifest.json" \
+              --scenario "$scenario" \
+              --label "pages-public-$scenario" \
+              --screenshot "$RUNNER_TEMP/pages-public-debug/public-smoke-$scenario.png" \
+              --console-log "$RUNNER_TEMP/pages-public-debug/public-smoke-$scenario-console.json"
+          done
 
       - name: Upload public smoke diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: piper-plus-pages-public-smoke-debug
           path: ${{ runner.temp }}/pages-public-debug/

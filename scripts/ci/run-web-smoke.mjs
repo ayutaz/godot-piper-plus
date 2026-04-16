@@ -16,17 +16,54 @@ const SCENARIO_PROFILES = {
     en: {
       requiredPasses: [
         'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_inspect_text',
         'test_piper_tts.test_synthesize_basic',
       ],
       timeoutMs: 240000,
     },
     ja: {
       requiredPasses: [
+        'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_inspect_text',
+        'test_piper_tts.test_synthesize_basic',
         'test_piper_tts.test_japanese_dictionary_error_surface',
         'test_piper_tts.test_japanese_request_time_dictionary_error_surface',
         'test_piper_tts.test_japanese_text_input_with_dictionary',
       ],
       timeoutMs: 300000,
+    },
+    zh: {
+      requiredPasses: [
+        'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_inspect_text',
+        'test_piper_tts.test_multilingual_explicit_zh_text_routing',
+        'test_piper_tts.test_synthesize_basic',
+      ],
+      timeoutMs: 240000,
+    },
+    es: {
+      requiredPasses: [
+        'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_inspect_text',
+        'test_piper_tts.test_synthesize_basic',
+      ],
+      timeoutMs: 240000,
+    },
+    fr: {
+      requiredPasses: [
+        'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_inspect_text',
+        'test_piper_tts.test_synthesize_basic',
+      ],
+      timeoutMs: 240000,
+    },
+    pt: {
+      requiredPasses: [
+        'test_piper_tts.test_initialize_with_model',
+        'test_piper_tts.test_inspect_text',
+        'test_piper_tts.test_synthesize_basic',
+      ],
+      timeoutMs: 240000,
     },
   },
   threads: {
@@ -80,7 +117,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.error('Usage: node run-web-smoke.mjs --root <dir> [--entry piper-plus-tests.html] [--label name] [--scenario en|ja] [--variant nothreads|threads] [--require-pass suite.test] [--timeout-ms 240000] [--report-path file]');
+  console.error('Usage: node run-web-smoke.mjs --root <dir> [--entry piper-plus-tests.html] [--label name] [--scenario en|ja|zh|es|fr|pt] [--variant nothreads|threads] [--require-pass suite.test] [--timeout-ms 240000] [--report-path file]');
 }
 
 function safeSlug(value) {

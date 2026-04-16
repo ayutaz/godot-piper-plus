@@ -12,7 +12,8 @@
 namespace godot {
 namespace piper_language {
 
-Dictionary build_language_capabilities(const piper::Voice &voice);
+Dictionary build_language_capabilities(const piper::Voice &voice,
+		const Dictionary &runtime_contract = Dictionary());
 String language_code_from_id(const piper::Voice &voice,
 		const std::optional<piper::LanguageId> &language_id);
 

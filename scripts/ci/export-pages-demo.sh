@@ -14,6 +14,8 @@ GODOT_TEMPLATES_VERSION="${GODOT_TEMPLATES_VERSION:-4.4.1.stable}"
 MODEL_RELATIVE_DIR="piper_plus_assets/models/$MODEL_KEY"
 MODEL_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx"
 CONFIG_RELATIVE_PATH="$MODEL_RELATIVE_DIR/$MODEL_KEY.onnx.json"
+DESCRIPTOR_RELATIVE_PATH="addons/piper_plus/model_descriptors/$MODEL_KEY.json"
+TEMPLATE_CATALOG_RELATIVE_PATH="addons/piper_plus/multilingual_sample_text_catalog.json"
 OPENJTALK_DICT_KEY="${PIPER_OPENJTALK_DICTIONARY_KEY:-naist-jdic}"
 OPENJTALK_DICT_RELATIVE_PATH="piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11"
 OPENJTALK_REQUIRED_FILES=(
@@ -23,7 +25,10 @@ OPENJTALK_REQUIRED_FILES=(
 	"char.bin"
 )
 CMUDICT_RELATIVE_PATH="addons/piper_plus/dictionaries/cmudict_data.json"
+PINYIN_SINGLE_RELATIVE_PATH="addons/piper_plus/dictionaries/pinyin_single.json"
+PINYIN_PHRASES_RELATIVE_PATH="addons/piper_plus/dictionaries/pinyin_phrases.json"
 ADDON_GDEXTENSION_RELATIVE_PATH="addons/piper_plus/piper_plus.gdextension"
+ADDON_DICT_RELATIVE_DIR="addons/piper_plus/dictionaries"
 ADDON_BIN_RELATIVE_DIR="addons/piper_plus/bin"
 ADDON_ICON_RELATIVE_PATH="addons/piper_plus/icon.svg"
 WEB_RELEASE_BINARY_RELATIVE_PATH="$ADDON_BIN_RELATIVE_DIR/libpiper_plus.web.template_release.wasm32.nothreads.wasm"
@@ -35,6 +40,22 @@ BUILD_SHA="${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || pri
 STAGED_TEMPLATE_ROOT="$(dirname "$PROJECT_DIR")/.ci/godot-web-templates/$GODOT_TEMPLATES_VERSION"
 DEFAULT_MODEL_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx"
 DEFAULT_CONFIG_OVERRIDE="$REPO_ROOT/test/project/models/$MODEL_KEY.onnx.json"
+
+resolve_command() {
+	local command_name="$1"
+
+	if command -v "$command_name" >/dev/null 2>&1; then
+		command -v "$command_name"
+		return 0
+	fi
+
+	if command -v "${command_name}.exe" >/dev/null 2>&1; then
+		command -v "${command_name}.exe"
+		return 0
+	fi
+
+	return 1
+}
 
 resolve_custom_template_source_dir() {
 	local candidate=""
@@ -94,11 +115,16 @@ stage_custom_templates() {
 }
 
 if [[ -z "${GODOT:-}" ]]; then
+	GODOT="$(resolve_command godot || true)"
+fi
+
+if [[ -z "${GODOT:-}" ]]; then
 	echo "ERROR: GODOT is not set" >&2
 	exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
+NODE_CMD="${NODE_CMD:-$(resolve_command node || true)}"
+if [[ -z "$NODE_CMD" ]]; then
 	echo "ERROR: node is required to validate the Pages demo export." >&2
 	exit 1
 fi
@@ -129,10 +155,12 @@ PIPER_PAGES_MODEL_PATH="$MODEL_OVERRIDE" \
 PIPER_PAGES_CONFIG_PATH="$CONFIG_OVERRIDE" \
 bash "$SCRIPT_DIR/prepare-pages-demo-assets.sh"
 stage_custom_templates
-node "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
+"$NODE_CMD" "$SCRIPT_DIR/validate-pages-preset.mjs" --project "$PROJECT_DIR" --preset "$PRESET_NAME"
 
 for required_path in \
 	"$PROJECT_DIR/$ADDON_ICON_RELATIVE_PATH" \
+	"$PROJECT_DIR/$DESCRIPTOR_RELATIVE_PATH" \
+	"$PROJECT_DIR/$TEMPLATE_CATALOG_RELATIVE_PATH" \
 	"$PROJECT_DIR/$WEB_RELEASE_BINARY_RELATIVE_PATH" \
 	"$PROJECT_DIR/$WEB_DEBUG_BINARY_RELATIVE_PATH" \
 	"$PROJECT_DIR/$LINUX_RELEASE_BINARY_RELATIVE_PATH" \
@@ -184,91 +212,57 @@ if [[ ! -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" ]]; then
 	exit 1
 fi
 
+for required_json in \
+	"$PROJECT_DIR/$PINYIN_SINGLE_RELATIVE_PATH" \
+	"$PROJECT_DIR/$PINYIN_PHRASES_RELATIVE_PATH"
+do
+	if [[ ! -f "$required_json" ]]; then
+		echo "ERROR: staged pinyin dictionary is missing: $required_json" >&2
+		exit 1
+	fi
+done
+
 mkdir -p \
 	"$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR" \
+	"$SITE_ROOT/$ADDON_DICT_RELATIVE_DIR" \
+	"$SITE_ROOT/$(dirname "$DESCRIPTOR_RELATIVE_PATH")" \
+	"$SITE_ROOT/$(dirname "$TEMPLATE_CATALOG_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$MODEL_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$OPENJTALK_DICT_RELATIVE_PATH")" \
 	"$SITE_ROOT/$(dirname "$CMUDICT_RELATIVE_PATH")"
 
 cp -f "$PROJECT_DIR/$ADDON_GDEXTENSION_RELATIVE_PATH" "$SITE_ROOT/$ADDON_GDEXTENSION_RELATIVE_PATH"
 find "$PROJECT_DIR/$ADDON_BIN_RELATIVE_DIR" -mindepth 1 -maxdepth 1 ! -name '.gitignore' -exec cp -a {} "$SITE_ROOT/$ADDON_BIN_RELATIVE_DIR"/ \;
+cp -f "$PROJECT_DIR/$DESCRIPTOR_RELATIVE_PATH" "$SITE_ROOT/$DESCRIPTOR_RELATIVE_PATH"
+cp -f "$PROJECT_DIR/$TEMPLATE_CATALOG_RELATIVE_PATH" "$SITE_ROOT/$TEMPLATE_CATALOG_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/$MODEL_RELATIVE_PATH" "$SITE_ROOT/$MODEL_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/$CONFIG_RELATIVE_PATH" "$SITE_ROOT/$CONFIG_RELATIVE_PATH"
 rm -rf "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
 mkdir -p "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"
 cp -R "$PROJECT_DIR/$OPENJTALK_DICT_RELATIVE_PATH"/. "$SITE_ROOT/$OPENJTALK_DICT_RELATIVE_PATH"/
 cp -f "$PROJECT_DIR/$CMUDICT_RELATIVE_PATH" "$SITE_ROOT/$CMUDICT_RELATIVE_PATH"
+cp -f "$PROJECT_DIR/$PINYIN_SINGLE_RELATIVE_PATH" "$SITE_ROOT/$PINYIN_SINGLE_RELATIVE_PATH"
+cp -f "$PROJECT_DIR/$PINYIN_PHRASES_RELATIVE_PATH" "$SITE_ROOT/$PINYIN_PHRASES_RELATIVE_PATH"
 cp -f "$PROJECT_DIR/addons/piper_plus/LICENSE" "$SITE_ROOT/LICENSE.txt"
 cp -f "$PROJECT_DIR/addons/piper_plus/THIRD_PARTY_LICENSES.txt" "$SITE_ROOT/THIRD_PARTY_LICENSES.txt"
 printf '' > "$SITE_ROOT/.nojekyll"
 
-cat > "$SITE_ROOT/public-demo-manifest.json" <<EOF
-{
-  "entry": "$ENTRY_NAME",
-  "addon": {
-    "gdextension_path": "$ADDON_GDEXTENSION_RELATIVE_PATH"
-  },
-  "runtime": {
-    "thread_support": false,
-    "execution_provider_policy": "cpu_only",
-    "pwa_enabled": true
-  },
-  "model": {
-    "key": "$MODEL_KEY",
-    "path": "$MODEL_RELATIVE_PATH",
-    "config_path": "$CONFIG_RELATIVE_PATH"
-  },
-  "demo": {
-    "supported_language_codes": [
-      "ja",
-      "en"
-    ],
-    "default_language_code": "ja",
-    "sample_texts": {
-      "ja": "こんにちは",
-      "en": "hello from godot"
-    }
-  },
-  "dictionary": {
-    "key": "$OPENJTALK_DICT_KEY",
-    "bootstrap_mode": "staged_asset",
-    "cmudict_path": "$CMUDICT_RELATIVE_PATH",
-    "openjtalk_path": "$OPENJTALK_DICT_RELATIVE_PATH",
-    "openjtalk_install_directory": "open_jtalk_dic_utf_8-1.11",
-    "openjtalk_required_files": [
-      "sys.dic",
-      "unk.dic",
-      "matrix.bin",
-      "char.bin"
-    ]
-  },
-  "notices": [
-    "LICENSE.txt",
-    "THIRD_PARTY_LICENSES.txt"
-  ],
-  "smoke": {
-    "statusPrefix": "PAGES_DEMO status=",
-    "summaryPrefix": "PAGES_DEMO summary=",
-    "successStatus": "pass",
-    "failureStatus": "fail",
-    "timeoutMs": 240000,
-    "scenarios": {
-      "ja": {
-        "status": "pass",
-        "action": "startup_probe",
-        "selected_language_code": "ja",
-        "resolved_language_code": "ja",
-        "input_text": "こんにちは",
-        "startup_probe_language_code": "ja",
-        "startup_probe_text": "こんにちは",
-        "startup_probe_passed": true,
-        "supports_japanese_text_input": true,
-        "dictionary_bootstrap_mode": "staged_asset"
-      }
-    }
-  }
-}
-EOF
+"$NODE_CMD" "$SCRIPT_DIR/generate-pages-manifest.mjs" \
+	--descriptor "$REPO_ROOT/addons/piper_plus/model_descriptors/multilingual-test-medium.json" \
+	--descriptor-path "$DESCRIPTOR_RELATIVE_PATH" \
+	--template-catalog-path "$TEMPLATE_CATALOG_RELATIVE_PATH" \
+	--output "$SITE_ROOT/public-demo-manifest.json" \
+	--entry "$ENTRY_NAME" \
+	--addon-gdextension-path "$ADDON_GDEXTENSION_RELATIVE_PATH" \
+	--model-key "$MODEL_KEY" \
+	--model-path "$MODEL_RELATIVE_PATH" \
+	--config-path "$CONFIG_RELATIVE_PATH" \
+	--cmudict-path "$CMUDICT_RELATIVE_PATH" \
+	--pinyin-single-path "$PINYIN_SINGLE_RELATIVE_PATH" \
+	--pinyin-phrases-path "$PINYIN_PHRASES_RELATIVE_PATH" \
+	--openjtalk-key "$OPENJTALK_DICT_KEY" \
+	--openjtalk-path "$OPENJTALK_DICT_RELATIVE_PATH" \
+	--openjtalk-install-directory "open_jtalk_dic_utf_8-1.11"
 
 cat > "$SITE_ROOT/build-meta.json" <<EOF
 {
@@ -281,7 +275,7 @@ cat > "$SITE_ROOT/build-meta.json" <<EOF
 }
 EOF
 
-node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$SITE_ROOT"
-node "$SCRIPT_DIR/validate-pages-artifact.mjs" "$SITE_ROOT" --expected-build "$BUILD_SHA"
+"$NODE_CMD" "$SCRIPT_DIR/patch-web-asm-const.mjs" "$SITE_ROOT"
+"$NODE_CMD" "$SCRIPT_DIR/validate-pages-artifact.mjs" "$SITE_ROOT" --expected-build "$BUILD_SHA"
 
 printf 'PAGES_DEMO_EXPORT_READY %s\n' "$SITE_ROOT/$ENTRY_NAME"

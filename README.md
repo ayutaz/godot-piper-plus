@@ -12,11 +12,11 @@
 ## できること
 
 - ローカル完結のニューラル音声合成
-- 日本語と英語の text input
-- 一部多言語 model の explicit 利用と capability 確認
+- `ja/en/zh/es/fr/pt` の explicit text input / inspect / synthesize
+- `ja/en` auto-routing と multilingual capability 確認
 - 同期 / 非同期 / streaming 合成
 - `inspect_*` API による dry-run / timing 取得
-- model downloader、dictionary editor、Inspector 拡張、test speech UI
+- model downloader、dictionary editor、Inspector 拡張、test speech UI、言語別 template text
 - `execution_provider` と `gpu_device_id` による backend 切り替え
 
 ## 利用前に知っておくこと
@@ -92,11 +92,11 @@ model 本体は package に同梱していません。
 
 現在の言語サポート:
 
-- `ja` / `en`: text input 対応
-- `es` / `fr` / `pt`: experimental。明示的な model / language 指定を前提
-- `zh`: phoneme input のみ
+- `ja` / `en`: preview tier。auto / explicit の text input をサポート
+- `zh` / `es` / `fr` / `pt`: experimental explicit-only。`language_code` または `language_id` の明示指定を前提に text input をサポート
+- Windows / Web の repo 実装では、6 言語 selector / template text / smoke を shared catalog と descriptor foundation で揃える構成を採っています
 
-より厳密な正本は [`tests/fixtures/multilingual_capability_matrix.json`](./tests/fixtures/multilingual_capability_matrix.json)、人が読む資料は [`docs/generated/multilingual_capability_matrix.md`](./docs/generated/multilingual_capability_matrix.md) を参照してください。
+より厳密な正本は [`tests/fixtures/multilingual_capability_matrix.json`](./tests/fixtures/multilingual_capability_matrix.json) と [`tests/fixtures/multilingual_sample_text_catalog.json`](./tests/fixtures/multilingual_sample_text_catalog.json) です。runtime descriptor foundation は [`addons/piper_plus/model_descriptors/multilingual-test-medium.json`](./addons/piper_plus/model_descriptors/multilingual-test-medium.json) です。人が読む資料は [`docs/generated/multilingual_capability_matrix.md`](./docs/generated/multilingual_capability_matrix.md) と [`docs/generated/multilingual_sample_text_catalog.md`](./docs/generated/multilingual_sample_text_catalog.md) を参照してください。
 
 ## サポート状況
 
@@ -109,19 +109,19 @@ model 本体は package に同梱していません。
 | macOS | 確認済み | packaged addon smoke を CI で確認済み |
 | Android | 進行中 | export smoke は確認済み。残りは runtime 可否と Windows local export 差分 |
 | iOS | 確認済み | export / link smoke を CI で確認済み |
-| Web export | preview support | browser smoke は `no-threads` preset で `en/ja` synthesize gate、`Web Threads` preset で non-blocking な English/core regression smoke を回す構成です。main では `M9` の English minimal Pages demo を公開中で、この branch では `ja/en` public demo と Japanese smoke を追加実装し、workflow で実証中です。custom template と `EP_CPU` 前提 |
+| Web export | preview support | browser smoke は `no-threads` preset で canonical 6-language synthesize gate、`Web Threads` preset で non-blocking な English/core regression smoke を回す構成です。repo では 6-language selector / template text / Japanese dictionary staging / local-public smoke loop まで実装済みで、残りは workflow 実証と public deploy の確定です。custom template と `EP_CPU` 前提 |
 
 ## GitHub Pages 公開デモ
 
 公開デモは GitHub Pages で公開中です。
 
 - URL: [https://ayutaz.github.io/godot-piper-plus/](https://ayutaz.github.io/godot-piper-plus/)
-- main の公開 scope: `M9` の `no-threads` / `CPU-only` / English minimal demo
-- current branch の追加 scope: `ja/en` public demo、Japanese startup self-test、public `ja` smoke の実装済み / 実証中
+- 現在の公開 URL は `main` に deploy 済みの artifact を配信します
+- repo 側の Pages demo 実装は canonical 6-language selector / template text、shared descriptor foundation、staged `naist-jdic`、`ja/en/zh/es/fr/pt` の local / public smoke loop まで拡張済みです
 - 同梱 model: `multilingual-test-medium`
 - 日本語 text input は staged `naist-jdic` を使います
 
-公開デモは addon の雰囲気をすぐ確認するための入口です。addon 自体の Web export はまだ preview support です。`ja/en` 公開デモはこの branch で実装済みですが、`workflow_dispatch` / `main` deploy での実証は継続中です。
+公開デモは addon の雰囲気をすぐ確認するための入口です。addon 自体の Web export はまだ preview support で、public URL の live scope は最新 deploy 結果に従います。
 
 ## Web export
 
@@ -132,8 +132,8 @@ addon 自体の Web export は preview support です。
 - `execution_provider` は `EP_CPU` 固定です
 - `openjtalk-native` shared library は Web では使えません
 - self-hosting する場合は `COOP` / `COEP` 付き static server か、同等の cross-origin isolation workaround が必要です
-- local browser smoke は `GODOT=/path/to/godot PIPER_WEB_SMOKE_SCENARIOS=en,ja bash scripts/ci/export-web-smoke.sh build/web-smoke` で再現できます。既定では `Web` preset が `en,ja` の synthesize gate、`Web Threads` preset が `en` の non-blocking regression smoke を実行します。Node.js と Playwright が必要です
-- Pages demo の local smoke は `node scripts/ci/run-pages-demo-smoke.mjs --root <site_dir> --scenario ja` で再現できます
+- local browser smoke は `GODOT=/path/to/godot bash scripts/ci/export-web-smoke.sh build/web-smoke` で再現できます。既定では `Web` preset が `ja/en/zh/es/fr/pt` の synthesize gate、`Web Threads` preset が `en` の non-blocking regression smoke を実行します。Node.js と Playwright が必要です
+- Pages demo の local smoke は `node scripts/ci/run-pages-demo-smoke.mjs --root <site_dir> --scenario <language_code>` で再現できます。scenario は sample text catalog の 6 言語と同じです
 
 公開デモの運用メモは [`docs/web-github-pages-plan.md`](./docs/web-github-pages-plan.md) を参照してください。
 
@@ -178,7 +178,8 @@ addon は次の editor command を提供します。
 - Android は CI export smoke まで確認済みですが、runtime 可否の最終確認が残っています
 - Windows local の Android headless export では generic configuration error の切り分けが残っています
 - Web export は preview support です。正式サポートではありません
-- `zh` は phoneme input のみで、text input には使えません
+- multilingual auto-routing は `ja/en` が中心です。`zh/es/fr/pt` は explicit selection を前提とする experimental tier です
+- Windows packaged addon の 6 言語 smoke と Web / Pages workflow 実証は継続中です
 
 ## 詳しい資料
 
@@ -187,6 +188,8 @@ addon は次の editor command を提供します。
 - 進捗とサポート状況: [`docs/milestones.md`](./docs/milestones.md)
 - チケット一覧: [`docs/tickets/README.md`](./docs/tickets/README.md)
 - Pages 公開メモ: [`docs/web-github-pages-plan.md`](./docs/web-github-pages-plan.md)
+- runtime descriptor: [`addons/piper_plus/model_descriptors/multilingual-test-medium.json`](./addons/piper_plus/model_descriptors/multilingual-test-medium.json)
+- 言語 contract: [`docs/generated/multilingual_capability_matrix.md`](./docs/generated/multilingual_capability_matrix.md) と [`docs/generated/multilingual_sample_text_catalog.md`](./docs/generated/multilingual_sample_text_catalog.md)
 - CI / CD: [`.github/workflows/build.yml`](./.github/workflows/build.yml) と [`.github/workflows/pages.yml`](./.github/workflows/pages.yml)
 
 ## 関連プロジェクト

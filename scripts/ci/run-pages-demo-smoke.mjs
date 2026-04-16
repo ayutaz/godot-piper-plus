@@ -175,7 +175,7 @@ function summaryMatchesScenario(summary, scenario) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || (!args.root && !args.url)) {
-    console.error('Usage: node run-pages-demo-smoke.mjs (--root <dir> | --url <page_url>) [--manifest public-demo-manifest.json] [--entry index.html] [--scenario ja]');
+    console.error('Usage: node run-pages-demo-smoke.mjs (--root <dir> | --url <page_url>) [--manifest public-demo-manifest.json] [--entry index.html] [--scenario <language_code>]');
     process.exit(args.help ? 0 : 1);
   }
 
@@ -232,6 +232,12 @@ async function main() {
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     page = await context.newPage();
+
+    if (scenario) {
+      await page.addInitScript((scenarioName) => {
+        globalThis.__PIPER_WEB_SMOKE_SCENARIO = scenarioName;
+      }, args.scenario);
+    }
 
     let status = '';
 

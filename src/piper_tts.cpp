@@ -556,7 +556,36 @@ Error PiperTTS::initialize() {
 			resolved_dictionary_source = staged_dictionary_path;
 		}
 	} else if (!dictionary_path.is_empty()) {
-		resolved_dictionary_source = resolve_path(dictionary_path);
+		const String direct_dictionary_source = resolve_path(dictionary_path);
+		if (!direct_dictionary_source.is_empty()) {
+			const CharString direct_dictionary_utf8 = direct_dictionary_source.utf8();
+			if (openjtalk_dictionary_path_is_ready(direct_dictionary_utf8.get_data()) != 0) {
+				resolved_dictionary_source = direct_dictionary_source;
+			}
+		}
+
+		if (resolved_dictionary_source.is_empty() &&
+				(dictionary_path.begins_with("res://") || dictionary_path.begins_with("user://"))) {
+			const String virtual_dictionary_source =
+					piper_tts_paths::resolve_virtual_dictionary_source(dictionary_path);
+			if (virtual_dictionary_source.is_empty()) {
+				// Missing virtual assets should surface through the language-specific
+				// readiness checks after language resolution, not as an early init failure.
+			} else {
+				String native_dictionary_error;
+				String staged_dictionary_path;
+				if (!piper_tts_paths::stage_web_dictionary_to_user(
+							virtual_dictionary_source, staged_dictionary_path, native_dictionary_error)) {
+					UtilityFunctions::push_error(native_dictionary_error);
+					set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY",
+							native_dictionary_error, "initialize");
+					set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
+					emit_signal("initialized", false);
+					return ERR_UNCONFIGURED;
+				}
+				resolved_dictionary_source = staged_dictionary_path;
+			}
+		}
 	}
 
 	if (!resolved_dictionary_source.is_empty()) {
@@ -633,7 +662,10 @@ Error PiperTTS::initialize() {
 		}
 #endif
 
-		if (web_runtime) {
+		const bool resource_model_runtime = web_runtime ||
+				resolved_model_source.begins_with("res://") ||
+				resolved_config_source.begins_with("res://");
+		if (resource_model_runtime) {
 			std::vector<uint8_t> model_data;
 			String web_error;
 			if (!piper_tts_paths::read_web_file_bytes(
@@ -662,10 +694,44 @@ Error PiperTTS::initialize() {
 				cmu_dict_source_label = cmu_dict_source.utf8().get_data();
 			}
 
+			std::optional<std::string> pinyin_single_dict_json;
+			std::string pinyin_single_dict_source_label;
+			const String pinyin_single_dict_source =
+					piper_tts_paths::find_web_pinyin_single_dict_source(
+							resolved_model_source, resolved_config_source);
+			if (!pinyin_single_dict_source.is_empty()) {
+				String pinyin_single_dict_text;
+				if (!piper_tts_paths::read_web_file_text(
+							pinyin_single_dict_source, pinyin_single_dict_text, web_error)) {
+					throw std::runtime_error(web_error.utf8().get_data());
+				}
+				pinyin_single_dict_json = pinyin_single_dict_text.utf8().get_data();
+				pinyin_single_dict_source_label =
+						pinyin_single_dict_source.utf8().get_data();
+			}
+
+			std::optional<std::string> pinyin_phrase_dict_json;
+			std::string pinyin_phrase_dict_source_label;
+			const String pinyin_phrase_dict_source =
+					piper_tts_paths::find_web_pinyin_phrase_dict_source(
+							resolved_model_source, resolved_config_source);
+			if (!pinyin_phrase_dict_source.is_empty()) {
+				String pinyin_phrase_dict_text;
+				if (!piper_tts_paths::read_web_file_text(
+							pinyin_phrase_dict_source, pinyin_phrase_dict_text, web_error)) {
+					throw std::runtime_error(web_error.utf8().get_data());
+				}
+				pinyin_phrase_dict_json = pinyin_phrase_dict_text.utf8().get_data();
+				pinyin_phrase_dict_source_label =
+						pinyin_phrase_dict_source.utf8().get_data();
+			}
+
 			piper::loadVoice(*piper_config, std::move(model_data),
 					resolved_model_source.utf8().get_data(), config_json.utf8().get_data(),
 					resolved_config_source.utf8().get_data(), *voice, sid, ep, gpu_device_id,
-					cmu_dict_json, cmu_dict_source_label);
+					cmu_dict_json, cmu_dict_source_label,
+					pinyin_single_dict_json, pinyin_single_dict_source_label,
+					pinyin_phrase_dict_json, pinyin_phrase_dict_source_label);
 		} else {
 			piper::loadVoice(*piper_config, resolved_model_source.utf8().get_data(),
 					resolved_config_source.utf8().get_data(), *voice, sid, ep, gpu_device_id);
@@ -1006,7 +1072,7 @@ Dictionary PiperTTS::get_language_capabilities() const {
 	if (!ready || !voice) {
 		return Dictionary();
 	}
-	return piper_language::build_language_capabilities(*voice);
+	return piper_language::build_language_capabilities(*voice, get_runtime_contract());
 }
 
 Dictionary PiperTTS::get_runtime_contract() const {

@@ -8,10 +8,10 @@ This file is the doc-readable projection of the multilingual contract. Edit the 
 |---|---|---|---|---|---|---|---|
 | `ja` | `preview` | `openjtalk` | `auto` | `yes` | `yes` | `0` | auto/explicit |
 | `en` | `preview` | `cmu_dict` | `auto` | `yes` | `yes` | `1` | auto/explicit |
-| `es` | `experimental explicit-only` | `rule_based` | `explicit_only` | `yes` | `no` | `2` | experimental adapter |
+| `es` | `experimental explicit-only` | `rule_based` | `explicit_only` | `yes` | `no` | `3` | experimental adapter |
 | `fr` | `experimental explicit-only` | `rule_based` | `explicit_only` | `yes` | `no` | `4` | experimental adapter |
 | `pt` | `experimental explicit-only` | `rule_based` | `explicit_only` | `yes` | `no` | `5` | experimental adapter |
-| `zh` | `phoneme-only` | `raw_phoneme_only` | `phoneme_only` | `no` | `no` | `3` | raw phoneme only, text phonemization |
+| `zh` | `experimental explicit-only` | `pinyin_dict` | `explicit_only` | `yes` | `no` | `2` | experimental adapter |
 
 ## Contract Notes
 

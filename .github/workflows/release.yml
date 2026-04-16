@@ -20,7 +20,7 @@ jobs:
       contents: write
     steps:
       - name: Download packaged addon artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: piper-plus-addon-package
           path: dist
@@ -30,7 +30,7 @@ jobs:
         run: mv dist/piper-plus-addon-package.zip "dist/piper-plus-${GITHUB_REF_NAME}.zip"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda
         with:
           files: dist/piper-plus-${{ github.ref_name }}.zip
           generate_release_notes: true

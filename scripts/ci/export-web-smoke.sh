@@ -8,21 +8,42 @@ ADDON_SRC="${PIPER_ADDON_SRC:-$REPO_ROOT/addons/piper_plus}"
 ADDON_BIN_SRC="${PIPER_ADDON_BIN_SRC:-$ADDON_SRC/bin}"
 EXPORT_ROOT="${1:-${PIPER_WEB_EXPORT_ROOT:-$REPO_ROOT/build/web-smoke}}"
 PRESETS="${PIPER_WEB_PRESETS:-Web,Web Threads}"
-SCENARIOS="${PIPER_WEB_SMOKE_SCENARIOS:-en,ja}"
+SCENARIOS="${PIPER_WEB_SMOKE_SCENARIOS:-en,ja,zh,es,fr,pt}"
 ENTRY_NAME="${PIPER_WEB_ENTRY_NAME:-piper-plus-tests.html}"
 PROJECT_ADDON_DIR="$PROJECT_DIR/addons/piper_plus"
+
+resolve_command() {
+  local command_name="$1"
+
+  if command -v "$command_name" >/dev/null 2>&1; then
+    command -v "$command_name"
+    return 0
+  fi
+
+  if command -v "${command_name}.exe" >/dev/null 2>&1; then
+    command -v "${command_name}.exe"
+    return 0
+  fi
+
+  return 1
+}
+
+if [[ -z "${GODOT:-}" ]]; then
+  GODOT="$(resolve_command godot || true)"
+fi
 
 if [[ -z "${GODOT:-}" ]]; then
   echo "ERROR: GODOT is not set" >&2
   exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
+NODE_CMD="${NODE_CMD:-$(resolve_command node || true)}"
+if [[ -z "$NODE_CMD" ]]; then
   echo "ERROR: node is required for browser smoke. Install Node.js and Playwright first." >&2
   exit 1
 fi
 
-node "$SCRIPT_DIR/validate-web-smoke-presets.mjs" --project "$PROJECT_DIR"
+"$NODE_CMD" "$SCRIPT_DIR/validate-web-smoke-presets.mjs" --project "$PROJECT_DIR"
 
 if [[ ! -d "$ADDON_SRC" ]]; then
   echo "ERROR: addon source directory not found: $ADDON_SRC" >&2
@@ -121,7 +142,7 @@ for preset_name in "${preset_names[@]}"; do
   fi
 
   stage_web_runtime_payload "$preset_dir"
-  node "$SCRIPT_DIR/patch-web-asm-const.mjs" "$preset_dir"
+  "$NODE_CMD" "$SCRIPT_DIR/patch-web-asm-const.mjs" "$preset_dir"
 
   preset_scenarios="$(scenarios_for_preset "$preset_name")"
   preset_variant="$(variant_for_preset "$preset_name")"
@@ -132,7 +153,7 @@ for preset_name in "${preset_names[@]}"; do
 
     timeout_ms="240000"
     case "$scenario_name" in
-      en)
+      en|zh|es|fr|pt)
         timeout_ms="240000"
         ;;
       ja)
@@ -144,7 +165,7 @@ for preset_name in "${preset_names[@]}"; do
         ;;
     esac
 
-    node "$SCRIPT_DIR/run-web-smoke.mjs" \
+    "$NODE_CMD" "$SCRIPT_DIR/run-web-smoke.mjs" \
       --root "$preset_dir" \
       --entry "$ENTRY_NAME" \
       --label "$preset_name-$scenario_name" \

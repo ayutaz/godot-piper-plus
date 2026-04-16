@@ -50,6 +50,8 @@ onnxruntime/
 /test/project/addons/piper_plus/dictionary_editor.gd
 /test/project/addons/piper_plus/icon.svg
 /test/project/addons/piper_plus/model_downloader.gd
+/test/project/addons/piper_plus/multilingual_sample_text_catalog.gd
+/test/project/addons/piper_plus/multilingual_sample_text_catalog.json
 /test/project/addons/piper_plus/piper_asset_paths.gd
 /test/project/addons/piper_plus/models/
 /test/project/addons/piper_plus/piper_plus_plugin.gd

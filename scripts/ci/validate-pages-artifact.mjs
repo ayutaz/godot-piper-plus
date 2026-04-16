@@ -55,6 +55,19 @@ const buildMetaPath = path.join(siteRoot, "build-meta.json");
 const manifest = requireJson(manifestPath);
 const buildMeta = requireJson(buildMetaPath);
 
+assertCondition(typeof manifest.model?.descriptor_path === "string" && manifest.model.descriptor_path.length > 0, "manifest must declare model.descriptor_path");
+const descriptorPath = path.resolve(siteRoot, manifest.model.descriptor_path);
+assertCondition(
+  descriptorPath === siteRoot || descriptorPath.startsWith(`${siteRoot}${path.sep}`),
+  `descriptor_path must stay within the artifact root: ${manifest.model.descriptor_path}`,
+);
+const descriptor = requireJson(descriptorPath);
+assertCondition(Array.isArray(descriptor.languages), "model descriptor must define languages");
+const expectedLanguageCodes = descriptor.languages.map((entry) => String(entry.language_code ?? ""));
+const expectedSampleTexts = new Map(
+  descriptor.languages.map((entry) => [String(entry.language_code ?? ""), String(entry.template_text ?? "")]),
+);
+
 assertCondition(manifest.entry === "index.html", "public-demo-manifest.json must point to index.html");
 assertCondition(typeof manifest.addon?.gdextension_path === "string" && manifest.addon.gdextension_path.length > 0, "manifest must declare addon.gdextension_path");
 assertCondition(manifest.runtime?.thread_support === false, "manifest must declare no-thread support");
@@ -64,21 +77,35 @@ assertCondition(String(buildMeta.export_preset ?? "") === "Web Pages", "build-me
 assertCondition(String(buildMeta.entry ?? "") === manifest.entry, "build-meta entry must match manifest entry");
 assertCondition(String(buildMeta.model_key ?? "") === String(manifest.model?.key ?? ""), "build-meta model_key must match manifest");
 assertCondition(String(manifest.demo?.default_language_code ?? "") === "ja", "manifest must declare ja as the default language");
+assertCondition(String(manifest.model?.descriptor_path ?? "") === "addons/piper_plus/model_descriptors/multilingual-test-medium.json", "manifest must declare the descriptor path");
+assertCondition(String(manifest.demo?.template_catalog_path ?? "") === "addons/piper_plus/multilingual_sample_text_catalog.json", "manifest must declare the compatibility template catalog path");
 assertCondition(Array.isArray(manifest.demo?.supported_language_codes), "manifest must declare demo.supported_language_codes");
-assertCondition(manifest.demo.supported_language_codes.includes("ja"), "manifest must include ja in demo.supported_language_codes");
-assertCondition(manifest.demo.supported_language_codes.includes("en"), "manifest must include en in demo.supported_language_codes");
-assertCondition(String(manifest.demo?.sample_texts?.ja ?? "") === "こんにちは", "manifest must declare the canonical Japanese sample text");
-assertCondition(String(manifest.demo?.sample_texts?.en ?? "") === "hello from godot", "manifest must declare the canonical English sample text");
+assertCondition(
+  JSON.stringify(manifest.demo.supported_language_codes) === JSON.stringify(expectedLanguageCodes),
+  "manifest must match the canonical six-language support order",
+);
+assertCondition(String(manifest.demo?.catalog_name ?? "") === String(descriptor.catalog_name ?? ""), "manifest catalog_name must match the descriptor");
+for (const [languageCode, sampleText] of expectedSampleTexts.entries()) {
+  assertCondition(
+    String(manifest.demo?.sample_texts?.[languageCode] ?? "") === sampleText,
+    `manifest must declare the canonical sample text for ${languageCode}`,
+  );
+}
 assertCondition(String(buildMeta.default_language_code ?? "") === String(manifest.demo?.default_language_code ?? ""), "build-meta default_language_code must match manifest");
-const japaneseSmoke = manifest.smoke?.scenarios?.ja;
-assertCondition(Boolean(japaneseSmoke), "manifest must declare smoke.scenarios.ja");
-assertCondition(String(japaneseSmoke?.action ?? "") === "startup_probe", "Japanese smoke scenario must validate the startup probe");
-assertCondition(String(japaneseSmoke?.selected_language_code ?? "") === "ja", "Japanese smoke scenario must select ja");
-assertCondition(String(japaneseSmoke?.resolved_language_code ?? "") === "ja", "Japanese smoke scenario must resolve ja");
-assertCondition(String(japaneseSmoke?.input_text ?? "") === "こんにちは", "Japanese smoke scenario must validate the canonical Japanese text");
-assertCondition(japaneseSmoke?.startup_probe_passed === true, "Japanese smoke scenario must require startup_probe_passed=true");
-assertCondition(japaneseSmoke?.supports_japanese_text_input === true, "Japanese smoke scenario must require Japanese text input support");
-assertCondition(String(japaneseSmoke?.dictionary_bootstrap_mode ?? "") === "staged_asset", "Japanese smoke scenario must require staged_asset bootstrap mode");
+assertCondition(manifest.smoke?.scenarios && typeof manifest.smoke.scenarios === "object", "manifest must declare smoke.scenarios");
+for (const [languageCode, sampleText] of expectedSampleTexts.entries()) {
+  const smokeScenario = manifest.smoke.scenarios[languageCode];
+  assertCondition(Boolean(smokeScenario), `manifest must declare smoke.scenarios.${languageCode}`);
+  assertCondition(String(smokeScenario?.action ?? "") === "startup_probe", `${languageCode} smoke scenario must validate the startup probe`);
+  assertCondition(String(smokeScenario?.selected_language_code ?? "") === languageCode, `${languageCode} smoke scenario must select ${languageCode}`);
+  assertCondition(String(smokeScenario?.resolved_language_code ?? "") === languageCode, `${languageCode} smoke scenario must resolve ${languageCode}`);
+  assertCondition(String(smokeScenario?.input_text ?? "") === sampleText, `${languageCode} smoke scenario must validate the canonical sample text`);
+  assertCondition(String(smokeScenario?.startup_probe_language_code ?? "") === languageCode, `${languageCode} smoke scenario must probe ${languageCode}`);
+  assertCondition(String(smokeScenario?.startup_probe_text ?? "") === sampleText, `${languageCode} smoke scenario must probe the canonical sample text`);
+  assertCondition(smokeScenario?.startup_probe_passed === true, `${languageCode} smoke scenario must require startup_probe_passed=true`);
+  assertCondition(smokeScenario?.supports_japanese_text_input === true, `${languageCode} smoke scenario must require supports_japanese_text_input=true`);
+  assertCondition(String(smokeScenario?.dictionary_bootstrap_mode ?? "") === "staged_asset", `${languageCode} smoke scenario must require staged_asset bootstrap mode`);
+}
 
 const requiredRelativeFiles = [
   "index.html",
@@ -87,7 +114,11 @@ const requiredRelativeFiles = [
   manifest.addon?.gdextension_path,
   manifest.model?.path,
   manifest.model?.config_path,
+  manifest.model?.descriptor_path,
+  manifest.demo?.template_catalog_path,
   manifest.dictionary?.cmudict_path,
+  manifest.dictionary?.pinyin_single_path,
+  manifest.dictionary?.pinyin_phrases_path,
   ...(Array.isArray(manifest.notices) ? manifest.notices : []),
 ];
 

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "model_key": "multilingual-test-medium",
+  "catalog_name": "multilingual-sample-text-catalog",
+  "display_name": "Multilingual Test Medium",
+  "default_language_code": "ja",
+  "auto_route_language_code": "en",
+  "asset_requirements": {
+    "model_path": "piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx",
+    "config_path": "piper_plus_assets/models/multilingual-test-medium/multilingual-test-medium.onnx.json",
+    "cmudict_path": "addons/piper_plus/dictionaries/cmudict_data.json",
+    "pinyin_single_path": "addons/piper_plus/dictionaries/pinyin_single.json",
+    "pinyin_phrases_path": "addons/piper_plus/dictionaries/pinyin_phrases.json",
+    "dictionary_key": "naist-jdic",
+    "openjtalk_path": "piper_plus_assets/dictionaries/open_jtalk_dic_utf_8-1.11",
+    "openjtalk_install_directory": "open_jtalk_dic_utf_8-1.11",
+    "openjtalk_required_files": [
+      "sys.dic",
+      "unk.dic",
+      "matrix.bin",
+      "char.bin"
+    ]
+  },
+  "languages": [
+    {
+      "language_code": "ja",
+      "aliases": ["ja", "ja-jp"],
+      "display_name": "Japanese (ja)",
+      "template_text": "こんにちは、今日は良い天気ですね。",
+      "placeholder_text": "日本語テキストを入力してください"
+    },
+    {
+      "language_code": "en",
+      "aliases": ["en", "en-us", "en_us"],
+      "display_name": "English (en)",
+      "template_text": "Hello, how are you today?",
+      "placeholder_text": "Enter English text to synthesize"
+    },
+    {
+      "language_code": "zh",
+      "aliases": ["zh", "zh-hans", "zh-hant"],
+      "display_name": "Chinese (zh)",
+      "template_text": "你好，今天天气很好。",
+      "placeholder_text": "请输入中文文本"
+    },
+    {
+      "language_code": "es",
+      "aliases": ["es", "es-es"],
+      "display_name": "Spanish (es)",
+      "template_text": "Hola, ¿cómo estás hoy?",
+      "placeholder_text": "Introduce texto en español"
+    },
+    {
+      "language_code": "fr",
+      "aliases": ["fr", "fr-fr", "fr_fr"],
+      "display_name": "French (fr)",
+      "template_text": "Bonjour, comment allez-vous ?",
+      "placeholder_text": "Entrez du texte en français"
+    },
+    {
+      "language_code": "pt",
+      "aliases": ["pt", "pt-br"],
+      "display_name": "Portuguese (pt)",
+      "template_text": "Olá, como você está hoje?",
+      "placeholder_text": "Digite texto em português"
+    }
+  ]
+}
