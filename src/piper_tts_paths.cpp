@@ -457,6 +457,14 @@ String resolve_web_config_source(
 	return String();
 }
 
+String resolve_virtual_dictionary_source(const String &configured_dictionary_path) {
+	if (configured_dictionary_path.strip_edges().is_empty()) {
+		return String();
+	}
+
+	return normalize_dictionary_candidate(configured_dictionary_path);
+}
+
 String resolve_web_dictionary_source(
 		const String &configured_dictionary_path, const String &resolved_model_path,
 		const String &resolved_config_path) {

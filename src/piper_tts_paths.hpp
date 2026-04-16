@@ -17,6 +17,7 @@ bool is_web_runtime();
 String resolve_web_model_source(const String &path);
 String resolve_web_config_source(
 		const String &configured_config_path, const String &resolved_model_path);
+String resolve_virtual_dictionary_source(const String &configured_dictionary_path);
 String resolve_web_dictionary_source(const String &configured_dictionary_path,
 		const String &resolved_model_path, const String &resolved_config_path);
 bool stage_web_dictionary_to_user(const String &source_directory,

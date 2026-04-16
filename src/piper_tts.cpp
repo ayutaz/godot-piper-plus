@@ -566,18 +566,25 @@ Error PiperTTS::initialize() {
 
 		if (resolved_dictionary_source.is_empty() &&
 				(dictionary_path.begins_with("res://") || dictionary_path.begins_with("user://"))) {
-			String native_dictionary_error;
-			String staged_dictionary_path;
-			if (!piper_tts_paths::stage_web_dictionary_to_user(
-						dictionary_path, staged_dictionary_path, native_dictionary_error)) {
-				UtilityFunctions::push_error(native_dictionary_error);
-				set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY",
-						native_dictionary_error, "initialize");
-				set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
-				emit_signal("initialized", false);
-				return ERR_UNCONFIGURED;
+			const String virtual_dictionary_source =
+					piper_tts_paths::resolve_virtual_dictionary_source(dictionary_path);
+			if (virtual_dictionary_source.is_empty()) {
+				// Missing virtual assets should surface through the language-specific
+				// readiness checks after language resolution, not as an early init failure.
+			} else {
+				String native_dictionary_error;
+				String staged_dictionary_path;
+				if (!piper_tts_paths::stage_web_dictionary_to_user(
+							virtual_dictionary_source, staged_dictionary_path, native_dictionary_error)) {
+					UtilityFunctions::push_error(native_dictionary_error);
+					set_last_error(last_error_, "ERR_OPENJTALK_DICTIONARY_NOT_READY",
+							native_dictionary_error, "initialize");
+					set_runtime_state(piper_runtime::RuntimeState::Uninitialized);
+					emit_signal("initialized", false);
+					return ERR_UNCONFIGURED;
+				}
+				resolved_dictionary_source = staged_dictionary_path;
 			}
-			resolved_dictionary_source = staged_dictionary_path;
 		}
 	}
 
