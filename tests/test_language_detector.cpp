@@ -54,6 +54,16 @@ std::filesystem::path find_repo_path(const std::filesystem::path &relative) {
 		current = parent;
 	}
 
+	// Fall back to the source tree this test was compiled from, so that
+	// out-of-tree build directories (e.g. `ctest --test-dir /tmp/build`)
+	// can still locate repository fixtures and generated docs.
+	const std::filesystem::path source_root =
+			std::filesystem::path(__FILE__).parent_path().parent_path();
+	const std::filesystem::path source_candidate = source_root / relative;
+	if (std::filesystem::exists(source_candidate)) {
+		return source_candidate;
+	}
+
 	return {};
 }
 
